@@ -7,7 +7,6 @@ import { pickSupportedMimeType, blobToFile } from "@/lib/audioUtils";
 type Props = {
   mode: CaptureMode;
   deviceId?: string;
-  apiKey?: string;
   language?: string;
 };
 
@@ -23,7 +22,7 @@ type Result =
  * result. Lets users confirm their audio routing actually captures audio
  * before starting a real meeting.
  */
-export function TestAudio({ mode, deviceId, apiKey, language }: Props) {
+export function TestAudio({ mode, deviceId, language }: Props) {
   const [state, setState] = useState<Result>({ kind: "idle" });
 
   const run = async () => {
@@ -74,8 +73,10 @@ export function TestAudio({ mode, deviceId, apiKey, language }: Props) {
       const file = blobToFile(blob, extension, 0);
       const form = new FormData();
       form.append("file", file);
-      const headers: Record<string, string> = {};
-      if (apiKey) headers["x-openai-key"] = apiKey;
+      const headers: Record<string, string> = {
+        "x-audio-seconds": "3",
+        "x-chunk-id": "test",
+      };
       if (language) headers["x-language"] = language;
 
       const res = await fetch("/api/transcribe", {

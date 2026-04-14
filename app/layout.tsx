@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
+import { SessionProvider } from "next-auth/react";
 import "./globals.css";
+import { auth } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Dhvani ध्वनि — Real-time meeting transcription",
@@ -31,7 +33,15 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  // Prime the client SessionProvider with the server-resolved session so
+  // the first paint already knows who the user is (no flash of signed-out
+  // state on slow networks).
+  const session = await auth();
   return (
     <html lang="en">
       <head>
@@ -40,7 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body className="min-h-screen bg-navy text-white antialiased">
-        {children}
+        <SessionProvider session={session}>{children}</SessionProvider>
         <script
           // Register the PWA service worker on supported browsers.
           dangerouslySetInnerHTML={{

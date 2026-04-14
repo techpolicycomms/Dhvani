@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ControlBar } from "@/components/ControlBar";
 import { ExportMenu } from "@/components/ExportMenu";
@@ -23,17 +24,33 @@ import {
 /**
  * Main Dhvani transcription interface.
  *
- * Responsibility map:
+ * Ownership in the org deployment:
+ *   - `next-auth/react` SessionProvider → current user (from server-side auth())
  *   - useTranscriptStore : in-memory transcript + localStorage persistence
  *   - useAudioCapture    : MediaRecorder-driven chunk production
- *   - useTranscription   : chunk → Whisper → text pipeline, with retries
+ *   - useTranscription   : chunk → /api/transcribe → text pipeline
  *
- * This page wires them together, owns the settings state, and renders
- * the header / controls / transcript layout.
+ * There is no client-side API key anymore; the server resolves one from
+ * process.env and enforces per-user quotas.
  */
 export default function HomePage() {
-  // -------- Persisted settings --------
-  const [apiKey, setApiKey] = usePersistedString(LS_KEYS.apiKey, "");
+  const { data: session } = useSession();
+  const user = session?.user as
+    | { name?: string | null; email?: string | null; userId?: string }
+    | undefined;
+
+  // Whether the signed-in user can see the admin dashboard link. We
+  // don't trust the client with the actual allowlist; /admin itself is
+  // protected server-side. This just controls UI affordances.
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    // Probe the admin endpoint — a 200 means we're allowed.
+    fetch("/api/admin/config")
+      .then((r) => setIsAdmin(r.ok))
+      .catch(() => setIsAdmin(false));
+  }, []);
+
+  // -------- Persisted UI preferences --------
   const [language, setLanguage] = usePersistedString(LS_KEYS.language, "");
   const [chunkDuration, setChunkDuration] = usePersistedNumber(
     LS_KEYS.chunkDuration,
@@ -84,6 +101,8 @@ export default function HomePage() {
 
   // -------- Transcription pipeline --------
   const [toast, setToast] = useState<string | null>(null);
+  const [rateLimitMsg, setRateLimitMsg] = useState<string | null>(null);
+
   const {
     transcribeChunk,
     queueDepth,
@@ -92,12 +111,16 @@ export default function HomePage() {
     estimatedCost,
     failedChunks,
   } = useTranscription({
-    apiKey: apiKey || null,
     language,
     onEntry: addEntry,
     onError: (msg, idx) => {
       setToast(`Chunk ${idx + 1} failed: ${msg}`);
       setTimeout(() => setToast(null), 4000);
+    },
+    onRateLimited: (msg) => {
+      // Hard stop: the server is refusing further work.
+      setRateLimitMsg(msg);
+      stopCapture();
     },
   });
 
@@ -112,6 +135,7 @@ export default function HomePage() {
 
   // -------- Handlers --------
   const onStart = useCallback(() => {
+    setRateLimitMsg(null);
     const mode = (chosenMode as CaptureMode) || "microphone";
     void startCapture(mode);
   }, [chosenMode, startCapture]);
@@ -175,7 +199,6 @@ export default function HomePage() {
       <main className="min-h-screen">
         <SetupWizard
           onComplete={onWizardComplete}
-          apiKey={apiKey || undefined}
           language={language || undefined}
           deviceId={deviceId}
           setDeviceId={setDeviceId}
@@ -203,7 +226,16 @@ export default function HomePage() {
             aria-label="Connection status"
           />
         </div>
+
         <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="text-xs text-teal hover:text-teal-dark hidden sm:inline"
+            >
+              Admin
+            </Link>
+          )}
           <Link
             href="/desktop-setup"
             className="text-xs text-white/60 hover:text-white hidden sm:inline"
@@ -219,6 +251,11 @@ export default function HomePage() {
           >
             Change source
           </button>
+          {user && (
+            <div className="hidden sm:flex items-center gap-2 pr-1">
+              <UserChip name={user.name || user.email || "?"} />
+            </div>
+          )}
           <button
             onClick={() => setSettingsOpen(true)}
             className="p-2 rounded hover:bg-white/10"
@@ -257,7 +294,21 @@ export default function HomePage() {
         failedChunks={failedChunks}
       />
 
-      {/* TOAST */}
+      {/* RATE LIMIT BANNER (persistent) */}
+      {rateLimitMsg && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 max-w-md bg-yellow-500 text-navy text-sm px-4 py-3 rounded-lg shadow-lg flex items-start gap-3">
+          <span className="font-semibold">Quota reached:</span>
+          <span>{rateLimitMsg}</span>
+          <button
+            onClick={() => setRateLimitMsg(null)}
+            className="text-navy/70 hover:text-navy"
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {toast && (
         <div className="fixed bottom-28 right-4 max-w-sm bg-red-500/90 text-white text-sm px-4 py-2 rounded shadow-lg">
           {toast}
@@ -267,8 +318,6 @@ export default function HomePage() {
       <SettingsDrawer
         open={settingsOpen}
         onClose={() => setSettingsOpen(false)}
-        apiKey={apiKey}
-        setApiKey={setApiKey}
         language={language}
         setLanguage={setLanguage}
         chunkDuration={chunkDuration}
@@ -276,6 +325,8 @@ export default function HomePage() {
         deviceId={deviceId}
         setDeviceId={setDeviceId}
         onClearSession={clearTranscript}
+        onSignOut={() => void signOut({ callbackUrl: "/auth/signin" })}
+        isAdmin={isAdmin}
       />
     </main>
   );
@@ -324,6 +375,24 @@ function usePersistedNumber(
     [key]
   );
   return [value, update];
+}
+
+function UserChip({ name }: { name: string }) {
+  const initials = name
+    .split(/[\s@]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase() ?? "")
+    .join("");
+  return (
+    <span
+      className="w-8 h-8 rounded-full bg-teal text-navy flex items-center justify-center text-xs font-bold"
+      title={name}
+      aria-label={`Signed in as ${name}`}
+    >
+      {initials || "?"}
+    </span>
+  );
 }
 
 function GearIcon() {

@@ -8,7 +8,6 @@ import { DeviceSelector } from "./DeviceSelector";
 
 type Props = {
   onComplete: (mode: CaptureMode, deviceId?: string) => void;
-  apiKey?: string;
   language?: string;
   deviceId: string;
   setDeviceId: (id: string) => void;
@@ -24,7 +23,6 @@ type Props = {
  */
 export function SetupWizard({
   onComplete,
-  apiKey,
   language,
   deviceId,
   setDeviceId,
@@ -79,12 +77,7 @@ export function SetupWizard({
 
       {mode && (
         <div className="mt-6">
-          <TestAudio
-            mode={mode}
-            deviceId={deviceId}
-            apiKey={apiKey}
-            language={language}
-          />
+          <TestAudio mode={mode} deviceId={deviceId} language={language} />
         </div>
       )}
 

@@ -1,0 +1,46 @@
+# Dhvani — local-parity deployment.
+#
+# This compose file is handy for local smoke-testing the production
+# image or running Dhvani on a single-host VM. For Azure Web App
+# deployment, just push the image from the Dockerfile; you don't need
+# compose in production.
+#
+# Usage:
+#   docker compose up --build
+#
+# Then visit http://localhost:3000 and sign in with your Microsoft account.
+
+version: "3.9"
+
+services:
+  dhvani:
+    build: .
+    image: dhvani:local
+    container_name: dhvani
+    ports:
+      - "3000:3000"
+    # Mount .env.local so we don't bake secrets into the image.
+    env_file:
+      - .env.local
+    # Persist the usage log across container rebuilds.
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # Optional Redis for multi-instance rate limiting. Not wired into the
+  # app yet (v1 uses in-memory counters). Uncomment when you deploy to
+  # more than one instance.
+  #
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: dhvani-redis
+  #   command: ["redis-server", "--save", "", "--appendonly", "no"]
+  #   ports:
+  #     - "6379:6379"
+  #   restart: unless-stopped

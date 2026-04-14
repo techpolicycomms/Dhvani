@@ -12,10 +12,10 @@ import { blobToFile, formatElapsed } from "@/lib/audioUtils";
 import type { CapturedChunk } from "./useAudioCapture";
 
 export type UseTranscriptionOptions = {
-  apiKey?: string | null;
   language?: string; // ISO code or "" for auto
   onEntry?: (entry: TranscriptEntry) => void;
   onError?: (msg: string, chunkIndex: number) => void;
+  onRateLimited?: (msg: string, retryAfterSeconds?: number) => void;
 };
 
 export type UseTranscriptionReturn = {
@@ -46,7 +46,7 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export function useTranscription(
   options: UseTranscriptionOptions = {}
 ): UseTranscriptionReturn {
-  const { apiKey, language, onEntry, onError } = options;
+  const { language, onEntry, onError, onRateLimited } = options;
 
   const [queueDepth, setQueueDepth] = useState(0);
   const [inFlight, setInFlight] = useState(0);
@@ -68,8 +68,10 @@ export function useTranscription(
       const form = new FormData();
       form.append("file", file);
 
-      const headers: Record<string, string> = {};
-      if (apiKey) headers["x-openai-key"] = apiKey;
+      const headers: Record<string, string> = {
+        "x-audio-seconds": String(chunk.durationMs / 1000),
+        "x-chunk-id": String(chunk.index),
+      };
       if (language) headers["x-language"] = language;
 
       const maxAttempts = 3;
@@ -83,8 +85,23 @@ export function useTranscription(
             body: form,
             headers,
           });
-          if (res.status === 429 || res.status >= 500) {
-            // Retryable.
+          if (res.status === 429) {
+            // Rate-limited by our server. Surface to UI and stop — further
+            // retries would just repeat the denial.
+            const body = await res.json().catch(() => ({}));
+            onRateLimited?.(
+              body.error || "Rate limit reached.",
+              body.retryAfterSeconds
+            );
+            return;
+          }
+          if (res.status === 401) {
+            // Session expired — stop silently; the middleware will redirect
+            // the next navigation back to signin.
+            onError?.("Session expired. Please sign in again.", chunk.index);
+            return;
+          }
+          if (res.status >= 500) {
             const body = await res.json().catch(() => ({}));
             lastErr = new Error(body.error || `HTTP ${res.status}`);
             if (attempt < maxAttempts) {
@@ -122,7 +139,7 @@ export function useTranscription(
       setFailedChunks((n) => n + 1);
       onError?.(lastErr?.message || "Transcription failed.", chunk.index);
     },
-    [apiKey, language, onEntry, onError]
+    [language, onEntry, onError, onRateLimited]
   );
 
   const drain = useCallback(async () => {

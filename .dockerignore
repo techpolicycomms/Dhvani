@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.github
+dist-electron
+release
+electron
+companion/.venv
+companion/venv
+**/__pycache__
+.env
+.env.local
+.env.*.local
+data
+*.log
+.DS_Store

@@ -1,0 +1,71 @@
+name: Build and deploy to Azure Web App
+
+# Pushes a fresh container image to Azure Container Registry and rolls
+# the Azure Web App. Triggered on every push to `main` and manually via
+# the Actions tab.
+#
+# Required repository secrets:
+#   AZURE_CREDENTIALS      — output of `az ad sp create-for-rbac --sdk-auth`
+#   ACR_LOGIN_SERVER       — e.g. dhvanicr.azurecr.io
+#   ACR_USERNAME           — from the ACR access keys blade
+#   ACR_PASSWORD           — from the ACR access keys blade
+#   AZURE_WEBAPP_NAME      — e.g. dhvani
+#   AZURE_RESOURCE_GROUP   — e.g. dhvani-rg
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Build image and deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Login to Azure Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_LOGIN_SERVER }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ${{ secrets.ACR_LOGIN_SERVER }}/dhvani:${{ github.sha }}
+            ${{ secrets.ACR_LOGIN_SERVER }}/dhvani:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ secrets.AZURE_WEBAPP_NAME }}
+          resource-group-name: ${{ secrets.AZURE_RESOURCE_GROUP }}
+          images: ${{ secrets.ACR_LOGIN_SERVER }}/dhvani:${{ github.sha }}
+
+      - name: Azure logout
+        if: always()
+        run: az logout

@@ -3,17 +3,32 @@
 import { useEffect, useState } from "react";
 import { DeviceSelector } from "./DeviceSelector";
 import {
-  LS_KEYS,
   MAX_CHUNK_DURATION_MS,
   MIN_CHUNK_DURATION_MS,
   SUPPORTED_LANGUAGES,
 } from "@/lib/constants";
 
+export type MeUsage = {
+  name: string | null;
+  email: string;
+  usage: { todayMinutes: number; monthMinutes: number; totalMinutes: number };
+  quota: {
+    limits: {
+      perHour: number;
+      perDay: number;
+      monthlyBudgetUsd: number;
+    };
+    remaining: {
+      hourMinutes: number;
+      dayMinutes: number;
+      monthBudgetUsd: number;
+    };
+  };
+};
+
 type Props = {
   open: boolean;
   onClose: () => void;
-  apiKey: string;
-  setApiKey: (key: string) => void;
   language: string;
   setLanguage: (lang: string) => void;
   chunkDuration: number;
@@ -21,24 +36,21 @@ type Props = {
   deviceId: string;
   setDeviceId: (id: string) => void;
   onClearSession: () => void;
+  onSignOut: () => void;
+  isAdmin: boolean;
 };
 
-type HealthState =
-  | { kind: "idle" }
-  | { kind: "checking" }
-  | { kind: "ok"; message: string }
-  | { kind: "error"; message: string };
-
 /**
- * Slide-in settings drawer. Persists everything to localStorage via the
- * state setters passed in from the parent (so settings survive reloads).
+ * Settings drawer. In the org deployment there's no API key field — the
+ * admin manages credentials server-side. We surface:
+ *   - Language + chunk duration + audio device
+ *   - Personal usage and remaining quota
+ *   - Clear-session + Sign-out + About
  */
 export function SettingsDrawer(props: Props) {
   const {
     open,
     onClose,
-    apiKey,
-    setApiKey,
     language,
     setLanguage,
     chunkDuration,
@@ -46,10 +58,27 @@ export function SettingsDrawer(props: Props) {
     deviceId,
     setDeviceId,
     onClearSession,
+    onSignOut,
+    isAdmin,
   } = props;
 
-  const [health, setHealth] = useState<HealthState>({ kind: "idle" });
   const [confirmClear, setConfirmClear] = useState(false);
+  const [me, setMe] = useState<MeUsage | null>(null);
+
+  // Refresh usage each time the drawer opens.
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    fetch("/api/me/usage")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!cancelled) setMe(j);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   // Close on Esc.
   useEffect(() => {
@@ -61,29 +90,8 @@ export function SettingsDrawer(props: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
-  const validateKey = async () => {
-    setHealth({ kind: "checking" });
-    try {
-      const res = await fetch("/api/health", {
-        headers: apiKey ? { "x-openai-key": apiKey } : {},
-      });
-      const data = await res.json();
-      if (res.ok && data.status === "ok") {
-        setHealth({ kind: "ok", message: data.message });
-      } else {
-        setHealth({
-          kind: "error",
-          message: data.message || `Health check failed (${res.status})`,
-        });
-      }
-    } catch (err) {
-      setHealth({ kind: "error", message: (err as Error).message });
-    }
-  };
-
   return (
     <>
-      {/* Backdrop. */}
       <div
         onClick={onClose}
         className={[
@@ -92,7 +100,6 @@ export function SettingsDrawer(props: Props) {
         ].join(" ")}
         aria-hidden="true"
       />
-      {/* Drawer. */}
       <aside
         className={[
           "fixed top-0 right-0 bottom-0 z-50 w-full sm:w-[420px] bg-navy-light border-l border-white/10 shadow-2xl",
@@ -115,35 +122,29 @@ export function SettingsDrawer(props: Props) {
         </div>
 
         <div className="p-5 space-y-6">
-          <Field
-            label="OpenAI API Key"
-            hint="Stored only in your browser. Overrides any server-side key."
-          >
-            <div className="flex gap-2">
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="sk-…"
-                autoComplete="off"
-                className="flex-1 bg-navy border border-white/10 rounded px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-1 focus:ring-teal"
-              />
-              <button
-                type="button"
-                onClick={validateKey}
-                disabled={health.kind === "checking"}
-                className="px-3 py-2 text-sm bg-teal text-navy rounded hover:bg-teal-dark disabled:opacity-50"
-              >
-                Validate
-              </button>
-            </div>
-            {health.kind === "ok" && (
-              <p className="mt-1 text-xs text-teal">✓ {health.message}</p>
-            )}
-            {health.kind === "error" && (
-              <p className="mt-1 text-xs text-red-400">✗ {health.message}</p>
-            )}
-          </Field>
+          {me && (
+            <section className="rounded-lg border border-white/10 bg-navy/40 p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <Avatar name={me.name || me.email} />
+                <div className="min-w-0">
+                  <div className="font-medium truncate">{me.name || me.email}</div>
+                  <div className="text-xs text-white/50 truncate">{me.email}</div>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <UsageStat
+                  label="Today"
+                  value={`${me.usage.todayMinutes.toFixed(1)} min`}
+                  sub={`${me.quota.remaining.dayMinutes.toFixed(0)} min left today`}
+                />
+                <UsageStat
+                  label="This month"
+                  value={`${me.usage.monthMinutes.toFixed(1)} min`}
+                  sub={`${me.quota.limits.perDay}/day cap`}
+                />
+              </div>
+            </section>
+          )}
 
           <Field
             label="Language"
@@ -189,6 +190,15 @@ export function SettingsDrawer(props: Props) {
           </Field>
 
           <div className="pt-4 border-t border-white/10 space-y-3">
+            {isAdmin && (
+              <a
+                href="/admin"
+                className="block text-center px-3 py-2 text-sm text-teal border border-teal/30 rounded hover:bg-teal/10"
+              >
+                Open admin dashboard →
+              </a>
+            )}
+
             {!confirmClear ? (
               <button
                 type="button"
@@ -224,6 +234,14 @@ export function SettingsDrawer(props: Props) {
               </div>
             )}
 
+            <button
+              type="button"
+              onClick={onSignOut}
+              className="w-full px-3 py-2 text-sm text-white/80 border border-white/10 rounded hover:bg-white/5"
+            >
+              Sign out
+            </button>
+
             <a
               href="https://github.com/techpolicycomms/dhvani"
               target="_blank"
@@ -257,5 +275,36 @@ function Field({
   );
 }
 
-// Re-export the storage keys so the parent can pre-load settings.
-export { LS_KEYS };
+function UsageStat({
+  label,
+  value,
+  sub,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+}) {
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wider text-white/40">
+        {label}
+      </div>
+      <div className="font-mono text-white/90 tabular-nums">{value}</div>
+      {sub && <div className="text-[10px] text-white/40">{sub}</div>}
+    </div>
+  );
+}
+
+function Avatar({ name }: { name: string }) {
+  const initials = name
+    .split(/[\s@]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase() ?? "")
+    .join("");
+  return (
+    <div className="w-10 h-10 rounded-full bg-teal text-navy flex items-center justify-center font-semibold shrink-0">
+      {initials || "?"}
+    </div>
+  );
+}
