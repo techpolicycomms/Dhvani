@@ -1,0 +1,60 @@
+{
+  "name": "dhvani",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Open-source multilingual meeting transcription for everyone.",
+  "license": "MIT",
+  "homepage": "https://github.com/techpolicycomms/dhvani",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/techpolicycomms/dhvani.git"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "electron:dev": "concurrently -k \"npm:dev\" \"wait-on http://localhost:3000 && electron electron/main.js\"",
+    "electron:build": "next build && electron-builder -mw"
+  },
+  "dependencies": {
+    "next": "14.2.5",
+    "openai": "^4.52.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@types/uuid": "^9.0.8",
+    "autoprefixer": "^10.4.19",
+    "concurrently": "^8.2.2",
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "14.2.5",
+    "postcss": "^8.4.38",
+    "tailwindcss": "^3.4.4",
+    "typescript": "^5.4.5",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "org.techpolicycomms.dhvani",
+    "productName": "Dhvani",
+    "files": [
+      "electron/**/*",
+      ".next/**/*",
+      "public/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": "dmg"
+    },
+    "win": {
+      "target": "nsis"
+    }
+  }
+}
