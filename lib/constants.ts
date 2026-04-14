@@ -1,4 +1,5 @@
-// Whisper API pricing (as of 2024): $0.006 per minute of audio.
+// Azure OpenAI Whisper pricing (as of 2024): $0.006 per minute of audio
+// ($0.36/hour). Same rate as OpenAI's hosted API, billed via Azure.
 export const WHISPER_PRICE_PER_MINUTE = 0.006;
 
 // Default chunk duration in milliseconds for MediaRecorder timeslice.

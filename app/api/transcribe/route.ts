@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { createOpenAIClient } from "@/lib/openai";
+import { createOpenAIClient, whisperDeployment } from "@/lib/openai";
 import {
   checkAndReserve,
   isServiceEnabled,
@@ -19,8 +19,9 @@ export const maxDuration = 60;
  * previous BYO-key version:
  *   - Requires a valid Microsoft SSO session (middleware enforces this
  *     up front; we also re-check here for defense-in-depth).
- *   - OpenAI API key lives only in process.env.OPENAI_API_KEY. There is
- *     no path for the client to supply one.
+ *   - Audio is transcribed against the tenant's Azure OpenAI resource
+ *     (AZURE_OPENAI_ENDPOINT). The API key lives only in
+ *     process.env.AZURE_OPENAI_API_KEY — clients cannot supply one.
  *   - Every successful call is logged to the JSONL usage log with the
  *     authenticated user's identity.
  *   - Per-user hourly/daily caps and the org monthly budget are enforced
@@ -107,7 +108,7 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await openai.audio.transcriptions.create({
-      model: "whisper-1",
+      model: whisperDeployment(),
       file,
       ...(languageHint ? { language: languageHint } : {}),
       response_format: "json",

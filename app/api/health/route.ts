@@ -8,11 +8,13 @@ export const dynamic = "force-dynamic";
  * GET /api/health
  *
  * Public health probe for uptime monitoring. Does NOT require auth (the
- * middleware explicitly allow-lists this path). Validates that the
- * server-configured OPENAI_API_KEY is usable by listing models — the
- * cheapest round-trip the OpenAI API offers.
+ * middleware explicitly allow-lists this path). Confirms the
+ * server-configured Azure OpenAI resource is reachable by listing the
+ * deployments on the resource — the cheapest authenticated round-trip
+ * Azure OpenAI offers.
  *
- * Response is intentionally minimal: never leak the key or environment.
+ * Response is intentionally minimal: never leak the key, endpoint, or
+ * other environment details.
  */
 export async function GET() {
   try {
@@ -25,7 +27,10 @@ export async function GET() {
     return NextResponse.json(
       {
         status: "error",
-        message: status === 401 ? "Invalid API key" : "Upstream unavailable",
+        message:
+          status === 401
+            ? "Azure OpenAI auth failed"
+            : "Azure OpenAI unavailable",
       },
       { status: status === 401 ? 500 : status }
     );

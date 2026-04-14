@@ -2,7 +2,7 @@
 
 **Open-source multilingual meeting transcription for everyone.**
 
-Dhvani captures audio from Zoom, Teams, or Google Meet and transcribes it in real-time using OpenAI Whisper. Works on any device — PC, Mac, or phone — through your browser.
+Dhvani captures audio from Zoom, Teams, or Google Meet and transcribes it in real-time using **Azure OpenAI Whisper**. Works on any device — PC, Mac, or phone — through your browser. Audio stays inside the org's Azure tenant.
 
 Named from the Sanskrit word for "sound" (ध्वनि), Dhvani is built to make meeting transcription accessible, open, and free.
 
@@ -26,7 +26,7 @@ git clone https://github.com/techpolicycomms/dhvani.git
 cd dhvani
 npm install
 cp .env.local.example .env.local
-# Fill in OPENAI_API_KEY, AZURE_AD_*, NEXTAUTH_SECRET, ADMIN_EMAILS
+# Fill in AZURE_OPENAI_*, AZURE_AD_*, NEXTAUTH_SECRET, ADMIN_EMAILS
 npm run dev
 ```
 
@@ -37,10 +37,10 @@ Open [http://localhost:3000](http://localhost:3000) in Chrome, Edge, or Firefox.
 ## How It Works
 
 ```
-  ┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐     ┌──────────────┐
-  │ Meeting app │ ──▶ │ Browser / Electron│ ──▶ │ /api/transcribe │ ──▶ │ Whisper API  │
-  │ (Zoom, etc) │     │ MediaRecorder     │     │ (Next.js route) │     │ (OpenAI)     │
-  └─────────────┘     └──────────────────┘     └─────────────────┘     └──────────────┘
+  ┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+  │ Meeting app │ ──▶ │ Browser / Electron│ ──▶ │ /api/transcribe │ ──▶ │ Azure OpenAI    │
+  │ (Zoom, etc) │     │ MediaRecorder     │     │ (Next.js route) │     │ Whisper (tenant)│
+  └─────────────┘     └──────────────────┘     └─────────────────┘     └─────────────────┘
                               │                                              │
                               │                        transcript chunks ◀───┘
                               ▼
@@ -52,7 +52,7 @@ Open [http://localhost:3000](http://localhost:3000) in Chrome, Edge, or Firefox.
 
 1. Users sign in via **Microsoft Entra ID SSO**. A middleware gates every route behind a valid session.
 2. Dhvani records audio in **configurable chunks** (3–15 seconds, default 5) using the browser's `MediaRecorder` API.
-3. Each chunk is POSTed to `/api/transcribe`, which checks rate limits and the org-wide monthly budget, then proxies to the OpenAI Whisper `whisper-1` endpoint using the admin-managed server-side key.
+3. Each chunk is POSTed to `/api/transcribe`, which checks rate limits and the org-wide monthly budget, then calls the org's **Azure OpenAI** Whisper deployment using the admin-managed server-side key. No traffic leaves the Azure tenant.
 4. Usage is logged (per-chunk seconds + cost, keyed by Entra `oid`) to an append-only JSONL log, powering the admin dashboard.
 5. Transcribed text is appended to a live transcript with timestamps, persisted to `localStorage`, and exportable in multiple formats.
 
@@ -121,7 +121,8 @@ Key files to read first:
 - [`lib/auth.ts`](lib/auth.ts) — NextAuth v5 config with Microsoft Entra ID + admin allowlist
 - [`lib/rateLimiter.ts`](lib/rateLimiter.ts) — sliding-window per-user caps + org-wide monthly budget
 - [`lib/usageLogger.ts`](lib/usageLogger.ts) — append-only JSONL usage log
-- [`app/api/transcribe/route.ts`](app/api/transcribe/route.ts) — auth → rate-limit → Whisper → log
+- [`app/api/transcribe/route.ts`](app/api/transcribe/route.ts) — auth → rate-limit → Azure OpenAI Whisper → log
+- [`lib/openai.ts`](lib/openai.ts) — Azure OpenAI client factory
 - [`app/admin/Client.tsx`](app/admin/Client.tsx) — recharts dashboard with controls
 
 ## Settings
@@ -134,11 +135,12 @@ User-facing settings persist in `localStorage`:
 | Chunk Duration | 5 s | 3–15 s. Shorter = lower latency, more API calls |
 | Audio Device | Default input | Required for virtual-cable mode |
 
-The OpenAI API key is **admin-managed** — it lives in `OPENAI_API_KEY` server-side and is never exposed to the browser.
+The Azure OpenAI key is **admin-managed** — it lives in `AZURE_OPENAI_API_KEY` server-side and is never exposed to the browser.
 
 ## Security & Privacy
 
-- The OpenAI API key lives server-side in `OPENAI_API_KEY`. It never reaches the browser bundle.
+- The Azure OpenAI key lives server-side in `AZURE_OPENAI_API_KEY`. It never reaches the browser bundle.
+- Transcription requests go to your org's Azure OpenAI resource (`AZURE_OPENAI_ENDPOINT`) — no traffic leaves the Azure tenant, no calls to `api.openai.com`.
 - Every API route requires a valid Entra ID session. Admin routes additionally check against `ADMIN_EMAILS`.
 - Audio chunks are streamed to Whisper and discarded after transcription — Dhvani doesn't persist raw audio anywhere.
 - The transcript is saved **only** in the user's browser `localStorage`. There's no backend database.
@@ -147,7 +149,7 @@ The OpenAI API key is **admin-managed** — it lives in `OPENAI_API_KEY` server-
 
 ## For Organizations
 
-Dhvani is built to be deployed once, centrally, by an IT team — not installed per-user. A single admin-managed OpenAI key fans out to your whole org, with SSO, rate limits, and a usage dashboard baked in.
+Dhvani is built to be deployed once, centrally, by an IT team — not installed per-user. It runs entirely inside your Azure tenant: SSO via Entra ID, transcription via your Azure OpenAI resource, with rate limits and a usage dashboard baked in.
 
 ### Deployment Guide
 
@@ -181,9 +183,11 @@ Roughly what it costs ITU or a similar 50-person team to run Dhvani:
 | --- | --- |
 | Azure Web App plan (B1, Linux) | ~$15 |
 | Azure Container Registry (Basic) | ~$5 |
-| OpenAI Whisper @ $0.006/min | $0.36/hour of audio |
+| Azure OpenAI Whisper @ $0.006/min | $0.36/hour of audio |
 | **Light usage (100 hours/month)** | **~$56** |
 | **Heavy usage (500 hours/month)** | **~$200** |
+
+Azure OpenAI Whisper is billed through your existing Azure subscription at the same $0.006/min rate as OpenAI's public API.
 
 Set `RATE_LIMIT_MONTHLY_BUDGET_USD` in the admin dashboard to cap total spend — Dhvani refuses new transcriptions once the cap is hit, with a clear message to users.
 
@@ -193,7 +197,7 @@ See [`.env.local.example`](./.env.local.example) for the complete list. The must
 
 | Variable | Purpose |
 | --- | --- |
-| `OPENAI_API_KEY` | Admin-managed Whisper key |
+| `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_WHISPER_DEPLOYMENT` | Azure OpenAI resource + Whisper deployment |
 | `AZURE_AD_CLIENT_ID`, `AZURE_AD_CLIENT_SECRET`, `AZURE_AD_TENANT_ID` | Entra ID App Registration |
 | `NEXTAUTH_SECRET`, `NEXTAUTH_URL` | NextAuth session config |
 | `ADMIN_EMAILS` | Comma-separated admin allowlist |
