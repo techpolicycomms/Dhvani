@@ -53,8 +53,8 @@ export default function SignInPage({
         <p className="mt-8 text-xs text-white/40">
           By signing in you agree to use Dhvani in accordance with your
           organization&apos;s acceptable use policies. Audio is sent to your
-          organization&apos;s Azure OpenAI Whisper deployment for transcription
-          and not stored by Dhvani.
+          organization&apos;s Azure OpenAI transcription deployment
+          (with speaker diarization) and not stored by Dhvani.
         </p>
       </div>
     </main>

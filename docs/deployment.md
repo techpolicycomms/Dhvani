@@ -5,7 +5,7 @@ This guide walks through standing up Dhvani as a centralized, org-wide service o
 The end state:
 
 - Users open `https://dhvani.<your-org>.com`, sign in with their work Microsoft account, and start transcribing.
-- Transcription goes to the org's **Azure OpenAI** Whisper deployment; audio never leaves the tenant.
+- Transcription goes to the org's **Azure OpenAI** `gpt-4o-transcribe-diarize` deployment — with speaker diarization — and audio never leaves the tenant.
 - All charges roll up on the single Azure subscription; you, the admin, watch cost and usage on the `/admin` dashboard.
 
 ## Prerequisites
@@ -13,7 +13,7 @@ The end state:
 - An **Azure subscription** with permission to create resources in a resource group.
 - Tenant admin (or `Application.ReadWrite.All`) rights to create an **App Registration**.
 - A GitHub account with admin access to this repository's fork.
-- An **Azure OpenAI** resource with a **Whisper deployment** (see §1a).
+- An **Azure OpenAI** resource with a **`gpt-4o-transcribe-diarize` deployment** (see §1a). Whisper (`whisper-1`) also works as a fallback — you just lose speaker labels.
 - Optional: a custom domain you control (e.g. `dhvani.itu.int`).
 
 ## 1. Create the Azure App Registration (Entra SSO)
@@ -31,19 +31,21 @@ The end state:
 5. Go to **Certificates & secrets → New client secret**. Capture the value (not the ID) → `AZURE_AD_CLIENT_SECRET`.
 6. Go to **API permissions → Add a permission → Microsoft Graph → Delegated permissions → `openid`, `profile`, `email`, `User.Read`**. Grant admin consent.
 
-## 1a. Create the Azure OpenAI Whisper Deployment
+## 1a. Create the Azure OpenAI Transcription Deployment
 
-If your tenant already has an Azure OpenAI resource with a Whisper deployment (e.g. the ITU innovation hub setup), skip to §2 and just capture the values.
+If your tenant already has an Azure OpenAI resource with a `gpt-4o-transcribe-diarize` deployment (e.g. the ITU innovation hub setup), skip to §2 and just capture the values.
 
 1. Open **Azure AI Foundry → Deployments → + Deploy model**.
-2. Pick model **`whisper`**. Give the deployment a name — the Dhvani default is `whisper-1`, matching OpenAI's model id, but any name works as long as you set `AZURE_OPENAI_WHISPER_DEPLOYMENT` to match.
-3. Choose a region that hosts Whisper (e.g. North Central US or West Europe). Note that Azure OpenAI resource endpoints are region-scoped.
+2. Pick model **`gpt-4o-transcribe-diarize`** (model version `2025-10-15` or later). Give the deployment a name — Dhvani defaults to `gpt-4o-transcribe-diarize`, but any name works as long as you set `AZURE_OPENAI_WHISPER_DEPLOYMENT` to match.
+3. Choose a region that hosts the model (e.g. West Europe — `z-oai-innovationhub-dev-euw` — or North Central US). Azure OpenAI endpoints are region-scoped.
 4. After the deployment is ready, go to **Keys and Endpoint** on the parent Azure OpenAI resource and capture:
    - **Endpoint** → `AZURE_OPENAI_ENDPOINT` (e.g. `https://z-oai-innovationhub-dev-euw.openai.azure.com/`)
    - **Key 1** → `AZURE_OPENAI_API_KEY`
    - The deployment name from step 2 → `AZURE_OPENAI_WHISPER_DEPLOYMENT`
 
 > 💡 Dhvani calls `client.audio.transcriptions.create({ model: AZURE_OPENAI_WHISPER_DEPLOYMENT })` — for Azure OpenAI the `model` argument is the *deployment* name, not the upstream model id. Keep this in mind if you rename the deployment.
+
+> 🔁 **Falling back to Whisper:** set `AZURE_OPENAI_WHISPER_DEPLOYMENT=whisper-1` (and deploy `whisper` instead) to use the legacy model. Dhvani gracefully drops the speaker labels when the model doesn't return diarization segments.
 
 ## 2. Create the Container Registry
 
@@ -96,7 +98,7 @@ In the Azure Portal: **Web App → Settings → Configuration → Application se
 | --- | --- |
 | `AZURE_OPENAI_API_KEY` | from step 1a |
 | `AZURE_OPENAI_ENDPOINT` | from step 1a, e.g. `https://z-oai-innovationhub-dev-euw.openai.azure.com/` |
-| `AZURE_OPENAI_WHISPER_DEPLOYMENT` | deployment name from step 1a (default `whisper-1`) |
+| `AZURE_OPENAI_WHISPER_DEPLOYMENT` | deployment name from step 1a (default `gpt-4o-transcribe-diarize`) |
 | `AZURE_AD_CLIENT_ID` | from step 1 |
 | `AZURE_AD_CLIENT_SECRET` | from step 1 |
 | `AZURE_AD_TENANT_ID` | from step 1 |
@@ -150,11 +152,11 @@ Save. The Web App auto-restarts.
 | --- | --- |
 | Azure Web App plan (B1, Linux) | ~$13 |
 | Azure Container Registry (Basic) | ~$5 |
-| Azure OpenAI Whisper @ $0.006/min | $0.36/hour of audio |
+| Azure OpenAI transcribe @ ~$0.006/min | $0.36/hour of audio |
 | **Light: 100 hours/month** | **~$54** |
 | **Heavy: 500 hours/month** | **~$200** |
 
-Azure OpenAI Whisper is priced identically to OpenAI's public API ($0.006/min) but billed through the Azure subscription — no separate OpenAI invoice to reconcile.
+Pricing for `gpt-4o-transcribe-diarize` may differ from the legacy Whisper rate — verify in **Azure Cost Management**. Dhvani's in-app cost display estimates at the Whisper rate until that's confirmed. Everything is billed through the single Azure subscription — no separate invoice to reconcile.
 
 ## 9. Operations Playbook
 

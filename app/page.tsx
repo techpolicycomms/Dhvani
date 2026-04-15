@@ -77,6 +77,9 @@ export default function HomePage() {
     hasSavedSession,
     resumeSession,
     discardSavedSession,
+    detectedSpeakers,
+    resolveSpeaker,
+    renameSpeaker,
   } = useTranscriptStore();
 
   useEffect(() => {
@@ -268,12 +271,18 @@ export default function HomePage() {
 
       {/* TRANSCRIPT */}
       <section className="flex-1 p-3 sm:p-4 overflow-hidden">
-        <TranscriptPanel transcript={transcript} isCapturing={isCapturing} />
+        <TranscriptPanel
+          transcript={transcript}
+          isCapturing={isCapturing}
+          detectedSpeakers={detectedSpeakers}
+          resolveSpeaker={resolveSpeaker}
+          renameSpeaker={renameSpeaker}
+        />
       </section>
 
       {/* EXPORT MENU */}
       <div className="px-3 sm:px-4 pb-2 flex justify-end">
-        <ExportMenu transcript={transcript} />
+        <ExportMenu transcript={transcript} resolveSpeaker={resolveSpeaker} />
       </div>
 
       {/* CONTROL BAR */}

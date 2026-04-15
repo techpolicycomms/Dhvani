@@ -1,7 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { LS_KEYS, type TranscriptEntry } from "@/lib/constants";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  LS_KEYS,
+  defaultSpeakerLabel,
+  type TranscriptEntry,
+} from "@/lib/constants";
 
 // Auto-save interval — every 30 seconds, per spec.
 const AUTOSAVE_MS = 30_000;
@@ -10,6 +14,8 @@ const AUTOSAVE_MS = 30_000;
 // At ~200 chars/entry, 500 entries ≈ 100 KB; 50 slots = room for 25k entries.
 const ENTRIES_PER_SLOT = 500;
 
+const SPEAKER_NAMES_KEY = "dhvani-speaker-names";
+
 export type UseTranscriptStoreReturn = {
   transcript: TranscriptEntry[];
   addEntry: (entry: TranscriptEntry) => void;
@@ -17,6 +23,14 @@ export type UseTranscriptStoreReturn = {
   hasSavedSession: boolean;
   resumeSession: () => void;
   discardSavedSession: () => void;
+  /** Ordered list of raw speaker ids seen in the current transcript. */
+  detectedSpeakers: string[];
+  /** Map of raw id → current display name (custom rename, if any). */
+  speakerNames: Record<string, string>;
+  /** Resolve a raw id to its display name (custom or default). */
+  resolveSpeaker: (rawSpeaker: string | undefined) => string | undefined;
+  /** Rename a speaker. Pass empty string to reset to the default label. */
+  renameSpeaker: (rawSpeaker: string, displayName: string) => void;
 };
 
 function readSavedSession(): TranscriptEntry[] | null {
@@ -93,6 +107,7 @@ function clearSavedSession() {
 export function useTranscriptStore(): UseTranscriptStoreReturn {
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [hasSavedSession, setHasSavedSession] = useState(false);
+  const [speakerNames, setSpeakerNames] = useState<Record<string, string>>({});
   const savedRef = useRef<TranscriptEntry[] | null>(null);
 
   // On mount, check for a saved session.
@@ -101,6 +116,16 @@ export function useTranscriptStore(): UseTranscriptStoreReturn {
     if (saved && saved.length > 0) {
       savedRef.current = saved;
       setHasSavedSession(true);
+    }
+    // Restore any custom speaker names from the previous session.
+    try {
+      const raw = localStorage.getItem(SPEAKER_NAMES_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object") setSpeakerNames(parsed);
+      }
+    } catch {
+      /* ignore corrupt */
     }
   }, []);
 
@@ -116,6 +141,15 @@ export function useTranscriptStore(): UseTranscriptStoreReturn {
     };
   }, [transcript]);
 
+  // Persist speaker rename map eagerly — it's tiny.
+  useEffect(() => {
+    try {
+      localStorage.setItem(SPEAKER_NAMES_KEY, JSON.stringify(speakerNames));
+    } catch {
+      /* quota — best effort */
+    }
+  }, [speakerNames]);
+
   const addEntry = useCallback((entry: TranscriptEntry) => {
     setTranscript((prev) => [...prev, entry]);
   }, []);
@@ -125,6 +159,8 @@ export function useTranscriptStore(): UseTranscriptStoreReturn {
     clearSavedSession();
     setHasSavedSession(false);
     savedRef.current = null;
+    // Keep the rename map — users commonly re-run against the same
+    // speakers and shouldn't lose their labels on "Clear session".
   }, []);
 
   const resumeSession = useCallback(() => {
@@ -140,6 +176,41 @@ export function useTranscriptStore(): UseTranscriptStoreReturn {
     savedRef.current = null;
   }, []);
 
+  // Preserve first-seen order of raw speaker ids across the transcript
+  // so the legend reads top-to-bottom chronologically.
+  const detectedSpeakers = useMemo(() => {
+    const seen = new Set<string>();
+    const out: string[] = [];
+    for (const e of transcript) {
+      if (e.rawSpeaker && !seen.has(e.rawSpeaker)) {
+        seen.add(e.rawSpeaker);
+        out.push(e.rawSpeaker);
+      }
+    }
+    return out;
+  }, [transcript]);
+
+  const resolveSpeaker = useCallback(
+    (rawSpeaker: string | undefined) => {
+      if (!rawSpeaker) return undefined;
+      return speakerNames[rawSpeaker] || defaultSpeakerLabel(rawSpeaker);
+    },
+    [speakerNames]
+  );
+
+  const renameSpeaker = useCallback(
+    (rawSpeaker: string, displayName: string) => {
+      setSpeakerNames((prev) => {
+        const next = { ...prev };
+        const trimmed = displayName.trim();
+        if (!trimmed) delete next[rawSpeaker];
+        else next[rawSpeaker] = trimmed;
+        return next;
+      });
+    },
+    []
+  );
+
   return {
     transcript,
     addEntry,
@@ -147,5 +218,9 @@ export function useTranscriptStore(): UseTranscriptStoreReturn {
     hasSavedSession,
     resumeSession,
     discardSavedSession,
+    detectedSpeakers,
+    speakerNames,
+    resolveSpeaker,
+    renameSpeaker,
   };
 }

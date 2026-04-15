@@ -9,9 +9,10 @@ type Props = {
 };
 
 /**
- * Running cost estimate. Azure OpenAI Whisper is billed at $0.006/minute
- * of audio ($0.36/hour) — same price as OpenAI's hosted API, billed
- * through the org's Azure subscription.
+ * Running cost estimate. Azure OpenAI transcription (gpt-4o-transcribe-
+ * diarize by default) is estimated at $0.006/minute of audio
+ * ($0.36/hour) — the legacy Whisper rate. Actual pricing for gpt-4o
+ * transcribe models may differ; verify in Azure Cost Management.
  */
 export function CostEstimator({ totalMinutes, estimatedCost, compact }: Props) {
   if (compact) {
@@ -36,7 +37,7 @@ export function CostEstimator({ totalMinutes, estimatedCost, compact }: Props) {
         </span>
       </div>
       <p className="mt-2 text-[11px] text-white/40">
-        Azure OpenAI Whisper: ${WHISPER_PRICE_PER_MINUTE.toFixed(3)}/min
+        Azure OpenAI transcribe: ~${WHISPER_PRICE_PER_MINUTE.toFixed(3)}/min
       </p>
     </div>
   );

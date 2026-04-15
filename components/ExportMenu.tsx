@@ -7,18 +7,20 @@ import {
   toJson,
   toSrt,
   toTxt,
+  type SpeakerResolver,
 } from "@/lib/exportUtils";
 import type { TranscriptEntry } from "@/lib/constants";
 
 type Props = {
   transcript: TranscriptEntry[];
+  resolveSpeaker?: SpeakerResolver;
 };
 
 /**
  * Export menu — copy to clipboard, or download .txt, .srt, .json.
  * Disabled when the transcript is empty.
  */
-export function ExportMenu({ transcript }: Props) {
+export function ExportMenu({ transcript, resolveSpeaker }: Props) {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
 
@@ -26,7 +28,7 @@ export function ExportMenu({ transcript }: Props) {
 
   const doCopy = async () => {
     try {
-      await navigator.clipboard.writeText(toTxt(transcript));
+      await navigator.clipboard.writeText(toTxt(transcript, resolveSpeaker));
       setStatus("Copied to clipboard");
       setTimeout(() => setStatus(null), 1500);
     } catch {
@@ -37,9 +39,10 @@ export function ExportMenu({ transcript }: Props) {
 
   const doDownload = (kind: "txt" | "srt" | "json") => {
     const file = buildFilename(kind);
-    if (kind === "txt") downloadText(toTxt(transcript), file);
-    if (kind === "srt") downloadText(toSrt(transcript), file);
-    if (kind === "json") downloadText(toJson(transcript), file, "application/json");
+    if (kind === "txt") downloadText(toTxt(transcript, resolveSpeaker), file);
+    if (kind === "srt") downloadText(toSrt(transcript, resolveSpeaker), file);
+    if (kind === "json")
+      downloadText(toJson(transcript, resolveSpeaker), file, "application/json");
     setOpen(false);
   };
 

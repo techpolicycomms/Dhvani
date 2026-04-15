@@ -107,12 +107,40 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const result = await openai.audio.transcriptions.create({
+    // gpt-4o-transcribe-diarize returns verbose_json with segments that
+    // carry a `speaker` label (e.g. "speaker_0"). We request word- and
+    // segment-level granularity so callers can align the transcript
+    // against the original audio timeline.
+    const result = (await openai.audio.transcriptions.create({
       model: whisperDeployment(),
       file,
       ...(languageHint ? { language: languageHint } : {}),
-      response_format: "json",
-    });
+      response_format: "verbose_json",
+      // TS types on the shared `audio.transcriptions.create` don't
+      // narrow to the verbose-json variant cleanly, so we widen the
+      // request at the boundary.
+      timestamp_granularities: ["word", "segment"],
+    } as unknown as Parameters<typeof openai.audio.transcriptions.create>[0])) as unknown as {
+      text?: string;
+      language?: string;
+      segments?: Array<{
+        id?: number;
+        start?: number;
+        end?: number;
+        text?: string;
+        speaker?: string;
+      }>;
+    };
+
+    const rawSegments = Array.isArray(result.segments) ? result.segments : [];
+    const segments = rawSegments
+      .filter((s) => typeof s.text === "string" && (s.text ?? "").trim() !== "")
+      .map((s) => ({
+        speaker: (s.speaker || "speaker_0").toString(),
+        text: (s.text ?? "").trim(),
+        start: typeof s.start === "number" ? s.start : 0,
+        end: typeof s.end === "number" ? s.end : 0,
+      }));
 
     const chunkId = req.headers.get("x-chunk-id") || `${Date.now()}`;
     const whisperCost = costFromSeconds(estimatedSeconds);
@@ -128,7 +156,8 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       text: result.text ?? "",
-      language: languageHint ?? null,
+      segments,
+      language: result.language ?? languageHint ?? null,
       remaining: quota.remaining,
     });
   } catch (err: unknown) {

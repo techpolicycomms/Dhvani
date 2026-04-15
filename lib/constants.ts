@@ -1,9 +1,14 @@
-// Azure OpenAI Whisper pricing (as of 2024): $0.006 per minute of audio
-// ($0.36/hour). Same rate as OpenAI's hosted API, billed via Azure.
+// Azure OpenAI gpt-4o-transcribe-diarize pricing is billed through the
+// Azure subscription. Until the exact rate is confirmed in Azure Cost
+// Management, we estimate at the legacy Whisper rate of $0.006/minute
+// ($0.36/hour). Pricing may differ from Whisper — verify in
+// Azure Cost Management.
 export const WHISPER_PRICE_PER_MINUTE = 0.006;
 
 // Default chunk duration in milliseconds for MediaRecorder timeslice.
-export const DEFAULT_CHUNK_DURATION_MS = 5000;
+// gpt-4o-transcribe's 16k-token context handles 10–15 s comfortably, and
+// longer chunks give the diarizer more context for speaker tracking.
+export const DEFAULT_CHUNK_DURATION_MS = 10000;
 export const MIN_CHUNK_DURATION_MS = 3000;
 export const MAX_CHUNK_DURATION_MS = 15000;
 
@@ -44,8 +49,72 @@ export const SUPPORTED_LANGUAGES: Array<{ code: string; label: string }> = [
 
 export type CaptureMode = "tab-audio" | "microphone" | "virtual-cable" | "electron";
 
+/**
+ * A single transcript line.
+ *
+ * `rawSpeaker` is the id returned by the diarizer (e.g. `"speaker_0"`).
+ * `speaker` is the *default* display label at creation time
+ * (e.g. `"Speaker 1"`). The live display resolves through the rename
+ * map in useTranscriptStore, so renaming a speaker doesn't require
+ * mutating every entry.
+ *
+ * Both fields are optional: when the transcription response lacks
+ * diarization segments (fallback path), entries have no speaker.
+ *
+ * NOTE: diarizer speaker ids are scoped to a single audio request. Ids
+ * across separate /api/transcribe calls are NOT correlated — same voice
+ * may be `speaker_0` in one chunk and `speaker_1` in the next. We bias
+ * chunk duration upward (10 s default) to amortise this, but perfect
+ * cross-chunk stitching would require a persistent speaker embedding.
+ */
 export type TranscriptEntry = {
   id: string;
   timestamp: string;
   text: string;
+  rawSpeaker?: string;
+  speaker?: string;
 };
+
+/**
+ * Per-speaker color palette (cycles for the 6th speaker and beyond).
+ * Keep the first two colors readable against the navy background — those
+ * are the most common in 2-person meetings.
+ */
+export const SPEAKER_COLORS = [
+  "#14b8a6", // teal — Speaker 1
+  "#8b5cf6", // purple — Speaker 2
+  "#f59e0b", // amber — Speaker 3
+  "#ec4899", // pink — Speaker 4
+  "#3b82f6", // blue — Speaker 5
+  "#94a3b8", // gray — Speaker 6+
+] as const;
+
+/**
+ * Convert a raw diarizer id like "speaker_0" → "Speaker 1" for display.
+ */
+export function defaultSpeakerLabel(rawSpeaker: string): string {
+  const m = /^speaker[_-]?(\d+)$/i.exec(rawSpeaker);
+  if (m) return `Speaker ${parseInt(m[1], 10) + 1}`;
+  // Unknown format — show the raw id so the user can still tell speakers apart.
+  return rawSpeaker;
+}
+
+/**
+ * Deterministic color for a speaker — index into SPEAKER_COLORS keyed
+ * off the numeric suffix, falling back to a stable string hash.
+ */
+export function colorForSpeaker(rawSpeaker: string): string {
+  const m = /^speaker[_-]?(\d+)$/i.exec(rawSpeaker);
+  let idx = 0;
+  if (m) {
+    idx = parseInt(m[1], 10);
+  } else {
+    // djb2-ish hash for unknown ids.
+    let h = 0;
+    for (let i = 0; i < rawSpeaker.length; i++) {
+      h = (h * 31 + rawSpeaker.charCodeAt(i)) | 0;
+    }
+    idx = Math.abs(h);
+  }
+  return SPEAKER_COLORS[idx % SPEAKER_COLORS.length];
+}

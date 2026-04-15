@@ -6,6 +6,7 @@ import {
   MAX_CONCURRENT_TRANSCRIPTIONS,
   MIN_TRANSCRIPT_LENGTH,
   WHISPER_PRICE_PER_MINUTE,
+  defaultSpeakerLabel,
   type TranscriptEntry,
 } from "@/lib/constants";
 import { blobToFile, formatElapsed } from "@/lib/audioUtils";
@@ -29,6 +30,44 @@ export type UseTranscriptionReturn = {
 
 // Simple sleep helper for exponential backoff retries.
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+type RawSegment = {
+  speaker: string;
+  text: string;
+  start: number;
+  end: number;
+};
+
+type GroupedTurn = {
+  rawSpeaker: string;
+  text: string;
+  startMs: number;
+  endMs: number;
+};
+
+/**
+ * Collapse consecutive same-speaker segments into a single turn. The
+ * diarizer returns one segment per utterance; without grouping we'd get
+ * a blizzard of one-liners when someone talks for 10 seconds.
+ */
+function groupBySpeaker(segments: RawSegment[]): GroupedTurn[] {
+  const out: GroupedTurn[] = [];
+  for (const s of segments) {
+    const last = out[out.length - 1];
+    if (last && last.rawSpeaker === s.speaker) {
+      last.text = (last.text + " " + s.text).trim();
+      last.endMs = s.end * 1000;
+    } else {
+      out.push({
+        rawSpeaker: s.speaker,
+        text: s.text.trim(),
+        startMs: s.start * 1000,
+        endMs: s.end * 1000,
+      });
+    }
+  }
+  return out;
+}
 
 /**
  * Transcription pipeline hook.
@@ -114,14 +153,45 @@ export function useTranscription(
             const body = await res.json().catch(() => ({}));
             throw new Error(body.error || `HTTP ${res.status}`);
           }
-          const data = (await res.json()) as { text?: string };
-          const text = (data.text || "").trim();
-          if (text.length >= MIN_TRANSCRIPT_LENGTH) {
-            onEntry?.({
-              id: uuid(),
-              timestamp: formatElapsed(chunk.capturedAtMs),
-              text,
-            });
+          const data = (await res.json()) as {
+            text?: string;
+            segments?: Array<{
+              speaker: string;
+              text: string;
+              start: number;
+              end: number;
+            }>;
+          };
+          const segments = Array.isArray(data.segments) ? data.segments : [];
+          if (segments.length > 0) {
+            // Group consecutive same-speaker segments into one entry so
+            // a single speaker's continuous turn reads naturally. Keep
+            // the start offset of the first segment in the group for the
+            // displayed timestamp.
+            const grouped = groupBySpeaker(segments);
+            for (const g of grouped) {
+              const text = g.text.trim();
+              if (text.length < MIN_TRANSCRIPT_LENGTH) continue;
+              onEntry?.({
+                id: uuid(),
+                timestamp: formatElapsed(chunk.capturedAtMs + g.startMs),
+                text,
+                rawSpeaker: g.rawSpeaker,
+                speaker: defaultSpeakerLabel(g.rawSpeaker),
+              });
+            }
+          } else {
+            // Fallback: model didn't return segments (e.g. deployment
+            // pointing at a non-diarizing model). Emit one unsegmented
+            // entry with no speaker label.
+            const text = (data.text || "").trim();
+            if (text.length >= MIN_TRANSCRIPT_LENGTH) {
+              onEntry?.({
+                id: uuid(),
+                timestamp: formatElapsed(chunk.capturedAtMs),
+                text,
+              });
+            }
           }
           // Update cost accounting.
           const minutes = chunk.durationMs / 60000;

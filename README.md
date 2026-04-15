@@ -2,7 +2,7 @@
 
 **Open-source multilingual meeting transcription for everyone.**
 
-Dhvani captures audio from Zoom, Teams, or Google Meet and transcribes it in real-time using **Azure OpenAI Whisper**. Works on any device — PC, Mac, or phone — through your browser. Audio stays inside the org's Azure tenant.
+Dhvani captures audio from Zoom, Teams, or Google Meet and transcribes it in real-time using **Azure OpenAI GPT-4o Transcribe** with built-in **speaker diarization**. Works on any device — PC, Mac, or phone — through your browser. Audio stays inside the org's Azure tenant.
 
 Named from the Sanskrit word for "sound" (ध्वनि), Dhvani is built to make meeting transcription accessible, open, and free.
 
@@ -10,10 +10,11 @@ Named from the Sanskrit word for "sound" (ध्वनि), Dhvani is built to m
 
 ## Features
 
-- 🎤 **Real-time transcription** from any meeting platform — Zoom, Teams, Meet, WebEx, and more
+- 🎤 **Real-time transcription with speaker identification** — Dhvani automatically detects who said what, no manual tagging required
 - 🌐 **Works in any browser** (no install needed) or as a native desktop app via Electron
-- 🗣️ **50+ languages** supported via Whisper with auto-detection
-- 💾 **Export to `.txt`, `.srt`, `.json`** or copy to clipboard
+- 🗣️ **50+ languages** supported via GPT-4o Transcribe, with auto-detection and lower word-error rate than Whisper
+- 🎨 **Color-coded speakers** with click-to-rename — "Speaker 1" becomes "Karim" in one click
+- 💾 **Export to `.txt`, `.srt`, `.json`** with speaker labels, or copy to clipboard
 - 📱 **PWA** — install on your phone's home screen for one-tap launches
 - 🔐 **Single sign-on** via Microsoft Entra ID (Azure AD) — no passwords, no per-user API keys
 - 📊 **Admin dashboard** with per-user usage, rate limits, monthly budget cap, and CSV export
@@ -37,12 +38,12 @@ Open [http://localhost:3000](http://localhost:3000) in Chrome, Edge, or Firefox.
 ## How It Works
 
 ```
-  ┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-  │ Meeting app │ ──▶ │ Browser / Electron│ ──▶ │ /api/transcribe │ ──▶ │ Azure OpenAI    │
-  │ (Zoom, etc) │     │ MediaRecorder     │     │ (Next.js route) │     │ Whisper (tenant)│
-  └─────────────┘     └──────────────────┘     └─────────────────┘     └─────────────────┘
-                              │                                              │
-                              │                        transcript chunks ◀───┘
+  ┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐     ┌──────────────────┐
+  │ Meeting app │ ──▶ │ Browser / Electron│ ──▶ │ /api/transcribe │ ──▶ │ Azure OpenAI     │
+  │ (Zoom, etc) │     │ MediaRecorder     │     │ (Next.js route) │     │ gpt-4o-transcribe│
+  └─────────────┘     └──────────────────┘     └─────────────────┘     │ -diarize (tenant)│
+                              │                                        └──────────────────┘
+                              │             segments + speakers ◀────────────┘
                               ▼
                        ┌──────────────┐
                        │ Transcript   │
@@ -51,10 +52,11 @@ Open [http://localhost:3000](http://localhost:3000) in Chrome, Edge, or Firefox.
 ```
 
 1. Users sign in via **Microsoft Entra ID SSO**. A middleware gates every route behind a valid session.
-2. Dhvani records audio in **configurable chunks** (3–15 seconds, default 5) using the browser's `MediaRecorder` API.
-3. Each chunk is POSTed to `/api/transcribe`, which checks rate limits and the org-wide monthly budget, then calls the org's **Azure OpenAI** Whisper deployment using the admin-managed server-side key. No traffic leaves the Azure tenant.
-4. Usage is logged (per-chunk seconds + cost, keyed by Entra `oid`) to an append-only JSONL log, powering the admin dashboard.
-5. Transcribed text is appended to a live transcript with timestamps, persisted to `localStorage`, and exportable in multiple formats.
+2. Dhvani records audio in **configurable chunks** (3–15 seconds, default 10) using the browser's `MediaRecorder` API. Longer chunks give the diarizer more context for speaker tracking.
+3. Each chunk is POSTed to `/api/transcribe`, which checks rate limits and the org-wide monthly budget, then calls the org's **Azure OpenAI `gpt-4o-transcribe-diarize`** deployment with `response_format: verbose_json`. No traffic leaves the Azure tenant.
+4. The model returns segments annotated with `speaker_0`, `speaker_1`, … Dhvani groups consecutive same-speaker segments into transcript entries, assigning each a stable color and a friendly label ("Speaker 1", "Speaker 2", …) that the user can rename in one click.
+5. Usage is logged (per-chunk seconds + cost, keyed by Entra `oid`) to an append-only JSONL log, powering the admin dashboard.
+6. Transcribed text is appended to a live transcript with timestamps + speaker labels, persisted to `localStorage`, and exportable in `.txt` / `.srt` / `.json` (all speaker-aware).
 
 ## Capture Modes
 
@@ -121,8 +123,8 @@ Key files to read first:
 - [`lib/auth.ts`](lib/auth.ts) — NextAuth v5 config with Microsoft Entra ID + admin allowlist
 - [`lib/rateLimiter.ts`](lib/rateLimiter.ts) — sliding-window per-user caps + org-wide monthly budget
 - [`lib/usageLogger.ts`](lib/usageLogger.ts) — append-only JSONL usage log
-- [`app/api/transcribe/route.ts`](app/api/transcribe/route.ts) — auth → rate-limit → Azure OpenAI Whisper → log
-- [`lib/openai.ts`](lib/openai.ts) — Azure OpenAI client factory
+- [`app/api/transcribe/route.ts`](app/api/transcribe/route.ts) — auth → rate-limit → Azure OpenAI gpt-4o-transcribe-diarize → log
+- [`lib/openai.ts`](lib/openai.ts) — Azure OpenAI client factory + deployment name helper
 - [`app/admin/Client.tsx`](app/admin/Client.tsx) — recharts dashboard with controls
 
 ## Settings
@@ -131,8 +133,8 @@ User-facing settings persist in `localStorage`:
 
 | Setting | Default | Notes |
 | --- | --- | --- |
-| Language | Auto-detect | ISO-639-1 hint passed to Whisper |
-| Chunk Duration | 5 s | 3–15 s. Shorter = lower latency, more API calls |
+| Language | Auto-detect | ISO-639-1 hint passed to GPT-4o Transcribe |
+| Chunk Duration | 10 s | 3–15 s. Shorter = lower latency. Longer = better speaker tracking. |
 | Audio Device | Default input | Required for virtual-cable mode |
 
 The Azure OpenAI key is **admin-managed** — it lives in `AZURE_OPENAI_API_KEY` server-side and is never exposed to the browser.
@@ -183,11 +185,11 @@ Roughly what it costs ITU or a similar 50-person team to run Dhvani:
 | --- | --- |
 | Azure Web App plan (B1, Linux) | ~$15 |
 | Azure Container Registry (Basic) | ~$5 |
-| Azure OpenAI Whisper @ $0.006/min | $0.36/hour of audio |
+| Azure OpenAI transcribe @ ~$0.006/min | $0.36/hour of audio |
 | **Light usage (100 hours/month)** | **~$56** |
 | **Heavy usage (500 hours/month)** | **~$200** |
 
-Azure OpenAI Whisper is billed through your existing Azure subscription at the same $0.006/min rate as OpenAI's public API.
+Pricing for `gpt-4o-transcribe-diarize` may differ from the legacy Whisper rate — confirm against your Azure Cost Management view. Dhvani estimates at the Whisper rate until then.
 
 Set `RATE_LIMIT_MONTHLY_BUDGET_USD` in the admin dashboard to cap total spend — Dhvani refuses new transcriptions once the cap is hit, with a clear message to users.
 
@@ -197,7 +199,7 @@ See [`.env.local.example`](./.env.local.example) for the complete list. The must
 
 | Variable | Purpose |
 | --- | --- |
-| `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_WHISPER_DEPLOYMENT` | Azure OpenAI resource + Whisper deployment |
+| `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_WHISPER_DEPLOYMENT` | Azure OpenAI resource + transcription deployment (default `gpt-4o-transcribe-diarize`) |
 | `AZURE_AD_CLIENT_ID`, `AZURE_AD_CLIENT_SECRET`, `AZURE_AD_TENANT_ID` | Entra ID App Registration |
 | `NEXTAUTH_SECRET`, `NEXTAUTH_URL` | NextAuth session config |
 | `ADMIN_EMAILS` | Comma-separated admin allowlist |
@@ -207,14 +209,15 @@ See [`.env.local.example`](./.env.local.example) for the complete list. The must
 
 ## Limitations
 
-- Whisper requires each chunk to be ≤ 25 MB (not a practical limit at 5 s chunks).
+- Each chunk must be ≤ 25 MB (not a practical limit at 10 s chunks).
 - Tab audio requires users to check "Share audio" when picking the tab — there's no way around this browser prompt.
 - iOS Safari doesn't support `getDisplayMedia`. Use microphone mode on iPhone/iPad.
-- Whisper is best-effort on noisy audio and in overlapping speech; consider diarization tools for multi-speaker attribution.
+- Diarizer speaker ids are scoped to a single audio request — "speaker_0" in one chunk is not guaranteed to be the same voice as "speaker_0" in the next. Dhvani biases the default chunk size upward (10 s) to amortise this, and lets users rename speakers after the fact; perfect cross-chunk stitching would require a persistent speaker embedding.
+- Transcription quality is best-effort on noisy audio and heavily overlapping speech.
 
 ## Contributing
 
-We welcome PRs! See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow, code style, and areas we'd love help with (i18n, tests, macOS audio via CoreAudio, streaming Whisper…).
+We welcome PRs! See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow, code style, and areas we'd love help with (i18n, tests, macOS audio via CoreAudio, cross-chunk speaker stitching…).
 
 ## License
 

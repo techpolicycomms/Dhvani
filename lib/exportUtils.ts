@@ -2,26 +2,60 @@ import { formatSrtTimestamp, parseElapsed } from "./audioUtils";
 import type { TranscriptEntry } from "./constants";
 
 /**
- * Render the transcript as a plain-text document with timestamps.
+ * Resolver for turning a raw speaker id into a display name (honouring
+ * the user's rename map). Exports accept this as a dependency so pages
+ * can pass the same resolver used by the TranscriptPanel.
  */
-export function toTxt(transcript: TranscriptEntry[]): string {
-  return transcript.map((e) => `[${e.timestamp}] ${e.text}`).join("\n");
+export type SpeakerResolver = (
+  rawSpeaker: string | undefined
+) => string | undefined;
+
+function displayFor(entry: TranscriptEntry, resolve?: SpeakerResolver): string | undefined {
+  if (resolve) return resolve(entry.rawSpeaker);
+  return entry.speaker;
+}
+
+/**
+ * Render the transcript as a plain-text document with timestamps and
+ * speaker labels (when present).
+ *
+ *   [00:01:22] Speaker 1: The primary concern relates to…
+ */
+export function toTxt(
+  transcript: TranscriptEntry[],
+  resolve?: SpeakerResolver
+): string {
+  return transcript
+    .map((e) => {
+      const speaker = displayFor(e, resolve);
+      return speaker
+        ? `[${e.timestamp}] ${speaker}: ${e.text}`
+        : `[${e.timestamp}] ${e.text}`;
+    })
+    .join("\n");
 }
 
 /**
  * Render the transcript as an SRT subtitle file. Each entry is given a
- * 4-second display window (best-effort — Whisper chunks don't contain
- * per-word offsets via this endpoint).
+ * 4-second display window (best-effort — the diarizer returns per-segment
+ * offsets but SRT cues here still tile at the entry granularity). Speaker
+ * name, when present, is prepended in square brackets.
  */
-export function toSrt(transcript: TranscriptEntry[], chunkDurationMs = 5000): string {
+export function toSrt(
+  transcript: TranscriptEntry[],
+  resolve?: SpeakerResolver,
+  chunkDurationMs = 5000
+): string {
   return transcript
     .map((entry, i) => {
       const startMs = parseElapsed(entry.timestamp);
       const endMs = startMs + chunkDurationMs;
+      const speaker = displayFor(entry, resolve);
+      const body = speaker ? `[${speaker}] ${entry.text}` : entry.text;
       return [
         String(i + 1),
         `${formatSrtTimestamp(startMs)} --> ${formatSrtTimestamp(endMs)}`,
-        entry.text,
+        body,
         "",
       ].join("\n");
     })
@@ -29,11 +63,24 @@ export function toSrt(transcript: TranscriptEntry[], chunkDurationMs = 5000): st
 }
 
 /**
- * Render the transcript as pretty-printed JSON.
+ * Render the transcript as pretty-printed JSON, including the resolved
+ * speaker label (if any) and the raw diarizer id for downstream tools.
  */
-export function toJson(transcript: TranscriptEntry[]): string {
+export function toJson(
+  transcript: TranscriptEntry[],
+  resolve?: SpeakerResolver
+): string {
   return JSON.stringify(
-    transcript.map((e) => ({ id: e.id, timestamp: e.timestamp, text: e.text })),
+    transcript.map((e) => {
+      const speaker = displayFor(e, resolve);
+      return {
+        id: e.id,
+        timestamp: e.timestamp,
+        ...(speaker ? { speaker } : {}),
+        ...(e.rawSpeaker ? { rawSpeaker: e.rawSpeaker } : {}),
+        text: e.text,
+      };
+    }),
     null,
     2
   );

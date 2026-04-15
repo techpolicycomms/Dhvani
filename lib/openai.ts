@@ -28,7 +28,15 @@ export function createOpenAIClient(): AzureOpenAI {
   });
 }
 
-/** Deployment name for the Whisper model on the Azure OpenAI resource. */
+/**
+ * Deployment name for the transcription model on the Azure OpenAI
+ * resource. Defaults to `gpt-4o-transcribe-diarize` — the same family as
+ * Whisper but with speaker diarization baked in. Override with
+ * AZURE_OPENAI_WHISPER_DEPLOYMENT to point at a differently-named
+ * deployment (e.g. "whisper-1" for the legacy model).
+ */
 export function whisperDeployment(): string {
-  return process.env.AZURE_OPENAI_WHISPER_DEPLOYMENT || "whisper-1";
+  return (
+    process.env.AZURE_OPENAI_WHISPER_DEPLOYMENT || "gpt-4o-transcribe-diarize"
+  );
 }
