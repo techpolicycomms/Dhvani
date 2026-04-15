@@ -6,6 +6,7 @@ import {
   defaultSpeakerLabel,
   type TranscriptEntry,
 } from "@/lib/constants";
+import type { Meeting } from "@/lib/calendar";
 
 // Auto-save interval — every 30 seconds, per spec.
 const AUTOSAVE_MS = 30_000;
@@ -31,6 +32,10 @@ export type UseTranscriptStoreReturn = {
   resolveSpeaker: (rawSpeaker: string | undefined) => string | undefined;
   /** Rename a speaker. Pass empty string to reset to the default label. */
   renameSpeaker: (rawSpeaker: string, displayName: string) => void;
+  /** Calendar meeting the current capture is tagged against, if any. */
+  activeMeeting: Meeting | null;
+  /** Tag the in-progress session with a calendar meeting. */
+  setActiveMeeting: (meeting: Meeting | null) => void;
 };
 
 function readSavedSession(): TranscriptEntry[] | null {
@@ -108,6 +113,7 @@ export function useTranscriptStore(): UseTranscriptStoreReturn {
   const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
   const [hasSavedSession, setHasSavedSession] = useState(false);
   const [speakerNames, setSpeakerNames] = useState<Record<string, string>>({});
+  const [activeMeeting, setActiveMeeting] = useState<Meeting | null>(null);
   const savedRef = useRef<TranscriptEntry[] | null>(null);
 
   // On mount, check for a saved session.
@@ -222,5 +228,7 @@ export function useTranscriptStore(): UseTranscriptStoreReturn {
     speakerNames,
     resolveSpeaker,
     renameSpeaker,
+    activeMeeting,
+    setActiveMeeting,
   };
 }

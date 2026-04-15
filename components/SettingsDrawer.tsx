@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { X, ExternalLink } from "lucide-react";
 import { DeviceSelector } from "./DeviceSelector";
+import { CalendarToggle } from "./CalendarToggle";
 import {
   MAX_CHUNK_DURATION_MS,
   MIN_CHUNK_DURATION_MS,
@@ -191,6 +192,10 @@ export function SettingsDrawer(props: Props) {
           >
             <DeviceSelector value={deviceId} onChange={setDeviceId} />
           </Field>
+
+          <div className="pt-4 border-t border-border-gray">
+            <CalendarToggle />
+          </div>
 
           <div className="pt-4 border-t border-border-gray space-y-3">
             {isAdmin && (

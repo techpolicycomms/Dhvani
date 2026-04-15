@@ -2,20 +2,26 @@
 
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Settings, X } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Mic, Save, Settings, X } from "lucide-react";
 import { ControlBar } from "@/components/ControlBar";
 import { ExportMenu } from "@/components/ExportMenu";
+import { MeetingBanner } from "@/components/MeetingBanner";
+import { MeetingList } from "@/components/MeetingList";
+import { NavLinks } from "@/components/NavLinks";
 import { SettingsDrawer } from "@/components/SettingsDrawer";
 import { SetupWizard } from "@/components/SetupWizard";
 import { TranscriptPanel } from "@/components/TranscriptPanel";
 import { useAudioCapture } from "@/hooks/useAudioCapture";
+import { useCalendarPrefs } from "@/hooks/useCalendarPrefs";
+import { useMeetingReminders } from "@/hooks/useMeetingReminders";
 import {
   useChunkDispatcher,
   useTranscription,
 } from "@/hooks/useTranscription";
 import { useTranscriptStore } from "@/hooks/useTranscriptStore";
 import { useAudioDevices } from "@/hooks/useAudioDevices";
+import type { Meeting } from "@/lib/calendar";
 import {
   DEFAULT_CHUNK_DURATION_MS,
   LS_KEYS,
@@ -70,6 +76,9 @@ export default function HomePage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showResume, setShowResume] = useState(false);
 
+  // -------- Calendar prefs (drives MeetingList + reminders visibility) --------
+  const { prefs: calendarPrefs } = useCalendarPrefs();
+
   // -------- Transcript store --------
   const {
     transcript,
@@ -81,6 +90,9 @@ export default function HomePage() {
     detectedSpeakers,
     resolveSpeaker,
     renameSpeaker,
+    activeMeeting,
+    setActiveMeeting,
+    speakerNames,
   } = useTranscriptStore();
 
   useEffect(() => {
@@ -138,11 +150,102 @@ export default function HomePage() {
   );
 
   // -------- Handlers --------
+  const captureStartedAtRef = useRef<string | null>(null);
+
   const onStart = useCallback(() => {
     setRateLimitMsg(null);
+    captureStartedAtRef.current = new Date().toISOString();
     const mode = (chosenMode as CaptureMode) || "microphone";
     void startCapture(mode);
   }, [chosenMode, startCapture]);
+
+  const onStartFromMeeting = useCallback(
+    (meeting: Meeting) => {
+      // Tag the upcoming session with this meeting before kicking off capture
+      // so the auto-save (and any user-initiated save) carries the metadata.
+      setActiveMeeting(meeting);
+      onStart();
+    },
+    [onStart, setActiveMeeting]
+  );
+
+  // -------- Save transcript to server --------
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+
+  const saveTranscriptToServer = useCallback(async () => {
+    if (transcript.length === 0 || saveState === "saving") return;
+    setSaveState("saving");
+    try {
+      const startedAt =
+        captureStartedAtRef.current || transcript[0]?.timestamp || new Date().toISOString();
+      const endedAt = new Date().toISOString();
+      const res = await fetch("/api/transcripts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          entries: transcript,
+          speakerNames,
+          startedAt,
+          endedAt,
+          durationMinutes: totalMinutes,
+          chunkCount,
+          estimatedCost,
+          title: activeMeeting?.subject,
+          meeting: activeMeeting
+            ? {
+                id: activeMeeting.id,
+                subject: activeMeeting.subject,
+                platform: activeMeeting.platform,
+                start: activeMeeting.start,
+                end: activeMeeting.end,
+                organizer: activeMeeting.organizer,
+              }
+            : undefined,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 2500);
+    } catch (e) {
+      setToast(`Failed to save transcript: ${(e as Error).message}`);
+      setTimeout(() => setToast(null), 4000);
+      setSaveState("idle");
+    }
+  }, [
+    transcript,
+    saveState,
+    speakerNames,
+    totalMinutes,
+    chunkCount,
+    estimatedCost,
+    activeMeeting,
+  ]);
+
+  // Auto-tag opt-in: when capture stops, if the user enabled auto-tag and we
+  // have an active meeting + non-empty transcript, save automatically.
+  const wasCapturingRef = useRef(false);
+  useEffect(() => {
+    if (wasCapturingRef.current && !isCapturing) {
+      if (
+        calendarPrefs.autoTag &&
+        activeMeeting &&
+        transcript.length > 0
+      ) {
+        void saveTranscriptToServer();
+      }
+    }
+    wasCapturingRef.current = isCapturing;
+  }, [
+    isCapturing,
+    calendarPrefs.autoTag,
+    activeMeeting,
+    transcript.length,
+    saveTranscriptToServer,
+  ]);
+
+  // -------- Reminders (browser notifications + sticky banner) --------
+  const { currentReminder, dismissReminder } = useMeetingReminders();
 
   const onWizardComplete = useCallback(
     (mode: CaptureMode, chosenDeviceId?: string) => {
@@ -218,36 +321,31 @@ export default function HomePage() {
     <main className="min-h-screen flex flex-col bg-off-white pt-[3px]">
       {/* HEADER */}
       <header className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-border-gray bg-white">
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col">
-            <div className="flex items-baseline gap-2">
-              <span className="text-lg font-bold text-dark-navy leading-tight">
-                Dhvani
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col">
+              <div className="flex items-baseline gap-2">
+                <span className="text-lg font-bold text-dark-navy leading-tight">
+                  Dhvani
+                </span>
+                <span className="text-mid-gray text-sm">ध्वनि</span>
+              </div>
+              <span className="text-[11px] text-mid-gray leading-tight">
+                Meeting Transcription
               </span>
-              <span className="text-mid-gray text-sm">ध्वनि</span>
             </div>
-            <span className="text-[11px] text-mid-gray leading-tight">
-              Meeting Transcription
-            </span>
+            <span
+              className={[
+                "w-2.5 h-2.5 rounded-full",
+                statusColor,
+              ].join(" ")}
+              aria-label="Connection status"
+            />
           </div>
-          <span
-            className={[
-              "w-2.5 h-2.5 rounded-full",
-              statusColor,
-            ].join(" ")}
-            aria-label="Connection status"
-          />
+          <NavLinks isAdmin={isAdmin} />
         </div>
 
         <div className="flex items-center gap-2">
-          {isAdmin && (
-            <Link
-              href="/admin"
-              className="text-xs text-itu-blue-dark hover:text-itu-blue hidden sm:inline"
-            >
-              Admin
-            </Link>
-          )}
           <Link
             href="/desktop-setup"
             className="text-xs text-mid-gray hover:text-dark-navy hidden sm:inline"
@@ -278,6 +376,63 @@ export default function HomePage() {
         </div>
       </header>
 
+      {/* REMINDER BANNER (sticky) */}
+      {currentReminder && (
+        <MeetingBanner
+          meeting={currentReminder}
+          onStart={() => {
+            onStartFromMeeting(currentReminder);
+            dismissReminder(currentReminder.id);
+          }}
+          onDismiss={() => dismissReminder(currentReminder.id)}
+        />
+      )}
+
+      {/* CALENDAR + QUICK ACTION ROW */}
+      {calendarPrefs.showMeetings && !isCapturing && (
+        <section className="px-4 sm:px-6 pt-4">
+          <div className="grid gap-3 lg:grid-cols-3">
+            <div className="lg:col-span-2">
+              <h2 className="text-xs font-semibold text-mid-gray uppercase tracking-wider mb-2">
+                Today&apos;s meetings
+              </h2>
+              <MeetingList onStartTranscription={onStartFromMeeting} />
+            </div>
+            <div>
+              <h2 className="text-xs font-semibold text-mid-gray uppercase tracking-wider mb-2">
+                Quick transcription
+              </h2>
+              <div className="rounded-lg border border-border-gray bg-white p-4 flex flex-col gap-3">
+                <p className="text-sm text-dark-navy">
+                  Start capturing your microphone or system audio without
+                  picking a meeting first.
+                </p>
+                <button
+                  onClick={() => {
+                    setActiveMeeting(null);
+                    onStart();
+                  }}
+                  className="inline-flex items-center justify-center gap-2 px-3 py-2 rounded bg-itu-blue text-white text-sm font-semibold hover:bg-itu-blue-dark"
+                >
+                  <Mic size={14} />
+                  Start now
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ACTIVE MEETING CHIP */}
+      {activeMeeting && isCapturing && (
+        <div className="px-4 sm:px-6 pt-3">
+          <div className="inline-flex items-center gap-2 text-xs text-itu-blue-dark bg-itu-blue-pale border border-itu-blue/30 rounded px-2.5 py-1">
+            <span className="font-semibold">Tagged:</span>
+            <span className="truncate max-w-xs">{activeMeeting.subject}</span>
+          </div>
+        </div>
+      )}
+
       {/* TRANSCRIPT */}
       <section className="flex-1 p-3 sm:p-4 overflow-hidden">
         <TranscriptPanel
@@ -289,8 +444,29 @@ export default function HomePage() {
         />
       </section>
 
-      {/* EXPORT MENU */}
-      <div className="px-3 sm:px-4 pb-2 flex justify-end">
+      {/* EXPORT + SAVE MENU */}
+      <div className="px-3 sm:px-4 pb-2 flex justify-end items-center gap-2">
+        {transcript.length > 0 && (
+          <button
+            onClick={saveTranscriptToServer}
+            disabled={saveState === "saving"}
+            className={[
+              "inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold border",
+              "transition-colors",
+              saveState === "saved"
+                ? "bg-success text-white border-success"
+                : "bg-white border-itu-blue text-itu-blue hover:bg-itu-blue-pale disabled:opacity-50",
+            ].join(" ")}
+            title="Save transcript to your history"
+          >
+            <Save size={12} />
+            {saveState === "saving"
+              ? "Saving…"
+              : saveState === "saved"
+              ? "Saved"
+              : "Save transcript"}
+          </button>
+        )}
         <ExportMenu transcript={transcript} resolveSpeaker={resolveSpeaker} />
       </div>
 
