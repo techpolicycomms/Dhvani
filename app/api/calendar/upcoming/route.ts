@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { auth, getGraphAccessToken } from "@/lib/auth";
 import {
   cacheGet,
   cacheSet,
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
   if (!user?.email) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const accessToken = (session as { accessToken?: string }).accessToken;
+  const accessToken = await getGraphAccessToken();
   if (!accessToken) {
     return NextResponse.json({ meetings: [], reason: "no-graph-token" });
   }
@@ -41,6 +41,9 @@ export async function GET(req: NextRequest) {
     Number.isFinite(requested) && requested > 0 ? Math.min(requested, 24) : 8;
 
   const userId = user.userId || user.email;
+  if (!userId) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const cacheKey = `upcoming:${userId}:${hours}:${Math.floor(
     Date.now() / CACHE_TTL_MS
   )}`;

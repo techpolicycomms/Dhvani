@@ -135,7 +135,9 @@ export function useTranscriptStore(): UseTranscriptStoreReturn {
     }
   }, []);
 
-  // Auto-save loop.
+  // Auto-save loop. Depends on speakerNames too so a rename (which never
+  // mutates `transcript`) still nudges the autosave window — keeps the
+  // serialised state in sync with what the UI is showing.
   useEffect(() => {
     const id = window.setInterval(() => {
       if (transcript.length > 0) writeSavedSession(transcript);
@@ -145,7 +147,7 @@ export function useTranscriptStore(): UseTranscriptStoreReturn {
       // Flush on unmount.
       if (transcript.length > 0) writeSavedSession(transcript);
     };
-  }, [transcript]);
+  }, [transcript, speakerNames]);
 
   // Persist speaker rename map eagerly — it's tiny.
   useEffect(() => {

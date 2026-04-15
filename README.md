@@ -147,8 +147,10 @@ The Azure OpenAI key is **admin-managed** — it lives in `AZURE_OPENAI_API_KEY`
 - Transcription requests go to your org's Azure OpenAI resource (`AZURE_OPENAI_ENDPOINT`) — no traffic leaves the Azure tenant, no calls to `api.openai.com`.
 - Every API route requires a valid Entra ID session. Admin routes additionally check against `ADMIN_EMAILS`.
 - Audio chunks are streamed to Whisper and discarded after transcription — Dhvani doesn't persist raw audio anywhere.
-- The transcript is saved **only** in the user's browser `localStorage`. There's no backend database.
-- Per-chunk usage (userId, seconds, cost) is logged to an append-only JSONL file for billing/audit; no transcript text is stored server-side.
+- **Live transcripts** stay in the user's browser `localStorage` until the user clicks **Save transcript** (or enables *Settings → Calendar Integration → Auto-tag transcripts*, which is **off by default**).
+- **Saved transcripts** are written to the server filesystem under `DHVANI_DATA_DIR/<userId>/<id>.json` (defaults to `./data/transcripts/`). Each file is owned by exactly one user — `/api/transcripts/[id]` returns 404 to anyone else, even if they guess the id. POST is rate-limited to 50 saves/user/day and per-entry text is capped at 4 KB. Mount `DHVANI_DATA_DIR` on a persistent, backed-up volume (Azure Files) in production.
+- The Microsoft Graph access token (used to read the user's Outlook calendar) lives only inside the signed JWT cookie. It is **not** included in the public session payload, so client JS cannot read it. Server routes call `getGraphAccessToken()` from `lib/auth.ts`, which auto-refreshes via `offline_access` when the token is within 60 s of expiry.
+- Per-chunk usage (userId, seconds, cost) is logged to an append-only JSONL file for billing/audit. The audit log only stores metadata, never transcript text.
 - The Service Worker explicitly does not cache `/api/*` routes.
 
 ## For Organizations
@@ -208,6 +210,7 @@ See [`.env.local.example`](./.env.local.example) for the complete list. The must
 | `RATE_LIMIT_MINUTES_PER_HOUR` / `_PER_DAY` | Per-user caps |
 | `RATE_LIMIT_MONTHLY_BUDGET_USD` | Org-wide monthly ceiling |
 | `USAGE_LOG_PATH` | JSONL usage log location |
+| `DHVANI_DATA_DIR` | Where saved transcripts are stored (default `./data/transcripts`). Mount a persistent volume here in production. |
 
 ## Limitations
 

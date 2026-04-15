@@ -31,9 +31,14 @@ export function MeetingList({ onStartTranscription }: Props) {
     let cancelled = false;
     async function load() {
       try {
-        const res = await fetch("/api/calendar/today", {
-          credentials: "include",
-        });
+        const tz =
+          (typeof Intl !== "undefined" &&
+            Intl.DateTimeFormat().resolvedOptions().timeZone) ||
+          "UTC";
+        const res = await fetch(
+          `/api/calendar/today?tz=${encodeURIComponent(tz)}`,
+          { credentials: "include" }
+        );
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const body = (await res.json()) as { meetings?: Meeting[] };
         if (!cancelled) {

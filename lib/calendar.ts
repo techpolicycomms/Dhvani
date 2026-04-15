@@ -102,8 +102,12 @@ export function minutesUntilStart(
  */
 type CacheEntry<T> = { value: T; expiresAt: number };
 const _cache = new Map<string, CacheEntry<unknown>>();
+// Soft cap: protect against unbounded growth in long-running pods. When
+// reached, we drop the oldest insertion (Map preserves insertion order).
+const MAX_CACHE_ENTRIES = 10_000;
 
 export function cacheGet<T>(key: string): T | undefined {
+  if (!key) return undefined;
   const hit = _cache.get(key);
   if (!hit) return undefined;
   if (hit.expiresAt < Date.now()) {
@@ -114,6 +118,11 @@ export function cacheGet<T>(key: string): T | undefined {
 }
 
 export function cacheSet<T>(key: string, value: T, ttlMs: number): void {
+  if (!key) return;
+  if (_cache.size >= MAX_CACHE_ENTRIES) {
+    const oldest = _cache.keys().next().value;
+    if (oldest !== undefined) _cache.delete(oldest);
+  }
   _cache.set(key, { value, expiresAt: Date.now() + ttlMs });
 }
 

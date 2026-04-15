@@ -1,5 +1,14 @@
 import NextAuth, { type NextAuthConfig } from "next-auth";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
+import { getToken } from "next-auth/jwt";
+import { cookies } from "next/headers";
+
+/**
+ * In-process refresh-attempt deduper. If two parallel requests both find an
+ * expired token, only one of them should hit Microsoft's /token endpoint.
+ * Subsequent calls await the same in-flight promise.
+ */
+const refreshInFlight = new Map<string, Promise<string | null>>();
 
 /**
  * NextAuth v5 (Auth.js) configuration for Dhvani.
@@ -60,13 +69,15 @@ export const authConfig: NextAuthConfig = {
         token.email = p.email || p.preferred_username || token.email || "";
         token.name = p.name || token.name || "";
       }
-      // Persist the Microsoft access token + expiry so server-side calls
-      // to Microsoft Graph (calendar) can authenticate as the user. We
-      // don't currently refresh the token — when it expires (~1h), the
-      // calendar API will return 401 and the client will silently fall
-      // back to "no meetings" until the next sign-in.
+      // Persist the Microsoft access token + refresh token + expiry so
+      // server-side calls to Microsoft Graph (calendar) can authenticate
+      // as the user. The refresh token (granted by `offline_access`) is
+      // used to mint a new access token on demand from
+      // `getGraphAccessToken()`; the JWT only carries the *current*
+      // values and is rewritten when we refresh.
       if (account?.access_token) {
         token.accessToken = account.access_token;
+        token.refreshToken = account.refresh_token;
         token.accessTokenExpires = account.expires_at
           ? account.expires_at * 1000
           : Date.now() + 3600 * 1000;
@@ -81,14 +92,18 @@ export const authConfig: NextAuthConfig = {
         (session.user as { userId?: string }).userId =
           (token.userId as string) || "";
       }
-      // Surface the Graph token on the session for server-side use only.
-      // The session is delivered to the browser but the Graph token is
-      // bound to the user — exposing it client-side would be a problem if
-      // we returned it to scripts; we don't (only `auth()` server reads).
-      (session as { accessToken?: string }).accessToken =
-        (token.accessToken as string) || undefined;
-      (session as { accessTokenExpires?: number }).accessTokenExpires =
-        (token.accessTokenExpires as number) || undefined;
+      // NOTE: we deliberately do NOT surface the Microsoft Graph access
+      // token here. NextAuth's SessionProvider serializes the session
+      // object into the HTML for the browser, so anything attached to it
+      // is reachable from client JS. The Graph token stays inside the
+      // signed JWT cookie and is only readable server-side via
+      // `getGraphAccessToken()` below.
+      //
+      // We do surface a boolean so the client can short-circuit calls to
+      // calendar routes when no token was ever captured.
+      (session as { hasGraphToken?: boolean }).hasGraphToken = Boolean(
+        token.accessToken
+      );
       return session;
     },
   },
@@ -99,6 +114,118 @@ export const authConfig: NextAuthConfig = {
 // (server components, API routes, middleware). `handlers` is re-exported
 // by app/api/auth/[...nextauth]/route.ts.
 export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
+
+/**
+ * Server-only Graph access-token reader.
+ *
+ * Reads the JWT from the request cookie (NOT from the public session
+ * payload, which deliberately omits the token) and refreshes it via the
+ * stored refresh token if it expires within the next 60 seconds.
+ *
+ * Returns `null` if the user is signed out, has no Graph token, or the
+ * refresh attempt failed. Calendar routes treat that as "no token" and
+ * degrade to an empty agenda.
+ *
+ * Concurrency: if multiple requests find the same expired token at once
+ * we coalesce them through `refreshInFlight` so only one /token call hits
+ * Microsoft.
+ */
+export async function getGraphAccessToken(): Promise<string | null> {
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (!secret) return null;
+
+  // next-auth/jwt requires the request cookies; in route handlers and
+  // server components we have access via next/headers.
+  const cookieStore = await cookies();
+  // getToken accepts either a NextRequest or a `req`-shaped cookie holder.
+  // In v5 it's friendlier to pass a fake req with the cookie header.
+  const cookieHeader = cookieStore
+    .getAll()
+    .map((c) => `${c.name}=${c.value}`)
+    .join("; ");
+  const fakeReq = {
+    headers: { cookie: cookieHeader },
+  } as unknown as Request;
+
+  const token = (await getToken({
+    req: fakeReq as never,
+    secret,
+    salt: cookieStore.get("__Secure-authjs.session-token")
+      ? "__Secure-authjs.session-token"
+      : "authjs.session-token",
+  })) as
+    | {
+        accessToken?: string;
+        refreshToken?: string;
+        accessTokenExpires?: number;
+        userId?: string;
+      }
+    | null;
+
+  if (!token?.accessToken) return null;
+
+  const expires = token.accessTokenExpires || 0;
+  if (expires - Date.now() > 60_000) {
+    return token.accessToken;
+  }
+
+  // Token is expired or about to expire — try to refresh.
+  if (!token.refreshToken) return null;
+  const key = token.userId || token.refreshToken;
+  let pending = refreshInFlight.get(key);
+  if (!pending) {
+    pending = refreshGraphToken(token.refreshToken).finally(() => {
+      // Clear the inflight slot shortly after so subsequent expiries can
+      // refresh again.
+      setTimeout(() => refreshInFlight.delete(key), 1000);
+    });
+    refreshInFlight.set(key, pending);
+  }
+  return pending;
+}
+
+/**
+ * Exchange a refresh token for a new access token at Microsoft's
+ * tenant-scoped /token endpoint. Returns the new access token or null on
+ * failure (network error, refresh token revoked, scope removed).
+ *
+ * NOTE: this does NOT rewrite the JWT cookie — Next.js doesn't expose
+ * that mid-request from inside an arbitrary route handler. The fresh
+ * token lives only in memory for this request; the next request will
+ * re-refresh until the user signs in again. That's fine for a calendar
+ * fetch (cheap) and avoids a tricky cookie write race.
+ */
+async function refreshGraphToken(
+  refreshToken: string
+): Promise<string | null> {
+  const tenant = process.env.AZURE_AD_TENANT_ID;
+  const clientId = process.env.AZURE_AD_CLIENT_ID;
+  const clientSecret = process.env.AZURE_AD_CLIENT_SECRET;
+  if (!tenant || !clientId || !clientSecret) return null;
+
+  try {
+    const res = await fetch(
+      `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: clientId,
+          client_secret: clientSecret,
+          grant_type: "refresh_token",
+          refresh_token: refreshToken,
+          scope: "openid profile email offline_access User.Read Calendars.Read",
+        }),
+        cache: "no-store",
+      }
+    );
+    if (!res.ok) return null;
+    const body = (await res.json()) as { access_token?: string };
+    return body.access_token || null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Check whether an email address is on the admin allowlist.

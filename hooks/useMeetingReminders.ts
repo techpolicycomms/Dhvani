@@ -8,11 +8,12 @@ const POLL_MS = 5 * 60 * 1000; // refresh /api/calendar/upcoming every 5 min
 const TICK_MS = 30 * 1000; // re-evaluate "is it time?" twice a minute
 
 const DISMISSED_KEY = "dhvani-dismissed-reminders";
+const NOTIFIED_KEY = "dhvani-notified-reminders";
 
-function readDismissed(): Set<string> {
+function readSet(key: string): Set<string> {
   if (typeof window === "undefined") return new Set();
   try {
-    const raw = localStorage.getItem(DISMISSED_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return new Set();
     const parsed = JSON.parse(raw) as string[];
     return new Set(Array.isArray(parsed) ? parsed : []);
@@ -21,10 +22,12 @@ function readDismissed(): Set<string> {
   }
 }
 
-function writeDismissed(ids: Set<string>) {
+function writeSet(key: string, ids: Set<string>) {
   if (typeof window === "undefined") return;
   try {
-    localStorage.setItem(DISMISSED_KEY, JSON.stringify([...ids]));
+    // Cap stored size — meeting ids accumulate over months.
+    const trimmed = [...ids].slice(-500);
+    localStorage.setItem(key, JSON.stringify(trimmed));
   } catch {
     /* quota — best effort */
   }
@@ -52,9 +55,13 @@ export type UseMeetingRemindersReturn = {
 export function useMeetingReminders(): UseMeetingRemindersReturn {
   const { prefs } = useCalendarPrefs();
   const [upcoming, setUpcoming] = useState<Meeting[]>([]);
-  const [dismissed, setDismissed] = useState<Set<string>>(() => readDismissed());
+  const [dismissed, setDismissed] = useState<Set<string>>(() =>
+    readSet(DISMISSED_KEY)
+  );
   const [now, setNow] = useState(() => Date.now());
-  const notifiedRef = useRef<Set<string>>(new Set());
+  // Persisted across reloads so we don't re-notify the user about the
+  // same meeting after a browser restart.
+  const notifiedRef = useRef<Set<string>>(readSet(NOTIFIED_KEY));
 
   // Fetch the upcoming window. We always pull 8 hours so a longer lead-time
   // setting (or a user changing prefs after sign-in) doesn't truncate.
@@ -106,9 +113,13 @@ export function useMeetingReminders(): UseMeetingRemindersReturn {
     setDismissed((prev) => {
       const next = new Set(prev);
       next.add(meetingId);
-      writeDismissed(next);
+      writeSet(DISMISSED_KEY, next);
       return next;
     });
+    // A dismissed meeting should also count as notified — otherwise
+    // clearing localStorage would re-fire the OS notification.
+    notifiedRef.current.add(meetingId);
+    writeSet(NOTIFIED_KEY, notifiedRef.current);
   }, []);
 
   if (!prefs.reminders) {
@@ -137,6 +148,7 @@ export function useMeetingReminders(): UseMeetingRemindersReturn {
     !notifiedRef.current.has(candidate.id)
   ) {
     notifiedRef.current.add(candidate.id);
+    writeSet(NOTIFIED_KEY, notifiedRef.current);
     try {
       const minsToStart = Math.max(
         0,

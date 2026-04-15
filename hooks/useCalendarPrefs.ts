@@ -22,7 +22,12 @@ const DEFAULT_PREFS: CalendarPrefs = {
   showMeetings: true,
   reminders: true,
   reminderLead: 3,
-  autoTag: true,
+  // Auto-tag is OFF by default. When the user opts in, ending a capture
+  // that was started from a meeting card auto-uploads the transcript to
+  // their server-side history. Defaulting off keeps the privacy-by-default
+  // promise: nothing leaves the browser unless the user clicks Save (or
+  // explicitly turns this on in Settings → Calendar Integration).
+  autoTag: false,
 };
 
 function read(): CalendarPrefs {
