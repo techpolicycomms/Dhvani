@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Check, AlertTriangle } from "lucide-react";
 import type { CaptureMode } from "@/lib/constants";
 import { pickSupportedMimeType, blobToFile } from "@/lib/audioUtils";
 
@@ -109,13 +110,13 @@ export function TestAudio({ mode, deviceId, language }: Props) {
   const busy = state.kind === "recording" || state.kind === "transcribing";
 
   return (
-    <div className="rounded-lg border border-white/10 bg-navy-light/40 p-4">
+    <div className="rounded-lg border border-border-gray bg-off-white p-4">
       <div className="flex items-center gap-3">
         <button
           type="button"
           onClick={run}
           disabled={busy}
-          className="px-4 py-2 bg-teal text-navy rounded hover:bg-teal-dark disabled:opacity-50 text-sm font-medium"
+          className="px-4 py-2 bg-itu-blue text-white rounded hover:bg-itu-blue-dark disabled:opacity-50 text-sm font-medium"
         >
           {state.kind === "recording"
             ? "Recording 3s…"
@@ -123,19 +124,22 @@ export function TestAudio({ mode, deviceId, language }: Props) {
             ? "Transcribing…"
             : "Test Audio (3s)"}
         </button>
-        <p className="text-xs text-white/60">
+        <p className="text-xs text-mid-gray">
           Speak or play audio for 3 seconds to confirm setup works.
         </p>
       </div>
       {state.kind === "ok" && (
-        <div className="mt-3 p-3 rounded bg-teal/10 border border-teal/30 text-sm">
-          <div className="text-teal text-xs mb-1">✓ Heard:</div>
-          <div className="text-white/90">{state.text}</div>
+        <div className="mt-3 p-3 rounded bg-itu-blue-pale border border-itu-blue/30 text-sm">
+          <div className="text-success text-xs mb-1 inline-flex items-center gap-1">
+            <Check size={12} /> Heard:
+          </div>
+          <div className="text-dark-navy">{state.text}</div>
         </div>
       )}
       {state.kind === "error" && (
-        <div className="mt-3 p-3 rounded bg-red-400/10 border border-red-400/30 text-sm text-red-300">
-          {state.message}
+        <div className="mt-3 p-3 rounded bg-error/5 border border-error/30 text-sm text-error inline-flex items-start gap-2">
+          <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+          <span>{state.message}</span>
         </div>
       )}
     </div>

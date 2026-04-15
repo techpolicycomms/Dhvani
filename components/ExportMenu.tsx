@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Download, ChevronDown } from "lucide-react";
 import {
   buildFilename,
   downloadText,
@@ -52,12 +53,12 @@ export function ExportMenu({ transcript, resolveSpeaker }: Props) {
         type="button"
         onClick={() => setOpen((v) => !v)}
         disabled={disabled}
-        className="px-4 py-2 rounded-lg bg-navy-light border border-white/10 hover:bg-navy-light/80 text-sm text-white disabled:opacity-40 disabled:cursor-not-allowed"
+        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-white border border-border-gray hover:border-itu-blue hover:text-itu-blue-dark text-sm text-dark-navy disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:border-border-gray disabled:hover:text-dark-navy"
       >
-        Export ▾
+        <Download size={14} /> Export <ChevronDown size={14} />
       </button>
       {open && !disabled && (
-        <div className="absolute right-0 bottom-full mb-2 w-48 bg-navy-light border border-white/10 rounded-lg shadow-xl overflow-hidden z-10">
+        <div className="absolute right-0 bottom-full mb-2 w-48 bg-white border border-border-gray rounded-lg shadow-xl overflow-hidden z-10">
           <MenuItem onClick={doCopy}>Copy All (clipboard)</MenuItem>
           <MenuItem onClick={() => doDownload("txt")}>Download .txt</MenuItem>
           <MenuItem onClick={() => doDownload("srt")}>Download .srt</MenuItem>
@@ -65,7 +66,7 @@ export function ExportMenu({ transcript, resolveSpeaker }: Props) {
         </div>
       )}
       {status && (
-        <span className="absolute right-0 -top-6 text-xs text-teal whitespace-nowrap">
+        <span className="absolute right-0 -top-6 text-xs text-success whitespace-nowrap">
           {status}
         </span>
       )}
@@ -84,7 +85,7 @@ function MenuItem({
     <button
       type="button"
       onClick={onClick}
-      className="w-full text-left px-3 py-2 text-sm text-white/90 hover:bg-teal/20"
+      className="w-full text-left px-3 py-2 text-sm text-dark-navy hover:bg-itu-blue-pale"
     >
       {children}
     </button>

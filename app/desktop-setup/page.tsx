@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { ArrowLeft, ExternalLink } from "lucide-react";
 import { AudioRoutingDiagram } from "@/components/AudioRoutingDiagram";
 
 /**
@@ -13,15 +14,20 @@ export default function DesktopSetupPage() {
   const [platform, setPlatform] = useState<"mac" | "windows">("mac");
 
   return (
-    <main className="max-w-3xl mx-auto p-6 sm:p-10">
-      <Link href="/" className="text-sm text-teal hover:text-teal-dark">
-        ← Back to Dhvani
+    <main className="max-w-3xl mx-auto p-6 sm:p-10 pt-10 bg-off-white min-h-screen">
+      <Link
+        href="/"
+        className="inline-flex items-center gap-1 text-sm text-itu-blue-dark hover:text-itu-blue"
+      >
+        <ArrowLeft size={14} /> Back to Dhvani
       </Link>
-      <h1 className="text-3xl font-bold mt-3 mb-2">Desktop App Setup</h1>
-      <p className="text-white/70 mb-6">
-        Running Zoom, Teams, or another meeting app as a desktop install?
-        A free virtual audio cable lets Dhvani hear the meeting while you
-        still hear it in your speakers.
+      <h1 className="text-3xl font-bold mt-3 mb-2 text-dark-navy">
+        Desktop App Setup
+      </h1>
+      <p className="text-mid-gray mb-6">
+        Running Zoom, Teams, or another meeting app as a desktop install? A
+        free virtual audio cable lets Dhvani hear the meeting while you still
+        hear it in your speakers.
       </p>
 
       <div className="flex gap-2 mb-6">
@@ -36,23 +42,23 @@ export default function DesktopSetupPage() {
         </Tab>
       </div>
 
-      <div className="rounded-lg border border-white/10 bg-navy-light/40 p-5 mb-6">
+      <div className="rounded-lg border border-border-gray bg-white p-5 mb-6 shadow-sm">
         <AudioRoutingDiagram platform={platform} className="w-full h-auto" />
       </div>
 
       {platform === "mac" ? <MacSteps /> : <WindowsSteps />}
 
-      <div className="mt-8 p-4 rounded border border-white/10 bg-navy-light/40 text-sm">
-        <strong className="text-teal">Prefer no virtual cable?</strong>{" "}
-        <span className="text-white/80">
+      <div className="mt-8 p-4 rounded border border-border-gray bg-white text-sm shadow-sm">
+        <strong className="text-itu-blue-dark">Prefer no virtual cable?</strong>{" "}
+        <span className="text-dark-navy">
           Install the Dhvani Electron app, which captures system audio
           natively — no extra drivers required.
         </span>{" "}
         <Link
           href="https://github.com/techpolicycomms/dhvani#electron-desktop-app"
-          className="text-teal hover:text-teal-dark"
+          className="inline-flex items-center gap-1 text-itu-blue-dark hover:text-itu-blue"
         >
-          Learn more ↗
+          Learn more <ExternalLink size={12} />
         </Link>
       </div>
     </main>
@@ -75,8 +81,8 @@ function Tab({
       className={[
         "px-4 py-2 rounded-lg text-sm font-medium border transition-colors",
         active
-          ? "bg-teal text-navy border-teal"
-          : "bg-navy-light/40 border-white/10 text-white/70 hover:text-white",
+          ? "bg-itu-blue text-white border-itu-blue"
+          : "bg-white border-border-gray text-mid-gray hover:text-dark-navy",
       ].join(" ")}
     >
       {children}
@@ -93,7 +99,7 @@ function MacSteps() {
           href="https://existential.audio/blackhole/"
           target="_blank"
           rel="noreferrer"
-          className="text-teal hover:text-teal-dark"
+          className="text-itu-blue-dark hover:text-itu-blue"
         >
           BlackHole (free, open source)
         </a>
@@ -136,7 +142,7 @@ function WindowsSteps() {
           href="https://vb-audio.com/Cable/"
           target="_blank"
           rel="noreferrer"
-          className="text-teal hover:text-teal-dark"
+          className="text-itu-blue-dark hover:text-itu-blue"
         >
           VB-CABLE (free)
         </a>
@@ -169,10 +175,10 @@ function WindowsSteps() {
 function Step({ n, children }: { n: number; children: React.ReactNode }) {
   return (
     <li className="flex gap-4">
-      <span className="shrink-0 w-7 h-7 rounded-full bg-teal text-navy flex items-center justify-center text-sm font-bold">
+      <span className="shrink-0 w-7 h-7 rounded-full bg-itu-blue text-white flex items-center justify-center text-sm font-bold">
         {n}
       </span>
-      <div className="pt-0.5 text-white/85">{children}</div>
+      <div className="pt-0.5 text-dark-gray">{children}</div>
     </li>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { X, ExternalLink } from "lucide-react";
 import { DeviceSelector } from "./DeviceSelector";
 import {
   MAX_CHUNK_DURATION_MS,
@@ -95,40 +96,42 @@ export function SettingsDrawer(props: Props) {
       <div
         onClick={onClose}
         className={[
-          "fixed inset-0 bg-black/50 z-40 transition-opacity",
+          "fixed inset-0 bg-dark-navy/30 z-40 transition-opacity",
           open ? "opacity-100" : "opacity-0 pointer-events-none",
         ].join(" ")}
         aria-hidden="true"
       />
       <aside
         className={[
-          "fixed top-0 right-0 bottom-0 z-50 w-full sm:w-[420px] bg-navy-light border-l border-white/10 shadow-2xl",
+          "fixed top-0 right-0 bottom-0 z-50 w-full sm:w-[420px] bg-white border-l border-border-gray shadow-2xl",
           "transform transition-transform overflow-y-auto",
           open ? "translate-x-0" : "translate-x-full",
         ].join(" ")}
         role="dialog"
         aria-label="Settings"
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-white/10 sticky top-0 bg-navy-light">
-          <h2 className="text-lg font-semibold">Settings</h2>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border-gray sticky top-0 bg-white">
+          <h2 className="text-lg font-semibold text-dark-navy">Settings</h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-white/60 hover:text-white text-xl"
+            className="text-mid-gray hover:text-dark-navy p-1 rounded hover:bg-light-gray"
             aria-label="Close settings"
           >
-            ×
+            <X size={18} />
           </button>
         </div>
 
         <div className="p-5 space-y-6">
           {me && (
-            <section className="rounded-lg border border-white/10 bg-navy/40 p-4">
+            <section className="rounded-lg border border-border-gray bg-off-white p-4">
               <div className="flex items-center gap-3 mb-3">
                 <Avatar name={me.name || me.email} />
                 <div className="min-w-0">
-                  <div className="font-medium truncate">{me.name || me.email}</div>
-                  <div className="text-xs text-white/50 truncate">{me.email}</div>
+                  <div className="font-medium text-dark-navy truncate">
+                    {me.name || me.email}
+                  </div>
+                  <div className="text-xs text-mid-gray truncate">{me.email}</div>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
@@ -153,7 +156,7 @@ export function SettingsDrawer(props: Props) {
             <select
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
-              className="w-full bg-navy border border-white/10 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-teal"
+              className="w-full bg-white border border-border-gray rounded px-3 py-2 text-sm text-dark-navy focus:outline-none focus:ring-2 focus:ring-itu-blue/40 focus:border-itu-blue"
             >
               {SUPPORTED_LANGUAGES.map((l) => (
                 <option key={l.code || "auto"} value={l.code}>
@@ -165,7 +168,7 @@ export function SettingsDrawer(props: Props) {
 
           <Field
             label={`Chunk Duration: ${(chunkDuration / 1000).toFixed(0)}s`}
-            hint="Shorter = faster appearance. Longer = fewer API calls."
+            hint="Shorter = faster appearance. Longer = better speaker tracking."
           >
             <input
               type="range"
@@ -174,9 +177,9 @@ export function SettingsDrawer(props: Props) {
               step={1000}
               value={chunkDuration}
               onChange={(e) => setChunkDuration(parseInt(e.target.value, 10))}
-              className="w-full accent-teal"
+              className="w-full accent-itu-blue"
             />
-            <div className="flex justify-between text-[10px] text-white/40 mt-1">
+            <div className="flex justify-between text-[10px] text-mid-gray mt-1">
               <span>{MIN_CHUNK_DURATION_MS / 1000}s</span>
               <span>{MAX_CHUNK_DURATION_MS / 1000}s</span>
             </div>
@@ -189,11 +192,11 @@ export function SettingsDrawer(props: Props) {
             <DeviceSelector value={deviceId} onChange={setDeviceId} />
           </Field>
 
-          <div className="pt-4 border-t border-white/10 space-y-3">
+          <div className="pt-4 border-t border-border-gray space-y-3">
             {isAdmin && (
               <a
                 href="/admin"
-                className="block text-center px-3 py-2 text-sm text-teal border border-teal/30 rounded hover:bg-teal/10"
+                className="block text-center px-3 py-2 text-sm text-itu-blue-dark border border-itu-blue/40 rounded hover:bg-itu-blue-pale"
               >
                 Open admin dashboard →
               </a>
@@ -203,13 +206,13 @@ export function SettingsDrawer(props: Props) {
               <button
                 type="button"
                 onClick={() => setConfirmClear(true)}
-                className="w-full px-3 py-2 text-sm text-red-400 border border-red-400/30 rounded hover:bg-red-400/10"
+                className="w-full px-3 py-2 text-sm text-error border border-error/40 rounded hover:bg-error/5"
               >
                 Clear Current Session
               </button>
             ) : (
-              <div className="p-3 rounded border border-red-400/30 bg-red-400/10 text-sm space-y-2">
-                <p className="text-white/80">
+              <div className="p-3 rounded border border-error/40 bg-error/5 text-sm space-y-2">
+                <p className="text-dark-navy">
                   This will erase the transcript from screen and local storage.
                 </p>
                 <div className="flex gap-2">
@@ -219,14 +222,14 @@ export function SettingsDrawer(props: Props) {
                       onClearSession();
                       setConfirmClear(false);
                     }}
-                    className="flex-1 px-3 py-1.5 bg-red-500 text-white rounded hover:bg-red-600"
+                    className="flex-1 px-3 py-1.5 bg-error text-white rounded hover:bg-[#B91C1C]"
                   >
                     Yes, clear
                   </button>
                   <button
                     type="button"
                     onClick={() => setConfirmClear(false)}
-                    className="flex-1 px-3 py-1.5 bg-navy border border-white/10 text-white rounded"
+                    className="flex-1 px-3 py-1.5 bg-white border border-border-gray text-dark-navy rounded hover:bg-light-gray"
                   >
                     Cancel
                   </button>
@@ -237,7 +240,7 @@ export function SettingsDrawer(props: Props) {
             <button
               type="button"
               onClick={onSignOut}
-              className="w-full px-3 py-2 text-sm text-white/80 border border-white/10 rounded hover:bg-white/5"
+              className="w-full px-3 py-2 text-sm text-dark-navy border border-border-gray rounded hover:bg-light-gray"
             >
               Sign out
             </button>
@@ -246,9 +249,9 @@ export function SettingsDrawer(props: Props) {
               href="https://github.com/techpolicycomms/dhvani"
               target="_blank"
               rel="noreferrer"
-              className="block text-center text-sm text-teal hover:text-teal-dark"
+              className="inline-flex items-center justify-center gap-1 w-full text-center text-sm text-itu-blue-dark hover:text-itu-blue"
             >
-              About Dhvani · GitHub ↗
+              About Dhvani · GitHub <ExternalLink size={12} />
             </a>
           </div>
         </div>
@@ -268,9 +271,11 @@ function Field({
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-white/90 mb-1">{label}</label>
+      <label className="block text-sm font-medium text-dark-navy mb-1">
+        {label}
+      </label>
       {children}
-      {hint && <p className="mt-1 text-[11px] text-white/40">{hint}</p>}
+      {hint && <p className="mt-1 text-[11px] text-mid-gray">{hint}</p>}
     </div>
   );
 }
@@ -286,11 +291,11 @@ function UsageStat({
 }) {
   return (
     <div>
-      <div className="text-[10px] uppercase tracking-wider text-white/40">
+      <div className="text-[10px] uppercase tracking-wider text-mid-gray">
         {label}
       </div>
-      <div className="font-mono text-white/90 tabular-nums">{value}</div>
-      {sub && <div className="text-[10px] text-white/40">{sub}</div>}
+      <div className="font-mono text-dark-navy tabular-nums">{value}</div>
+      {sub && <div className="text-[10px] text-mid-gray">{sub}</div>}
     </div>
   );
 }
@@ -303,7 +308,7 @@ function Avatar({ name }: { name: string }) {
     .map((s) => s[0]?.toUpperCase() ?? "")
     .join("");
   return (
-    <div className="w-10 h-10 rounded-full bg-teal text-navy flex items-center justify-center font-semibold shrink-0">
+    <div className="w-10 h-10 rounded-full bg-itu-blue text-white flex items-center justify-center font-semibold shrink-0">
       {initials || "?"}
     </div>
   );

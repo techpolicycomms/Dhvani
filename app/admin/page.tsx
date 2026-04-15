@@ -25,16 +25,18 @@ export default async function AdminPage() {
   }
   if (!isAdminEmail(email)) {
     return (
-      <main className="min-h-screen flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-navy-light/60 border border-white/10 rounded-lg p-6 text-center">
-          <h1 className="text-xl font-semibold mb-2">403 — Forbidden</h1>
-          <p className="text-white/70 text-sm">
-            Your account (<code>{email}</code>) is not authorized to view the
-            Dhvani admin dashboard.
+      <main className="min-h-screen flex items-center justify-center p-6 pt-10 bg-off-white">
+        <div className="max-w-md w-full bg-white border border-border-gray rounded-lg p-6 text-center shadow-sm">
+          <h1 className="text-xl font-semibold mb-2 text-dark-navy">
+            403 — Forbidden
+          </h1>
+          <p className="text-mid-gray text-sm">
+            Your account (<code className="text-dark-navy">{email}</code>) is
+            not authorized to view the Dhvani admin dashboard.
           </p>
           <a
             href="/"
-            className="inline-block mt-5 px-4 py-2 text-sm text-teal border border-teal/30 rounded hover:bg-teal/10"
+            className="inline-block mt-5 px-4 py-2 text-sm text-itu-blue-dark border border-itu-blue/40 rounded hover:bg-itu-blue-pale"
           >
             ← Back to Dhvani
           </a>

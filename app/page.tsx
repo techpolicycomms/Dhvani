@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Settings, X } from "lucide-react";
 import { ControlBar } from "@/components/ControlBar";
 import { ExportMenu } from "@/components/ExportMenu";
 import { SettingsDrawer } from "@/components/SettingsDrawer";
@@ -154,20 +155,22 @@ export default function HomePage() {
 
   // Connection status dot color.
   const statusColor = error
-    ? "bg-red-500"
+    ? "bg-error"
     : isCapturing
     ? inFlight > 0
-      ? "bg-yellow-400"
-      : "bg-green-500"
-    : "bg-gray-500";
+      ? "bg-warning"
+      : "bg-success"
+    : "bg-mid-gray/50";
 
   // -------- Resume prompt --------
   if (showResume) {
     return (
-      <main className="min-h-screen flex items-center justify-center p-6">
-        <div className="max-w-md w-full bg-navy-light/60 border border-white/10 rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-2">Resume previous session?</h2>
-          <p className="text-white/70 text-sm mb-5">
+      <main className="min-h-screen flex items-center justify-center p-6 pt-10">
+        <div className="max-w-md w-full bg-white border border-border-gray rounded-lg p-6 shadow-sm">
+          <h2 className="text-xl font-semibold mb-2 text-dark-navy">
+            Resume previous session?
+          </h2>
+          <p className="text-mid-gray text-sm mb-5">
             Dhvani saved a transcript from a previous session. Load it back in
             and continue, or start fresh.
           </p>
@@ -177,7 +180,7 @@ export default function HomePage() {
                 resumeSession();
                 setShowResume(false);
               }}
-              className="flex-1 px-4 py-2 bg-teal text-navy rounded hover:bg-teal-dark font-medium"
+              className="flex-1 px-4 py-2 bg-itu-blue text-white rounded hover:bg-itu-blue-dark font-medium"
             >
               Resume
             </button>
@@ -186,7 +189,7 @@ export default function HomePage() {
                 discardSavedSession();
                 setShowResume(false);
               }}
-              className="flex-1 px-4 py-2 bg-navy border border-white/10 rounded hover:bg-navy-light"
+              className="flex-1 px-4 py-2 bg-white border border-border-gray text-dark-navy rounded hover:bg-light-gray"
             >
               Start fresh
             </button>
@@ -199,7 +202,7 @@ export default function HomePage() {
   // -------- Setup wizard for first-run --------
   if (!setupComplete) {
     return (
-      <main className="min-h-screen">
+      <main className="min-h-screen pt-3">
         <SetupWizard
           onComplete={onWizardComplete}
           language={language || undefined}
@@ -212,19 +215,25 @@ export default function HomePage() {
 
   // -------- Main UI --------
   return (
-    <main className="min-h-screen flex flex-col">
+    <main className="min-h-screen flex flex-col bg-off-white pt-[3px]">
       {/* HEADER */}
-      <header className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-white/10 bg-navy-light/40">
+      <header className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-border-gray bg-white">
         <div className="flex items-center gap-3">
-          <div className="flex items-baseline gap-2">
-            <span className="text-xl font-bold">Dhvani</span>
-            <span className="text-white/50 text-sm">ध्वनि</span>
+          <div className="flex flex-col">
+            <div className="flex items-baseline gap-2">
+              <span className="text-lg font-bold text-dark-navy leading-tight">
+                Dhvani
+              </span>
+              <span className="text-mid-gray text-sm">ध्वनि</span>
+            </div>
+            <span className="text-[11px] text-mid-gray leading-tight">
+              Meeting Transcription
+            </span>
           </div>
           <span
             className={[
               "w-2.5 h-2.5 rounded-full",
               statusColor,
-              isCapturing ? "pulse-recording" : "",
             ].join(" ")}
             aria-label="Connection status"
           />
@@ -234,14 +243,14 @@ export default function HomePage() {
           {isAdmin && (
             <Link
               href="/admin"
-              className="text-xs text-teal hover:text-teal-dark hidden sm:inline"
+              className="text-xs text-itu-blue-dark hover:text-itu-blue hidden sm:inline"
             >
               Admin
             </Link>
           )}
           <Link
             href="/desktop-setup"
-            className="text-xs text-white/60 hover:text-white hidden sm:inline"
+            className="text-xs text-mid-gray hover:text-dark-navy hidden sm:inline"
           >
             Desktop setup
           </Link>
@@ -250,7 +259,7 @@ export default function HomePage() {
               setSetupComplete("");
               stopCapture();
             }}
-            className="text-xs text-white/60 hover:text-white hidden sm:inline"
+            className="text-xs text-mid-gray hover:text-dark-navy hidden sm:inline"
           >
             Change source
           </button>
@@ -261,10 +270,10 @@ export default function HomePage() {
           )}
           <button
             onClick={() => setSettingsOpen(true)}
-            className="p-2 rounded hover:bg-white/10"
+            className="p-2 rounded text-mid-gray hover:text-dark-navy hover:bg-light-gray"
             aria-label="Open settings"
           >
-            <GearIcon />
+            <Settings size={18} />
           </button>
         </div>
       </header>
@@ -305,21 +314,21 @@ export default function HomePage() {
 
       {/* RATE LIMIT BANNER (persistent) */}
       {rateLimitMsg && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 max-w-md bg-yellow-500 text-navy text-sm px-4 py-3 rounded-lg shadow-lg flex items-start gap-3">
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 max-w-md bg-warning text-white text-sm px-4 py-3 rounded-lg shadow-lg flex items-start gap-3">
           <span className="font-semibold">Quota reached:</span>
           <span>{rateLimitMsg}</span>
           <button
             onClick={() => setRateLimitMsg(null)}
-            className="text-navy/70 hover:text-navy"
+            className="text-white/80 hover:text-white shrink-0"
             aria-label="Dismiss"
           >
-            ×
+            <X size={14} />
           </button>
         </div>
       )}
 
       {toast && (
-        <div className="fixed bottom-28 right-4 max-w-sm bg-red-500/90 text-white text-sm px-4 py-2 rounded shadow-lg">
+        <div className="fixed bottom-28 right-4 max-w-sm bg-error text-white text-sm px-4 py-2 rounded shadow-lg">
           {toast}
         </div>
       )}
@@ -395,30 +404,11 @@ function UserChip({ name }: { name: string }) {
     .join("");
   return (
     <span
-      className="w-8 h-8 rounded-full bg-teal text-navy flex items-center justify-center text-xs font-bold"
+      className="w-8 h-8 rounded-full bg-itu-blue text-white flex items-center justify-center text-xs font-bold"
       title={name}
       aria-label={`Signed in as ${name}`}
     >
       {initials || "?"}
     </span>
-  );
-}
-
-function GearIcon() {
-  return (
-    <svg
-      width={20}
-      height={20}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={1.8}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <circle cx={12} cy={12} r={3} />
-      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3h.1a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8v.1a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
-    </svg>
   );
 }

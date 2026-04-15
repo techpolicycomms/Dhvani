@@ -6,7 +6,9 @@ Dhvani captures audio from Zoom, Teams, or Google Meet and transcribes it in rea
 
 Named from the Sanskrit word for "sound" (ध्वनि), Dhvani is built to make meeting transcription accessible, open, and free.
 
-![MIT License](https://img.shields.io/badge/license-MIT-14b8a6.svg) ![Next.js](https://img.shields.io/badge/Next.js-14-000) ![OpenAI Whisper](https://img.shields.io/badge/Whisper-API-10a37f)
+![MIT License](https://img.shields.io/badge/license-MIT-1DA0DB.svg) ![Next.js](https://img.shields.io/badge/Next.js-14-000) ![Azure OpenAI](https://img.shields.io/badge/Azure_OpenAI-GPT--4o_Transcribe-1DA0DB)
+
+> Developed by the **ITU Innovation Hub**.
 
 ## Features
 

@@ -1,12 +1,29 @@
 import type { Metadata, Viewport } from "next";
+import { Noto_Sans, Noto_Sans_Mono } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
 import "./globals.css";
 import { auth } from "@/lib/auth";
 
+// Noto Sans covers all six UN languages (English, French, Spanish, Russian,
+// Arabic, Chinese) plus Hindi — the practical baseline for an ITU tool.
+const notoSans = Noto_Sans({
+  subsets: ["latin", "latin-ext", "cyrillic", "devanagari"],
+  weight: ["300", "400", "500", "600", "700"],
+  variable: "--font-noto-sans",
+  display: "swap",
+});
+
+const notoSansMono = Noto_Sans_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  variable: "--font-noto-mono",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "Dhvani ध्वनि — Real-time meeting transcription",
   description:
-    "Open-source multilingual meeting transcription for everyone. Captures Zoom, Teams, and Google Meet audio and transcribes with OpenAI Whisper.",
+    "Multilingual meeting transcription for the ITU Innovation Hub. Captures Zoom, Teams, and Google Meet audio and transcribes with Azure OpenAI GPT-4o Transcribe.",
   applicationName: "Dhvani",
   manifest: "/manifest.json",
   icons: {
@@ -15,18 +32,18 @@ export const metadata: Metadata = {
   },
   appleWebApp: {
     capable: true,
-    statusBarStyle: "black-translucent",
+    statusBarStyle: "default",
     title: "Dhvani",
   },
   openGraph: {
     title: "Dhvani — Real-time meeting transcription",
-    description: "Open-source multilingual meeting transcription.",
+    description: "Multilingual meeting transcription, by the ITU Innovation Hub.",
     type: "website",
   },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#0f172a",
+  themeColor: "#1DA0DB",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -43,13 +60,21 @@ export default async function RootLayout({
   // state on slow networks).
   const session = await auth();
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      className={`${notoSans.variable} ${notoSansMono.variable}`}
+    >
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#0f172a" />
+        <meta name="theme-color" content="#1DA0DB" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
-      <body className="min-h-screen bg-navy text-white antialiased">
+      <body className="min-h-screen bg-white text-dark-navy antialiased font-sans">
+        {/* 3-px ITU Blue accent line at the top of every page. */}
+        <div
+          aria-hidden="true"
+          className="fixed top-0 left-0 right-0 h-[3px] bg-itu-blue z-50"
+        />
         <SessionProvider session={session}>{children}</SessionProvider>
         <script
           // Register the PWA service worker on supported browsers.

@@ -1,5 +1,6 @@
 "use client";
 
+import { RotateCw } from "lucide-react";
 import { useAudioDevices } from "@/hooks/useAudioDevices";
 
 type Props = {
@@ -21,7 +22,7 @@ export function DeviceSelector({ value, onChange, className }: Props) {
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className="flex-1 bg-navy border border-white/10 rounded px-3 py-2 text-sm text-white focus:outline-none focus:ring-1 focus:ring-teal"
+          className="flex-1 bg-white border border-border-gray rounded px-3 py-2 text-sm text-dark-navy focus:outline-none focus:ring-2 focus:ring-itu-blue/40 focus:border-itu-blue"
         >
           <option value="">Default input</option>
           {devices.map((d) => (
@@ -33,12 +34,14 @@ export function DeviceSelector({ value, onChange, className }: Props) {
         <button
           type="button"
           onClick={() => void refresh()}
-          className="text-xs text-teal hover:text-teal-dark px-2 py-2 border border-white/10 rounded"
+          aria-label="Refresh device list"
+          className="inline-flex items-center gap-1 text-xs text-itu-blue-dark hover:text-itu-blue px-2 py-2 border border-border-gray rounded hover:bg-light-gray"
         >
-          {isLoading ? "…" : "Refresh"}
+          <RotateCw size={12} className={isLoading ? "animate-spin" : ""} />
+          {isLoading ? "" : "Refresh"}
         </button>
       </div>
-      {error && <p className="mt-1 text-xs text-red-400">{error}</p>}
+      {error && <p className="mt-1 text-xs text-error">{error}</p>}
     </div>
   );
 }

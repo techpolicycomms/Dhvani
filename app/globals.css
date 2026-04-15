@@ -3,44 +3,74 @@
 @tailwind utilities;
 
 :root {
-  color-scheme: dark;
+  color-scheme: light;
+
+  /* ITU brand */
+  --itu-blue: #1da0db;
+  --itu-blue-dark: #0b7ab0;
+  --itu-blue-light: #5bbee8;
+  --itu-blue-pale: #e5f4fb;
+  --un-blue: #009edb;
+
+  /* Neutrals */
+  --white: #ffffff;
+  --off-white: #fafafa;
+  --light-gray: #f3f4f6;
+  --border-gray: #e5e7eb;
+  --mid-gray: #6b7280;
+  --dark-gray: #374151;
+  --dark-navy: #003366;
+
+  /* Status */
+  --success: #059669;
+  --warning: #d97706;
+  --error: #dc2626;
+  --itu-red: #e4002b;
 }
 
 html,
 body {
-  background-color: #0f172a;
-  color: #f8fafc;
+  background-color: var(--white);
+  color: var(--dark-navy);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Custom scrollbar for transcript panel */
+/* Custom scrollbar — light, ITU-Blue thumb on hover. */
 .transcript-scroll::-webkit-scrollbar {
   width: 8px;
 }
 .transcript-scroll::-webkit-scrollbar-track {
-  background: #1e293b;
+  background: var(--light-gray);
 }
 .transcript-scroll::-webkit-scrollbar-thumb {
-  background: #334155;
+  background: var(--border-gray);
   border-radius: 4px;
 }
 .transcript-scroll::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: var(--itu-blue-light);
 }
 
-@keyframes pulse-recording {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
-}
-.pulse-recording {
-  animation: pulse-recording 1.5s ease-in-out infinite;
-}
-
+/* Search highlight in transcript. */
 mark.dhvani-highlight {
-  background-color: #14b8a6;
-  color: #0f172a;
+  background-color: var(--itu-blue-pale);
+  color: var(--dark-navy);
   padding: 0 2px;
   border-radius: 2px;
+}
+
+/* Subtle entry animation for new transcript turns. */
+.transcript-entry {
+  animation: transcript-in 180ms ease-out both;
+}
+@keyframes transcript-in {
+  0% {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }

@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { ArrowLeft } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -14,6 +15,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { ITU_COLORS } from "@/lib/theme";
 import type { UsageStats } from "@/lib/usageAggregates";
 
 type Config = {
@@ -29,8 +31,17 @@ type Props = {
   signedInEmail: string;
 };
 
-const TEAL = "#14b8a6";
-const SERIES_COLORS = ["#14b8a6", "#6366f1", "#f59e0b", "#ec4899", "#10b981", "#94a3b8"];
+const PRIMARY = ITU_COLORS.ituBlue;
+const SERIES_COLORS = [
+  ITU_COLORS.ituBlue,
+  ITU_COLORS.darkNavy,
+  ITU_COLORS.warning,
+  ITU_COLORS.success,
+  ITU_COLORS.error,
+  ITU_COLORS.midGray,
+];
+const GRID = ITU_COLORS.borderGray;
+const AXIS = ITU_COLORS.midGray;
 
 /**
  * Admin dashboard client shell.
@@ -146,25 +157,33 @@ export function AdminDashboardClient({ initialStats, signedInEmail }: Props) {
   const today = new Date().toISOString().slice(0, 10);
   const todayRow = stats.byDay.find((d) => d.date === today);
 
+  const tooltipStyle = {
+    background: ITU_COLORS.white,
+    border: `1px solid ${ITU_COLORS.borderGray}`,
+    color: ITU_COLORS.darkNavy,
+    fontSize: 12,
+  };
+
   return (
-    <main className="min-h-screen p-4 sm:p-6 space-y-6">
+    <main className="min-h-screen bg-off-white pt-3">
+      <div className="p-4 sm:p-6 space-y-6">
       <header className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold">
+          <h1 className="text-2xl font-bold text-dark-navy">
             Dhvani admin{" "}
-            <span className="text-white/50 text-sm font-normal">
+            <span className="text-mid-gray text-sm font-normal">
               · {signedInEmail}
             </span>
           </h1>
-          <p className="text-xs text-white/50 mt-1">
+          <p className="text-xs text-mid-gray mt-1">
             Live usage and controls. Stats refresh every 30 s.
           </p>
         </div>
         <Link
           href="/"
-          className="text-sm text-teal hover:text-teal-dark"
+          className="inline-flex items-center gap-1 text-sm text-itu-blue-dark hover:text-itu-blue"
         >
-          ← Back to Dhvani
+          <ArrowLeft size={14} /> Back to Dhvani
         </Link>
       </header>
 
@@ -200,44 +219,41 @@ export function AdminDashboardClient({ initialStats, signedInEmail }: Props) {
       </section>
 
       {/* Daily cost bar chart */}
-      <section className="bg-navy-light/40 border border-white/10 rounded-lg p-4">
-        <h2 className="font-medium mb-3">Daily cost (last 30 days)</h2>
+      <section className="bg-white border border-border-gray rounded-lg p-4 shadow-sm">
+        <h2 className="font-medium mb-3 text-dark-navy">
+          Daily cost (last 30 days)
+        </h2>
         <div className="w-full h-56">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={spendSeries}>
-              <CartesianGrid stroke="#1e293b" />
-              <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} />
-              <YAxis stroke="#94a3b8" fontSize={11} />
+              <CartesianGrid stroke={GRID} />
+              <XAxis dataKey="date" stroke={AXIS} fontSize={11} />
+              <YAxis stroke={AXIS} fontSize={11} />
               <Tooltip
-                contentStyle={{
-                  background: "#0f172a",
-                  border: "1px solid #334155",
-                }}
-                labelStyle={{ color: "#94a3b8" }}
+                contentStyle={tooltipStyle}
+                labelStyle={{ color: ITU_COLORS.midGray }}
+                cursor={{ fill: ITU_COLORS.ituBluePale }}
               />
-              <Bar dataKey="cost" fill={TEAL} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="cost" fill={PRIMARY} radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </section>
 
       {/* Stacked daily minutes by top user */}
-      <section className="bg-navy-light/40 border border-white/10 rounded-lg p-4">
-        <h2 className="font-medium mb-3">
+      <section className="bg-white border border-border-gray rounded-lg p-4 shadow-sm">
+        <h2 className="font-medium mb-3 text-dark-navy">
           Daily minutes transcribed — top 5 users + others
         </h2>
         <div className="w-full h-64">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={stackedSeries}>
-              <CartesianGrid stroke="#1e293b" />
-              <XAxis dataKey="date" stroke="#94a3b8" fontSize={11} />
-              <YAxis stroke="#94a3b8" fontSize={11} />
+              <CartesianGrid stroke={GRID} />
+              <XAxis dataKey="date" stroke={AXIS} fontSize={11} />
+              <YAxis stroke={AXIS} fontSize={11} />
               <Tooltip
-                contentStyle={{
-                  background: "#0f172a",
-                  border: "1px solid #334155",
-                }}
-                labelStyle={{ color: "#94a3b8" }}
+                contentStyle={tooltipStyle}
+                labelStyle={{ color: ITU_COLORS.midGray }}
               />
               <Legend wrapperStyle={{ fontSize: "11px" }} />
               {stats.topUsersDaily.series.map((s, i) => (
@@ -256,19 +272,21 @@ export function AdminDashboardClient({ initialStats, signedInEmail }: Props) {
       </section>
 
       {/* User table */}
-      <section className="bg-navy-light/40 border border-white/10 rounded-lg p-4">
+      <section className="bg-white border border-border-gray rounded-lg p-4 shadow-sm">
         <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-          <h2 className="font-medium">Users ({stats.byUser.length})</h2>
+          <h2 className="font-medium text-dark-navy">
+            Users ({stats.byUser.length})
+          </h2>
           <input
             placeholder="Filter by name or email…"
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="bg-navy border border-white/10 rounded px-3 py-1.5 text-sm"
+            className="bg-white border border-border-gray rounded px-3 py-1.5 text-sm text-dark-navy focus:outline-none focus:ring-2 focus:ring-itu-blue/40 focus:border-itu-blue"
           />
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
-            <thead className="text-left text-white/50 text-xs uppercase">
+            <thead className="text-left text-mid-gray text-xs uppercase">
               <tr>
                 <Th onClick={() => toggleSort("name")} active={sortKey === "name"} dir={sortDir}>Name</Th>
                 <Th onClick={() => toggleSort("email")} active={sortKey === "email"} dir={sortDir}>Email</Th>
@@ -278,28 +296,31 @@ export function AdminDashboardClient({ initialStats, signedInEmail }: Props) {
                 <Th onClick={() => toggleSort("lastUsed")} active={sortKey === "lastUsed"} dir={sortDir}>Last active</Th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-white/5">
+            <tbody className="divide-y divide-border-gray">
               {filteredUsers.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="py-6 text-center text-white/40">
+                  <td colSpan={6} className="py-6 text-center text-mid-gray">
                     No users yet.
                   </td>
                 </tr>
               )}
-              {filteredUsers.map((u) => (
-                <tr key={u.userId} className="hover:bg-white/5">
-                  <td className="py-2 pr-3">{u.name || "—"}</td>
-                  <td className="py-2 pr-3 text-white/70">{u.email}</td>
-                  <td className="py-2 pr-3 text-right tabular-nums">
+              {filteredUsers.map((u, i) => (
+                <tr
+                  key={u.userId}
+                  className={`${i % 2 === 1 ? "bg-off-white" : "bg-white"} hover:bg-itu-blue-pale`}
+                >
+                  <td className="py-2 pr-3 text-dark-navy">{u.name || "—"}</td>
+                  <td className="py-2 pr-3 text-mid-gray">{u.email}</td>
+                  <td className="py-2 pr-3 text-right tabular-nums text-dark-navy">
                     {u.totalMinutes.toFixed(1)}
                   </td>
-                  <td className="py-2 pr-3 text-right tabular-nums">
+                  <td className="py-2 pr-3 text-right tabular-nums text-dark-navy">
                     ${u.totalCost.toFixed(3)}
                   </td>
-                  <td className="py-2 pr-3 text-right tabular-nums">
+                  <td className="py-2 pr-3 text-right tabular-nums text-dark-navy">
                     {u.sessions}
                   </td>
-                  <td className="py-2 pr-3 text-white/60">
+                  <td className="py-2 pr-3 text-mid-gray">
                     {new Date(u.lastUsed).toLocaleString()}
                   </td>
                 </tr>
@@ -310,8 +331,8 @@ export function AdminDashboardClient({ initialStats, signedInEmail }: Props) {
       </section>
 
       {/* Controls */}
-      <section className="bg-navy-light/40 border border-white/10 rounded-lg p-4">
-        <h2 className="font-medium mb-3">Controls</h2>
+      <section className="bg-white border border-border-gray rounded-lg p-4 shadow-sm">
+        <h2 className="font-medium mb-3 text-dark-navy">Controls</h2>
         {config ? (
           <div className="grid md:grid-cols-2 gap-4">
             <NumberField
@@ -332,10 +353,12 @@ export function AdminDashboardClient({ initialStats, signedInEmail }: Props) {
               onCommit={(v) => saveConfig({ monthlyBudgetUsd: v })}
               disabled={savingConfig}
             />
-            <div className="flex items-center justify-between bg-navy/40 border border-white/10 rounded p-3">
+            <div className="flex items-center justify-between bg-off-white border border-border-gray rounded p-3">
               <div>
-                <div className="text-sm font-medium">Service enabled</div>
-                <div className="text-xs text-white/50">
+                <div className="text-sm font-medium text-dark-navy">
+                  Service enabled
+                </div>
+                <div className="text-xs text-mid-gray">
                   Disable to reject all /api/transcribe calls (kill switch).
                 </div>
               </div>
@@ -348,8 +371,8 @@ export function AdminDashboardClient({ initialStats, signedInEmail }: Props) {
                 className={[
                   "px-3 py-1.5 rounded text-sm font-medium",
                   config.serviceEnabled
-                    ? "bg-teal text-navy hover:bg-teal-dark"
-                    : "bg-red-500 text-white hover:bg-red-600",
+                    ? "bg-success text-white hover:bg-[#047857]"
+                    : "bg-error text-white hover:bg-[#B91C1C]",
                 ].join(" ")}
               >
                 {config.serviceEnabled ? "Enabled" : "Disabled"}
@@ -357,21 +380,22 @@ export function AdminDashboardClient({ initialStats, signedInEmail }: Props) {
             </div>
           </div>
         ) : (
-          <p className="text-sm text-white/50">Loading controls…</p>
+          <p className="text-sm text-mid-gray">Loading controls…</p>
         )}
 
         <div className="mt-4 flex flex-wrap gap-3">
           <a
             href="/api/admin/usage?format=csv"
-            className="px-3 py-2 text-sm bg-navy border border-white/10 rounded hover:bg-navy-light text-white/90"
+            className="px-3 py-2 text-sm bg-white border border-border-gray rounded hover:bg-light-gray text-dark-navy"
           >
             Download usage log (CSV)
           </a>
           {configToast && (
-            <span className="text-xs text-teal self-center">{configToast}</span>
+            <span className="text-xs text-success self-center">{configToast}</span>
           )}
         </div>
       </section>
+      </div>
     </main>
   );
 }
@@ -390,20 +414,20 @@ function Card({
   return (
     <div
       className={[
-        "rounded-lg border p-4",
+        "rounded-lg border p-4 shadow-sm",
         emphasis
-          ? "border-yellow-400/40 bg-yellow-400/5"
-          : "border-white/10 bg-navy-light/40",
+          ? "border-warning/40 bg-[#FEF3C7]"
+          : "border-border-gray bg-white",
       ].join(" ")}
     >
-      <div className="text-[10px] uppercase tracking-wider text-white/50">
+      <div className="text-[10px] uppercase tracking-wider text-mid-gray">
         {label}
       </div>
-      <div className="mt-1 text-2xl font-mono font-semibold tabular-nums">
+      <div className="mt-1 text-2xl font-mono font-semibold tabular-nums text-dark-navy">
         {primary}
       </div>
       {secondary && (
-        <div className="text-xs text-white/50 mt-0.5">{secondary}</div>
+        <div className="text-xs text-mid-gray mt-0.5">{secondary}</div>
       )}
     </div>
   );
@@ -423,11 +447,15 @@ function Th({
   right?: boolean;
 }) {
   return (
-    <th className={`py-2 pr-3 font-normal ${right ? "text-right" : ""}`}>
+    <th
+      className={`py-2 pr-3 font-normal bg-dark-navy/5 ${right ? "text-right" : ""}`}
+    >
       <button
         type="button"
         onClick={onClick}
-        className={`uppercase tracking-wider ${active ? "text-teal" : "text-white/50 hover:text-white"}`}
+        className={`uppercase tracking-wider ${
+          active ? "text-itu-blue-dark" : "text-mid-gray hover:text-dark-navy"
+        }`}
       >
         {children}
         {active && <span className="ml-1">{dir === "asc" ? "↑" : "↓"}</span>}
@@ -451,14 +479,14 @@ function NumberField({
   useEffect(() => setDraft(String(value)), [value]);
   const changed = Number(draft) !== value;
   return (
-    <div className="bg-navy/40 border border-white/10 rounded p-3">
-      <div className="text-xs text-white/60 mb-1">{label}</div>
+    <div className="bg-off-white border border-border-gray rounded p-3">
+      <div className="text-xs text-mid-gray mb-1">{label}</div>
       <div className="flex gap-2">
         <input
           type="number"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          className="flex-1 bg-navy border border-white/10 rounded px-2 py-1 text-sm"
+          className="flex-1 bg-white border border-border-gray rounded px-2 py-1 text-sm text-dark-navy focus:outline-none focus:ring-2 focus:ring-itu-blue/40 focus:border-itu-blue"
           disabled={disabled}
         />
         <button
@@ -468,7 +496,7 @@ function NumberField({
             const n = Number(draft);
             if (Number.isFinite(n)) onCommit(n);
           }}
-          className="px-3 py-1 rounded text-xs bg-teal text-navy hover:bg-teal-dark disabled:opacity-40 disabled:cursor-not-allowed"
+          className="px-3 py-1 rounded text-xs bg-itu-blue text-white hover:bg-itu-blue-dark disabled:opacity-40 disabled:cursor-not-allowed"
         >
           Save
         </button>

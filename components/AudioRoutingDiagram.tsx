@@ -3,6 +3,14 @@ type Props = {
   className?: string;
 };
 
+const ITU_BLUE = "#1DA0DB";
+const DARK_NAVY = "#003366";
+const MID_GRAY = "#6B7280";
+const BORDER_GRAY = "#E5E7EB";
+const ITU_BLUE_PALE = "#E5F4FB";
+const WARNING = "#D97706";
+const WARNING_PALE = "#FEF3C7";
+
 /**
  * SVG diagram showing the audio flow through a virtual cable.
  *
@@ -29,7 +37,7 @@ export function AudioRoutingDiagram({ platform, className }: Props) {
           markerHeight="6"
           orient="auto-start-reverse"
         >
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#14b8a6" />
+          <path d="M 0 0 L 10 5 L 0 10 z" fill={ITU_BLUE} />
         </marker>
       </defs>
 
@@ -37,7 +45,7 @@ export function AudioRoutingDiagram({ platform, className }: Props) {
       <Box x={10} y={100} w={150} h={60} label="Meeting App" sub="Zoom / Teams" />
       <Box x={200} y={100} w={150} h={60} label="System Audio" sub="OS mixer" />
       <Box x={390} y={100} w={150} h={60} label="Virtual Cable" sub={cable} highlight />
-      <Box x={580} y={20} w={170} h={60} label="Dhvani" sub="Transcribes" teal />
+      <Box x={580} y={20} w={170} h={60} label="Dhvani" sub="Transcribes" primary />
       <Box x={580} y={180} w={170} h={60} label="Your Speakers" sub="You still hear" />
 
       {/* Arrows */}
@@ -47,14 +55,14 @@ export function AudioRoutingDiagram({ platform, className }: Props) {
       <path
         d="M 540 130 L 560 130 L 560 50 L 580 50"
         fill="none"
-        stroke="#14b8a6"
+        stroke={ITU_BLUE}
         strokeWidth="2"
         markerEnd="url(#arrow)"
       />
       <path
         d="M 540 130 L 560 130 L 560 210 L 580 210"
         fill="none"
-        stroke="#14b8a6"
+        stroke={ITU_BLUE}
         strokeWidth="2"
         markerEnd="url(#arrow)"
       />
@@ -69,7 +77,7 @@ function Box({
   h,
   label,
   sub,
-  teal,
+  primary,
   highlight,
 }: {
   x: number;
@@ -78,11 +86,11 @@ function Box({
   h: number;
   label: string;
   sub?: string;
-  teal?: boolean;
+  primary?: boolean;
   highlight?: boolean;
 }) {
-  const stroke = teal ? "#14b8a6" : highlight ? "#f59e0b" : "#475569";
-  const fill = teal ? "#0d948833" : highlight ? "#f59e0b22" : "#1e293b";
+  const stroke = primary ? ITU_BLUE : highlight ? WARNING : BORDER_GRAY;
+  const fill = primary ? ITU_BLUE_PALE : highlight ? WARNING_PALE : "#FFFFFF";
   return (
     <g>
       <rect
@@ -100,8 +108,8 @@ function Box({
         x={x + w / 2}
         y={y + 25}
         textAnchor="middle"
-        fill="#f8fafc"
-        fontFamily="Inter, sans-serif"
+        fill={DARK_NAVY}
+        fontFamily="Noto Sans, sans-serif"
         fontSize="14"
         fontWeight="600"
       >
@@ -112,8 +120,8 @@ function Box({
           x={x + w / 2}
           y={y + 45}
           textAnchor="middle"
-          fill="#94a3b8"
-          fontFamily="Inter, sans-serif"
+          fill={MID_GRAY}
+          fontFamily="Noto Sans, sans-serif"
           fontSize="11"
         >
           {sub}
@@ -140,7 +148,7 @@ function Arrow({
       y1={y1}
       x2={x2}
       y2={y2}
-      stroke="#14b8a6"
+      stroke={ITU_BLUE}
       strokeWidth={2}
       markerEnd="url(#arrow)"
     />

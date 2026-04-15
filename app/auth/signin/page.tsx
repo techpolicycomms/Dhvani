@@ -23,38 +23,43 @@ export default function SignInPage({
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center p-6 bg-navy text-white">
-      <div className="max-w-md w-full bg-navy-light/60 border border-white/10 rounded-2xl p-8 text-center shadow-xl">
-        <div className="flex items-baseline justify-center gap-2 mb-2">
-          <h1 className="text-3xl font-bold">Dhvani</h1>
-          <span className="text-white/50 text-base">ध्वनि</span>
+    <main className="min-h-screen flex items-center justify-center p-6 pt-10 bg-off-white">
+      <div className="max-w-[400px] w-full bg-white border border-border-gray rounded-2xl p-8 text-center shadow-sm">
+        <div className="flex items-baseline justify-center gap-2 mb-1">
+          <h1 className="text-3xl font-bold text-dark-navy">Dhvani</h1>
+          <span className="text-mid-gray text-base">ध्वनि</span>
         </div>
-        <p className="text-white/70 mb-6">
-          Your organization&apos;s meeting transcription service. Sign in with
-          your work account to get started.
+        <p className="text-itu-blue-dark text-xs font-medium mb-1">
+          International Telecommunication Union
+        </p>
+        <p className="text-mid-gray mb-6 text-sm">
+          Meeting transcription for the ITU. Sign in with your work account to
+          get started.
         </p>
 
         <form action={doSignIn}>
           <button
             type="submit"
-            className="w-full flex items-center justify-center gap-3 bg-white text-[#2f2f2f] font-medium px-4 py-3 rounded-lg hover:bg-white/90 transition-colors"
+            className="w-full h-11 flex items-center justify-center gap-3 bg-itu-blue text-white font-medium px-4 rounded-lg hover:bg-itu-blue-dark transition-colors"
           >
             <MicrosoftLogo />
-            Sign in with Microsoft
+            Sign in with your ITU account
           </button>
         </form>
 
         {error && (
-          <p className="mt-4 text-sm text-red-400" role="alert">
+          <p className="mt-4 text-sm text-error" role="alert">
             {errorMessage(error)}
           </p>
         )}
 
-        <p className="mt-8 text-xs text-white/40">
-          By signing in you agree to use Dhvani in accordance with your
-          organization&apos;s acceptable use policies. Audio is sent to your
-          organization&apos;s Azure OpenAI transcription deployment
-          (with speaker diarization) and not stored by Dhvani.
+        <p className="mt-8 text-[11px] text-mid-gray">
+          Audio is sent to your organization&apos;s Azure OpenAI transcription
+          deployment (with speaker diarization) and not stored by Dhvani.
+        </p>
+
+        <p className="mt-4 text-[11px] text-mid-gray">
+          An ITU Innovation Hub tool.
         </p>
       </div>
     </main>
@@ -63,7 +68,7 @@ export default function SignInPage({
 
 function MicrosoftLogo() {
   return (
-    <svg width={18} height={18} viewBox="0 0 23 23" aria-hidden="true">
+    <svg width={16} height={16} viewBox="0 0 23 23" aria-hidden="true">
       <rect x="1" y="1" width="10" height="10" fill="#f25022" />
       <rect x="12" y="1" width="10" height="10" fill="#7fba00" />
       <rect x="1" y="12" width="10" height="10" fill="#00a4ef" />

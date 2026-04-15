@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Search, ArrowDown } from "lucide-react";
 import {
   colorForSpeaker,
   type TranscriptEntry,
@@ -79,15 +80,22 @@ export function TranscriptPanel({
 
   return (
     <div className="flex flex-col sm:flex-row h-full gap-3">
-      <div className="flex flex-col flex-1 bg-navy-light/40 rounded-lg border border-white/5 overflow-hidden">
-        <div className="flex items-center gap-2 px-3 py-2 border-b border-white/5 bg-navy-light/70">
-          <input
-            type="search"
-            placeholder="Search transcript…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 bg-navy rounded px-3 py-1.5 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-1 focus:ring-teal"
-          />
+      <div className="flex flex-col flex-1 bg-white rounded-lg border border-border-gray overflow-hidden shadow-sm">
+        <div className="flex items-center gap-2 px-3 py-2 border-b border-border-gray bg-off-white">
+          <div className="flex-1 relative">
+            <Search
+              size={14}
+              className="absolute left-2.5 top-1/2 -translate-y-1/2 text-mid-gray"
+              aria-hidden="true"
+            />
+            <input
+              type="search"
+              placeholder="Search transcript…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full bg-white border border-border-gray rounded pl-8 pr-3 py-1.5 text-sm text-dark-navy placeholder-mid-gray focus:outline-none focus:ring-2 focus:ring-itu-blue/40 focus:border-itu-blue"
+            />
+          </div>
           {!autoScroll && (
             <button
               type="button"
@@ -96,9 +104,9 @@ export function TranscriptPanel({
                 const el = scrollRef.current;
                 if (el) el.scrollTop = el.scrollHeight;
               }}
-              className="text-xs px-2 py-1 bg-teal text-navy rounded hover:bg-teal-dark"
+              className="inline-flex items-center gap-1 text-xs px-2.5 py-1 bg-itu-blue text-white rounded hover:bg-itu-blue-dark"
             >
-              Jump to latest
+              <ArrowDown size={12} /> Latest
             </button>
           )}
         </div>
@@ -106,10 +114,10 @@ export function TranscriptPanel({
         <div
           ref={scrollRef}
           onScroll={handleScroll}
-          className="transcript-scroll flex-1 overflow-y-auto px-4 py-3 space-y-2 text-sm leading-relaxed"
+          className="transcript-scroll flex-1 overflow-y-auto px-4 py-3 text-sm leading-relaxed"
         >
           {filtered.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-white/40 text-center py-12">
+            <div className="h-full flex items-center justify-center text-mid-gray text-center py-12">
               {transcript.length === 0
                 ? isCapturing
                   ? "Listening… transcript will appear here."
@@ -117,13 +125,17 @@ export function TranscriptPanel({
                 : "No entries match your search."}
             </div>
           ) : (
-            filtered.map((entry) => {
+            filtered.map((entry, idx) => {
               const raw = entry.rawSpeaker;
               const display = resolveSpeaker?.(raw) ?? entry.speaker;
               const color = raw ? colorForSpeaker(raw) : undefined;
+              const zebra = idx % 2 === 1 ? "bg-off-white" : "bg-white";
               return (
-                <div key={entry.id} className="flex gap-3">
-                  <span className="text-teal/80 font-mono text-xs shrink-0 pt-0.5 tabular-nums">
+                <div
+                  key={entry.id}
+                  className={`flex gap-3 px-2 py-1.5 rounded ${zebra} transcript-entry`}
+                >
+                  <span className="text-itu-blue-dark font-mono text-xs shrink-0 pt-0.5 tabular-nums">
                     [{entry.timestamp}]
                   </span>
                   <div className="min-w-0 flex-1">
@@ -142,7 +154,7 @@ export function TranscriptPanel({
                         {display}:
                       </button>
                     )}
-                    <span className="text-white/90 break-words">
+                    <span className="text-dark-gray break-words">
                       {highlight(entry.text)}
                     </span>
                   </div>
@@ -154,8 +166,8 @@ export function TranscriptPanel({
       </div>
 
       {hasSpeakers && (
-        <aside className="sm:w-56 shrink-0 bg-navy-light/40 rounded-lg border border-white/5 p-3 text-sm">
-          <div className="text-[10px] uppercase tracking-wider text-white/40 mb-2">
+        <aside className="sm:w-56 shrink-0 bg-white rounded-lg border border-border-gray p-3 text-sm shadow-sm">
+          <div className="text-[10px] uppercase tracking-wider text-mid-gray mb-2">
             Speakers
           </div>
           <ul className="space-y-1.5">
@@ -181,7 +193,7 @@ export function TranscriptPanel({
                     <button
                       type="button"
                       onClick={() => renameSpeaker && setEditing(raw)}
-                      className="truncate text-left text-white/90 hover:text-white hover:underline flex-1 min-w-0"
+                      className="truncate text-left text-dark-navy hover:text-itu-blue-dark hover:underline flex-1 min-w-0"
                       title={renameSpeaker ? "Click to rename" : undefined}
                     >
                       {display}
@@ -192,7 +204,7 @@ export function TranscriptPanel({
             })}
           </ul>
           {renameSpeaker && (
-            <p className="mt-3 text-[10px] text-white/40 leading-snug">
+            <p className="mt-3 text-[10px] text-mid-gray leading-snug">
               Click a speaker to rename. Names persist in this browser.
             </p>
           )}
@@ -222,7 +234,7 @@ function InlineRename({
         if (e.key === "Enter") onSubmit(value);
         if (e.key === "Escape") onCancel();
       }}
-      className="flex-1 min-w-0 bg-navy border border-teal/40 rounded px-2 py-0.5 text-xs text-white focus:outline-none focus:ring-1 focus:ring-teal"
+      className="flex-1 min-w-0 bg-white border border-itu-blue rounded px-2 py-0.5 text-xs text-dark-navy focus:outline-none focus:ring-2 focus:ring-itu-blue/40"
     />
   );
 }

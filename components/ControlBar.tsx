@@ -1,5 +1,6 @@
 "use client";
 
+import { Play, Square, RotateCw } from "lucide-react";
 import { formatElapsed } from "@/lib/audioUtils";
 import type { CaptureMode } from "@/lib/constants";
 
@@ -58,7 +59,7 @@ export function ControlBar(props: Props) {
   const canReconnect = !!error && !isCapturing && captureMode !== null;
 
   return (
-    <div className="bg-navy-light/60 backdrop-blur border-t border-white/10 p-3 sm:p-4">
+    <div className="bg-white border-t border-border-gray p-3 sm:p-4">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
         {/* Big Start/Stop button. */}
         <button
@@ -66,24 +67,33 @@ export function ControlBar(props: Props) {
           onClick={isCapturing ? onStop : onStart}
           disabled={disabled}
           className={[
-            "w-full sm:w-auto px-6 py-3 rounded-lg font-semibold text-base transition-colors",
-            "disabled:opacity-50 disabled:cursor-not-allowed",
+            "w-full sm:w-auto inline-flex items-center justify-center gap-2",
+            "px-6 py-3 rounded-lg font-semibold text-base text-white",
+            "transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
             isCapturing
-              ? "bg-red-500 hover:bg-red-600 text-white"
-              : "bg-teal hover:bg-teal-dark text-navy",
+              ? "bg-error hover:bg-[#B91C1C]"
+              : "bg-itu-blue hover:bg-itu-blue-dark",
           ].join(" ")}
           aria-pressed={isCapturing}
         >
-          {isCapturing ? "■ Stop" : "● Start"}
+          {isCapturing ? (
+            <>
+              <Square size={16} fill="currentColor" /> Stop
+            </>
+          ) : (
+            <>
+              <Play size={16} fill="currentColor" /> Start
+            </>
+          )}
         </button>
 
         {canReconnect && (
           <button
             type="button"
             onClick={onReconnect}
-            className="w-full sm:w-auto px-4 py-2 rounded-lg bg-yellow-500 hover:bg-yellow-600 text-navy font-medium"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-warning hover:bg-[#B45309] text-white font-medium"
           >
-            ↻ Reconnect
+            <RotateCw size={14} /> Reconnect
           </button>
         )}
 
@@ -102,13 +112,13 @@ export function ControlBar(props: Props) {
       </div>
 
       {(queueDepth > 0 || inFlight > 0) && (
-        <div className="mt-2 text-xs text-teal/80">
+        <div className="mt-2 text-xs text-itu-blue-dark">
           Processing: {inFlight} in flight, {queueDepth} in queue
         </div>
       )}
 
       {error && (
-        <div className="mt-2 text-xs text-red-400" role="alert">
+        <div className="mt-2 text-xs text-error" role="alert">
           {error}
         </div>
       )}
@@ -119,10 +129,16 @@ export function ControlBar(props: Props) {
 function Stat({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="flex flex-col">
-      <span className="uppercase text-[10px] tracking-wider text-white/40">
+      <span className="uppercase text-[10px] tracking-wider text-mid-gray">
         {label}
       </span>
-      <span className={mono ? "font-mono text-white/90 tabular-nums" : "text-white/90"}>
+      <span
+        className={
+          mono
+            ? "font-mono text-dark-navy tabular-nums"
+            : "text-dark-navy"
+        }
+      >
         {value}
       </span>
     </div>

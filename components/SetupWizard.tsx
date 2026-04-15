@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { ExternalLink, ArrowRight } from "lucide-react";
 import type { CaptureMode } from "@/lib/constants";
 import { TestAudio } from "./TestAudio";
 import { DeviceSelector } from "./DeviceSelector";
@@ -31,10 +32,10 @@ export function SetupWizard({
 
   return (
     <div className="max-w-2xl mx-auto p-6 sm:p-10">
-      <h1 className="text-3xl font-bold mb-2">
-        Dhvani <span className="text-white/50 text-base">ध्वनि</span>
+      <h1 className="text-3xl font-bold mb-2 text-dark-navy">
+        Dhvani <span className="text-mid-gray text-base font-normal">ध्वनि</span>
       </h1>
-      <p className="text-white/70 mb-8">
+      <p className="text-mid-gray mb-8">
         Let&apos;s get you set up. How are you joining your meeting?
       </p>
 
@@ -60,17 +61,17 @@ export function SetupWizard({
       </div>
 
       {mode === "virtual-cable" && (
-        <div className="mt-6 rounded-lg border border-white/10 bg-navy-light/40 p-4 space-y-3">
-          <p className="text-sm text-white/80">
+        <div className="mt-6 rounded-lg border border-border-gray bg-off-white p-4 space-y-3">
+          <p className="text-sm text-dark-navy">
             Select the virtual audio cable device (install it first if you
             haven&apos;t):
           </p>
           <DeviceSelector value={deviceId} onChange={setDeviceId} />
           <Link
             href="/desktop-setup"
-            className="inline-block text-sm text-teal hover:text-teal-dark"
+            className="inline-flex items-center gap-1 text-sm text-itu-blue-dark hover:text-itu-blue"
           >
-            Need help? Open the setup guide ↗
+            Need help? Open the setup guide <ExternalLink size={12} />
           </Link>
         </div>
       )}
@@ -85,7 +86,7 @@ export function SetupWizard({
         <button
           type="button"
           onClick={() => onComplete("microphone")}
-          className="px-4 py-2 text-sm text-white/60 hover:text-white"
+          className="px-4 py-2 text-sm text-mid-gray hover:text-dark-navy"
         >
           Skip
         </button>
@@ -93,9 +94,9 @@ export function SetupWizard({
           type="button"
           disabled={!mode}
           onClick={() => mode && onComplete(mode, deviceId)}
-          className="px-6 py-2 bg-teal text-navy rounded hover:bg-teal-dark disabled:opacity-40 disabled:cursor-not-allowed font-medium"
+          className="inline-flex items-center gap-1.5 px-6 py-2 bg-itu-blue text-white rounded hover:bg-itu-blue-dark disabled:opacity-40 disabled:cursor-not-allowed font-medium"
         >
-          Continue →
+          Continue <ArrowRight size={14} />
         </button>
       </div>
     </div>
@@ -120,12 +121,12 @@ function ChoiceCard({
       className={[
         "text-left p-4 rounded-lg border transition-colors",
         selected
-          ? "border-teal bg-teal/10"
-          : "border-white/10 bg-navy-light/40 hover:border-white/30",
+          ? "border-itu-blue bg-itu-blue-pale"
+          : "border-border-gray bg-white hover:border-itu-blue-light",
       ].join(" ")}
     >
-      <div className="font-medium text-white">{title}</div>
-      <div className="text-xs text-white/60 mt-1">{body}</div>
+      <div className="font-medium text-dark-navy">{title}</div>
+      <div className="text-xs text-mid-gray mt-1">{body}</div>
     </button>
   );
 }

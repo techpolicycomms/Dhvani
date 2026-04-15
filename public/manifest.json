@@ -4,8 +4,8 @@
   "description": "Open-source multilingual meeting transcription for everyone.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#0f172a",
+  "background_color": "#FFFFFF",
+  "theme_color": "#1DA0DB",
   "orientation": "portrait-primary",
   "icons": [
     {

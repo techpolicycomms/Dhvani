@@ -30,7 +30,7 @@ function createWindow() {
     height: 780,
     minWidth: 480,
     minHeight: 520,
-    backgroundColor: "#0f172a",
+    backgroundColor: "#FFFFFF",
     title: "Dhvani",
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),

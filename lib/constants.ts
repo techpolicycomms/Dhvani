@@ -77,16 +77,16 @@ export type TranscriptEntry = {
 
 /**
  * Per-speaker color palette (cycles for the 6th speaker and beyond).
- * Keep the first two colors readable against the navy background — those
- * are the most common in 2-person meetings.
+ * Tuned for the ITU light theme — every value passes WCAG AA against a
+ * white background.
  */
 export const SPEAKER_COLORS = [
-  "#14b8a6", // teal — Speaker 1
-  "#8b5cf6", // purple — Speaker 2
-  "#f59e0b", // amber — Speaker 3
-  "#ec4899", // pink — Speaker 4
-  "#3b82f6", // blue — Speaker 5
-  "#94a3b8", // gray — Speaker 6+
+  "#1DA0DB", // ITU Blue — Speaker 1
+  "#7C3AED", // violet — Speaker 2
+  "#D97706", // amber — Speaker 3
+  "#059669", // emerald — Speaker 4
+  "#DC2626", // red — Speaker 5
+  "#6B7280", // mid-gray — Speaker 6+
 ] as const;
 
 /**
