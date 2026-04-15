@@ -7,6 +7,9 @@ const PUBLIC_PREFIXES = [
   "/auth",                 // sign-in page + callback UI
   "/api/auth",             // NextAuth handlers (callbacks, csrf, etc.)
   "/api/health",           // Key-validation endpoint for monitoring
+  "/api/transcribe",       // Self-authenticates via cookie OR x-auth-token
+                           // (Chrome extension). The route does its own
+                           // defense-in-depth check via resolveRequestUser.
   "/_next",                // Next.js internals
   "/manifest.json",
   "/sw.js",

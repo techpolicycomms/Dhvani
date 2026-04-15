@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dhvani</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="accent-bar" aria-hidden="true"></div>
+    <header class="header">
+      <div class="brand">
+        <span class="logo">Dhvani</span>
+        <span class="logo-sub">ध्वनि</span>
+      </div>
+      <div class="status">
+        <span id="status-dot" class="status-dot idle"></span>
+        <span id="status-text">Idle</span>
+      </div>
+    </header>
+
+    <section class="body">
+      <div id="context" class="context">
+        Navigate to a Teams, Zoom, or Meet tab to start transcribing.
+      </div>
+
+      <div class="metrics">
+        <div class="metric">
+          <span class="metric-label">Elapsed</span>
+          <span id="elapsed" class="metric-value mono">00:00</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Chunks</span>
+          <span id="chunks" class="metric-value mono">0</span>
+        </div>
+        <div class="metric">
+          <span class="metric-label">Est. cost</span>
+          <span id="cost" class="metric-value mono">$0.00</span>
+        </div>
+      </div>
+
+      <button id="toggle-btn" type="button" class="btn-primary">
+        Start Transcription
+      </button>
+
+      <div class="links">
+        <button id="open-panel-btn" type="button" class="link">
+          Open side panel
+        </button>
+        <button id="signin-btn" type="button" class="link">
+          Sign in
+        </button>
+      </div>
+
+      <div id="error" class="error hidden" role="alert"></div>
+    </section>
+    <script src="popup.js"></script>
+  </body>
+</html>

@@ -193,6 +193,65 @@ export async function getActiveUser(): Promise<ActiveUser | null> {
 }
 
 /**
+ * Resolve the active user from an incoming request, accepting either:
+ *
+ *   (a) the NextAuth session cookie — the default web-app path, or
+ *   (b) an `x-auth-token` header carrying the same raw session token
+ *       (used by the Chrome extension, where cross-origin cookies are
+ *       sometimes dropped by Chrome even with credentials:include)
+ *
+ * Falls back to the synthetic local user in no-auth mode.
+ *
+ * The x-auth-token value must be the literal NextAuth JWT captured from
+ * a signed-in session's cookie. We re-verify it against NEXTAUTH_SECRET
+ * via `getToken()` so a forged or tampered header can't spoof identity.
+ */
+export async function resolveRequestUser(
+  req: Request
+): Promise<ActiveUser | null> {
+  if (!isAuthConfigured()) {
+    warnNoAuthOnce();
+    return LOCAL_USER;
+  }
+
+  const header = req.headers.get("x-auth-token");
+  const secret = process.env.NEXTAUTH_SECRET;
+  if (header && secret) {
+    // NextAuth's JWT decoder uses the cookie name as the salt. Production
+    // (https) uses `__Secure-authjs.session-token`; dev/http uses the
+    // un-prefixed variant. Try both so the extension works against either.
+    for (const salt of [
+      "__Secure-authjs.session-token",
+      "authjs.session-token",
+    ]) {
+      try {
+        const decoded = (await getToken({
+          req: {
+            headers: { cookie: `${salt}=${header}` },
+          } as never,
+          secret,
+          salt,
+        })) as
+          | { userId?: string; email?: string; name?: string | null }
+          | null;
+        if (decoded?.email) {
+          return {
+            userId: decoded.userId || decoded.email,
+            email: decoded.email,
+            name: decoded.name || null,
+          };
+        }
+      } catch {
+        /* try the other salt */
+      }
+    }
+  }
+
+  // Cookie-based path — same as getActiveUser().
+  return getActiveUser();
+}
+
+/**
  * Server-only Graph access-token reader.
  *
  * Reads the JWT from the request cookie (NOT from the public session

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getActiveUser } from "@/lib/auth";
+import { resolveRequestUser } from "@/lib/auth";
 import { createOpenAIClient, whisperDeployment } from "@/lib/openai";
 import {
   checkAndReserve,
@@ -36,7 +36,9 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const user = await getActiveUser();
+  // Accept the NextAuth session cookie (web app) OR the x-auth-token
+  // header (Chrome extension), so the same route serves both.
+  const user = await resolveRequestUser(req);
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

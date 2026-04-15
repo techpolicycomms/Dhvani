@@ -1,0 +1,373 @@
+/* ------------------------------------------------------------------
+   Dhvani Chrome-extension — side-panel styles.
+
+   Mirrors the web app's ITU brand tokens (ITU Blue #1DA0DB, Dark Navy
+   #003366, off-white #F8F9FA) so the extension feels like part of the
+   same surface.
+   ------------------------------------------------------------------ */
+
+:root {
+  --itu-blue: #1da0db;
+  --itu-blue-dark: #0b7bb0;
+  --itu-blue-pale: #e8f4fa;
+  --dark-navy: #003366;
+  --off-white: #f8f9fa;
+  --mid-gray: #6b7280;
+  --light-gray: #f3f4f6;
+  --border-gray: #e5e7eb;
+  --text: #1f2937;
+  --danger: #dc2626;
+  --ok: #059669;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  color: var(--text);
+  background: #ffffff;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.mono {
+  font-family: "SFMono-Regular", Menlo, Monaco, Consolas, "Courier New",
+    monospace;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* ------- accent bar ------- */
+
+.accent-bar {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--itu-blue);
+  z-index: 10;
+}
+
+/* ------- header ------- */
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-gray);
+  background: #ffffff;
+}
+
+.brand {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.logo {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--dark-navy);
+  letter-spacing: -0.01em;
+}
+
+.logo-sub {
+  font-size: 14px;
+  color: var(--itu-blue);
+  font-weight: 400;
+}
+
+.status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--mid-gray);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--mid-gray);
+}
+
+.status-dot.recording {
+  background: var(--ok);
+  box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.6);
+  animation: pulse 1.6s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(5, 150, 105, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(5, 150, 105, 0);
+  }
+}
+
+.status-text {
+  font-weight: 500;
+}
+
+.elapsed {
+  color: var(--dark-navy);
+  font-size: 12px;
+}
+
+/* ------- meeting bar ------- */
+
+.meeting-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-gray);
+  background: var(--off-white);
+  font-size: 12px;
+}
+
+.platform-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--itu-blue-pale);
+  color: var(--itu-blue-dark);
+  font-weight: 600;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.meeting-title {
+  flex: 1;
+  color: var(--mid-gray);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ------- error banner ------- */
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #fef2f2;
+  border-bottom: 1px solid #fecaca;
+  color: #991b1b;
+  font-size: 12px;
+}
+
+.error-banner span {
+  flex: 1;
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  color: var(--itu-blue-dark);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 4px;
+  text-decoration: underline;
+}
+
+.link-btn:hover {
+  color: var(--dark-navy);
+}
+
+/* ------- controls ------- */
+
+.controls {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-gray);
+}
+
+.btn-primary {
+  width: 100%;
+  height: 40px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 8px;
+  background: var(--itu-blue);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btn-primary:hover {
+  background: var(--itu-blue-dark);
+}
+
+.btn-primary.recording {
+  background: var(--danger);
+}
+
+.btn-primary.recording:hover {
+  background: #b91c1c;
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hint {
+  margin-top: 10px;
+  color: var(--mid-gray);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+/* ------- transcript area ------- */
+
+.transcript-wrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.transcript {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 16px;
+}
+
+.entry {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-gray);
+}
+
+.entry:last-child {
+  border-bottom: none;
+}
+
+.entry-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+}
+
+.entry-time {
+  color: var(--itu-blue-dark);
+  font-family: "SFMono-Regular", Menlo, Monaco, Consolas, "Courier New",
+    monospace;
+}
+
+.entry-speaker {
+  padding: 1px 8px;
+  border-radius: 999px;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.02em;
+}
+
+.entry-text {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text);
+  word-break: break-word;
+}
+
+.empty-state {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 32px 24px;
+  text-align: center;
+  color: var(--mid-gray);
+  pointer-events: none;
+}
+
+.empty-state p {
+  margin: 0;
+}
+
+.empty-state .small {
+  font-size: 12px;
+  max-width: 260px;
+  color: var(--mid-gray);
+}
+
+.empty-state.hidden {
+  display: none;
+}
+
+/* ------- export bar + footer ------- */
+
+.export-bar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-gray);
+  background: var(--off-white);
+}
+
+.btn-outline {
+  flex: 1;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--border-gray);
+  background: #ffffff;
+  color: var(--mid-gray);
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.btn-outline:hover:not(:disabled) {
+  border-color: var(--itu-blue);
+  color: var(--itu-blue-dark);
+}
+
+.btn-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 16px;
+  border-top: 1px solid var(--border-gray);
+  font-size: 11px;
+  color: var(--mid-gray);
+  background: #ffffff;
+}

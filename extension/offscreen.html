@@ -1,0 +1,15 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Dhvani — offscreen recorder</title>
+  </head>
+  <body>
+    <!--
+      Invisible offscreen document. Lives only to host the MediaRecorder,
+      which MV3 service workers can't instantiate. Receives instructions
+      from background.js via chrome.runtime messages.
+    -->
+    <script src="offscreen.js"></script>
+  </body>
+</html>

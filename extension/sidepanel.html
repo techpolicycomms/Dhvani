@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dhvani</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <!-- 3-px ITU blue accent strip, matching the web app. -->
+    <div class="accent-bar" aria-hidden="true"></div>
+
+    <header class="header">
+      <div class="brand">
+        <span class="logo">Dhvani</span>
+        <span class="logo-sub">ध्वनि</span>
+      </div>
+      <div class="status">
+        <span id="status-dot" class="status-dot idle" aria-hidden="true"></span>
+        <span id="status-text" class="status-text">Idle</span>
+        <span id="elapsed" class="elapsed mono">00:00</span>
+      </div>
+    </header>
+
+    <section id="meeting-bar" class="meeting-bar hidden">
+      <span id="platform-badge" class="platform-badge">—</span>
+      <span id="meeting-title" class="meeting-title">Detecting meeting…</span>
+    </section>
+
+    <section id="error-banner" class="error-banner hidden" role="alert">
+      <span id="error-text"></span>
+      <button id="error-signin" class="link-btn hidden">Sign in</button>
+      <button id="error-dismiss" class="link-btn">Dismiss</button>
+    </section>
+
+    <section class="controls">
+      <button id="toggle-btn" class="btn-primary" type="button">
+        Start Transcription
+      </button>
+      <div class="hint" id="hint">
+        Tip: open your Teams, Zoom, or Meet tab and click Start. Audio is
+        captured from the active tab.
+      </div>
+    </section>
+
+    <section class="transcript-wrap">
+      <div id="transcript" class="transcript" aria-live="polite"></div>
+      <div id="empty-state" class="empty-state">
+        <p>No transcript yet.</p>
+        <p class="small">
+          When you press Start, segments will appear here every ~10 s with
+          speaker labels.
+        </p>
+      </div>
+    </section>
+
+    <section class="export-bar">
+      <button id="copy-btn" class="btn-outline" type="button" disabled>
+        Copy all
+      </button>
+      <button id="download-btn" class="btn-outline" type="button" disabled>
+        Download .txt
+      </button>
+      <button id="clear-btn" class="btn-outline" type="button" disabled>
+        Clear
+      </button>
+    </section>
+
+    <footer class="footer">
+      <span>ITU Innovation Hub</span>
+      <span id="chunk-meta" class="mono"></span>
+    </footer>
+
+    <script src="sidepanel.js"></script>
+  </body>
+</html>
