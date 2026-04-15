@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth, getGraphAccessToken } from "@/lib/auth";
+import { getActiveUser, getGraphAccessToken } from "@/lib/auth";
 import {
   cacheGet,
   cacheSet,
@@ -24,11 +24,8 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
  * Graph from the home page polling loop.
  */
 export async function GET(req: NextRequest) {
-  const session = await auth();
-  const user = session?.user as
-    | { userId?: string; email?: string }
-    | undefined;
-  if (!user?.email) {
+  const user = await getActiveUser();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const accessToken = await getGraphAccessToken();
@@ -36,7 +33,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ meetings: [], reason: "no-graph-token" });
   }
 
-  const userId = user.userId || user.email;
+  const userId = user.userId;
   if (!userId) {
     // Defensive: a falsy userId would collide cache keys across users.
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

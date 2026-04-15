@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth, isAdminEmail } from "@/lib/auth";
+import { auth, isAdminEmail, isAuthConfigured } from "@/lib/auth";
 import { readAllUsage } from "@/lib/usageLogger";
 import { aggregate, toCsv } from "@/lib/usageAggregates";
 
@@ -17,6 +17,10 @@ export const dynamic = "force-dynamic";
  *   ?format=csv  — stream the raw usage log as CSV (for spreadsheet export)
  */
 export async function GET(req: NextRequest) {
+  // Strictly disabled without SSO — no way to verify admin identity.
+  if (!isAuthConfigured()) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
   const session = await auth();
   const email = session?.user?.email;
   if (!email) {

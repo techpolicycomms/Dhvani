@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveUser } from "@/lib/auth";
 import { deleteTranscript, getTranscript } from "@/lib/transcriptStorage";
 
 export const runtime = "nodejs";
@@ -17,14 +17,11 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   const { id } = params;
-  const session = await auth();
-  const user = session?.user as
-    | { userId?: string; email?: string }
-    | undefined;
-  if (!user?.email) {
+  const user = await getActiveUser();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const userId = user.userId || user.email;
+  const userId = user.userId;
 
   try {
     const transcript = await getTranscript(userId, id);
@@ -51,14 +48,11 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   const { id } = params;
-  const session = await auth();
-  const user = session?.user as
-    | { userId?: string; email?: string }
-    | undefined;
-  if (!user?.email) {
+  const user = await getActiveUser();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const userId = user.userId || user.email;
+  const userId = user.userId;
 
   try {
     const removed = await deleteTranscript(userId, id);

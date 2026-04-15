@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveUser } from "@/lib/auth";
 import {
   listTranscripts,
   newTranscriptId,
@@ -34,14 +34,11 @@ const MAX_SAVES_PER_DAY = 50;
  * /api/transcripts/[id] on demand.
  */
 export async function GET(req: NextRequest) {
-  const session = await auth();
-  const user = session?.user as
-    | { userId?: string; email?: string }
-    | undefined;
-  if (!user?.email) {
+  const user = await getActiveUser();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const userId = user.userId || user.email;
+  const userId = user.userId;
 
   const pageParam = parseInt(req.nextUrl.searchParams.get("page") || "1", 10);
   const page = Number.isFinite(pageParam) && pageParam > 0 ? pageParam : 1;
@@ -75,14 +72,11 @@ export async function GET(req: NextRequest) {
  * the assigned id + full record.
  */
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  const user = session?.user as
-    | { userId?: string; email?: string }
-    | undefined;
-  if (!user?.email) {
+  const user = await getActiveUser();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const userId = user.userId || user.email;
+  const userId = user.userId;
 
   let body: Partial<SavedTranscript>;
   try {

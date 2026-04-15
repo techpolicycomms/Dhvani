@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { auth, isAdminEmail } from "@/lib/auth";
+import { auth, isAdminEmail, isAuthConfigured } from "@/lib/auth";
 import { loadStats } from "@/lib/usageAggregates";
 import { AdminDashboardClient } from "./Client";
 
@@ -18,6 +18,31 @@ export const dynamic = "force-dynamic";
  * (sorting, the rate-limit editor, charts).
  */
 export default async function AdminPage() {
+  // When SSO isn't configured we're in demo/local mode — the admin
+  // dashboard can't trust who's looking at it, so refuse outright.
+  if (!isAuthConfigured()) {
+    return (
+      <main className="min-h-screen flex items-center justify-center p-6 pt-10 bg-off-white">
+        <div className="max-w-md w-full bg-white border border-border-gray rounded-lg p-6 text-center shadow-sm">
+          <h1 className="text-xl font-semibold mb-2 text-dark-navy">
+            Admin disabled
+          </h1>
+          <p className="text-mid-gray text-sm">
+            Single sign-on is not configured, so the admin dashboard is
+            disabled. Set <code className="text-dark-navy">AZURE_AD_CLIENT_SECRET</code>{" "}
+            and related Entra ID variables to enable it.
+          </p>
+          <a
+            href="/"
+            className="inline-block mt-5 px-4 py-2 text-sm text-itu-blue-dark border border-itu-blue/40 rounded hover:bg-itu-blue-pale"
+          >
+            ← Back to Dhvani
+          </a>
+        </div>
+      </main>
+    );
+  }
+
   const session = await auth();
   const email = session?.user?.email;
   if (!email) {

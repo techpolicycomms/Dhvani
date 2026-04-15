@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveUser } from "@/lib/auth";
 import { getQuotaSnapshot } from "@/lib/rateLimiter";
 import { readAllUsage } from "@/lib/usageLogger";
 
@@ -14,14 +14,11 @@ export const dynamic = "force-dynamic";
  * in SettingsDrawer.
  */
 export async function GET() {
-  const session = await auth();
-  const user = session?.user as
-    | { userId?: string; email?: string; name?: string | null }
-    | undefined;
-  if (!user?.email) {
+  const user = await getActiveUser();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const userId = user.userId || user.email;
+  const userId = user.userId;
 
   const snap = await getQuotaSnapshot(userId);
   const records = (await readAllUsage()).filter((r) => r.userId === userId);

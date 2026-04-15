@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth, getGraphAccessToken } from "@/lib/auth";
+import { getActiveUser, getGraphAccessToken } from "@/lib/auth";
 import {
   cacheGet,
   cacheSet,
@@ -21,11 +21,8 @@ const CACHE_TTL_MS = 60 * 1000; // tighter TTL so reminders fire near-realtime
  * banner.
  */
 export async function GET(req: NextRequest) {
-  const session = await auth();
-  const user = session?.user as
-    | { userId?: string; email?: string }
-    | undefined;
-  if (!user?.email) {
+  const user = await getActiveUser();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
   const accessToken = await getGraphAccessToken();
@@ -40,7 +37,7 @@ export async function GET(req: NextRequest) {
   const hours =
     Number.isFinite(requested) && requested > 0 ? Math.min(requested, 24) : 8;
 
-  const userId = user.userId || user.email;
+  const userId = user.userId;
   if (!userId) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

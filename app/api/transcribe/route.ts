@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { getActiveUser } from "@/lib/auth";
 import { createOpenAIClient, whisperDeployment } from "@/lib/openai";
 import {
   checkAndReserve,
@@ -36,14 +36,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const session = await auth();
-  const user = session?.user as
-    | { userId?: string; email?: string; name?: string | null }
-    | undefined;
-  if (!session || !user?.email) {
+  const user = await getActiveUser();
+  if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-  const userId = user.userId || user.email;
+  const userId = user.userId;
 
   const languageHint = req.headers.get("x-language") || undefined;
   // Client hints how long the chunk is so we can rate-limit before we

@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Noto_Sans, Noto_Sans_Mono } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
 import "./globals.css";
-import { auth } from "@/lib/auth";
+import { auth, isAuthConfigured } from "@/lib/auth";
 
 // Noto Sans covers all six UN languages (English, French, Spanish, Russian,
 // Arabic, Chinese) plus Hindi — the practical baseline for an ITU tool.
@@ -57,8 +57,9 @@ export default async function RootLayout({
 }) {
   // Prime the client SessionProvider with the server-resolved session so
   // the first paint already knows who the user is (no flash of signed-out
-  // state on slow networks).
-  const session = await auth();
+  // state on slow networks). Skip entirely when SSO isn't configured — the
+  // provider would just resolve to null and emit spurious warnings.
+  const session = isAuthConfigured() ? await auth() : null;
   return (
     <html
       lang="en"

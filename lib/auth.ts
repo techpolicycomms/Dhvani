@@ -116,6 +116,83 @@ export const authConfig: NextAuthConfig = {
 export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
 
 /**
+ * Is single-sign-on configured in this environment?
+ *
+ * We gate on `AZURE_AD_CLIENT_SECRET` specifically — the OIDC flow
+ * cannot complete without it, and the other AZURE_AD_* vars happen to
+ * be present in some CI/build images. Missing secret → run in no-auth
+ * mode: middleware opens up, API routes use a synthetic local user.
+ *
+ * This is an *escape hatch for local dev and demo deployments*. As soon
+ * as the secret is set, all routes go back to full SSO with zero code
+ * changes — nothing here is feature-flagged in the usual sense.
+ */
+export function isAuthConfigured(): boolean {
+  return Boolean(process.env.AZURE_AD_CLIENT_SECRET);
+}
+
+// Emit the warning exactly once per process so it's loud on startup but
+// doesn't spam per request. Wrapped in a module-local guard rather than
+// relying on side-effecting top-level `if`s, which don't compose well
+// with Next.js' dev reloader.
+let _warnedNoAuth = false;
+function warnNoAuthOnce(): void {
+  if (_warnedNoAuth || isAuthConfigured()) return;
+  _warnedNoAuth = true;
+  // eslint-disable-next-line no-console
+  console.warn(
+    "WARNING: SSO not configured — running without authentication"
+  );
+}
+// Fire on first import so `npm start` / `next dev` logs the banner.
+warnNoAuthOnce();
+
+export type ActiveUser = {
+  userId: string;
+  email: string;
+  name: string | null;
+};
+
+/**
+ * The synthetic user presented to API routes when SSO is disabled.
+ * Stable userId so per-user state (quota counters, transcript folder)
+ * remains coherent across restarts.
+ */
+const LOCAL_USER: ActiveUser = {
+  userId: "local-user",
+  email: "local@dhvani.local",
+  name: "Local user",
+};
+
+/**
+ * The common "who's calling?" accessor for API routes.
+ *
+ * - If SSO is configured, reads the NextAuth session and returns the
+ *   Entra-backed user, or null when unauthenticated.
+ * - If SSO is NOT configured, returns a stable synthetic user so the
+ *   feature surface still works for local/demo use.
+ *
+ * Routes that need to hard-deny (admin dashboard, etc.) should check
+ * `isAuthConfigured()` themselves and refuse in no-auth mode.
+ */
+export async function getActiveUser(): Promise<ActiveUser | null> {
+  if (!isAuthConfigured()) {
+    warnNoAuthOnce();
+    return LOCAL_USER;
+  }
+  const session = await auth();
+  const user = session?.user as
+    | { userId?: string; email?: string | null; name?: string | null }
+    | undefined;
+  if (!user?.email) return null;
+  return {
+    userId: user.userId || user.email,
+    email: user.email,
+    name: user.name || null,
+  };
+}
+
+/**
  * Server-only Graph access-token reader.
  *
  * Reads the JWT from the request cookie (NOT from the public session

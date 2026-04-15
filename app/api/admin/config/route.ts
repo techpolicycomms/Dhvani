@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth, isAdminEmail } from "@/lib/auth";
+import { auth, isAdminEmail, isAuthConfigured } from "@/lib/auth";
 import { isServiceEnabled } from "@/lib/rateLimiter";
 
 export const runtime = "nodejs";
@@ -49,6 +49,10 @@ function readConfig(): RuntimeConfig {
 }
 
 async function requireAdmin() {
+  // Admin surface is strictly disabled in no-auth (demo) mode. Without
+  // SSO there's no way to verify an admin identity, so we refuse rather
+  // than fall back to the synthetic local user.
+  if (!isAuthConfigured()) return { status: 403 as const };
   const session = await auth();
   const email = session?.user?.email;
   if (!email) return { status: 401 as const };
