@@ -2,7 +2,7 @@
 /**
  * Generate PNG icons for the Dhvani Chrome Extension.
  *
- * Writes extension/icons/icon-{16,48,128}.png as ITU-Blue (#1DA0DB)
+ * Writes extension/icons/icon-{16,48,128,512}.png as ITU-Blue (#1DA0DB)
  * rounded squares with a simple stylised waveform in white.
  *
  * Pure Node — no sharp / canvas / ImageMagick dependency, so this runs
@@ -149,7 +149,7 @@ function drawIcon(size) {
 
 const outDir = path.join(__dirname, "..", "icons");
 fs.mkdirSync(outDir, { recursive: true });
-for (const size of [16, 48, 128]) {
+for (const size of [16, 48, 128, 512]) {
   const png = drawIcon(size);
   const dest = path.join(outDir, `icon-${size}.png`);
   fs.writeFileSync(dest, png);

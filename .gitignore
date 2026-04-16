@@ -36,6 +36,7 @@ next-env.d.ts.bak
 
 # electron
 /dist-electron
+/electron/dist
 /release
 
 # server-side transcript persistence

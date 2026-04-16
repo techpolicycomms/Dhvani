@@ -14,7 +14,25 @@
 // browsers will reject with OverconstrainedError.
 
 import { ipcRenderer, desktopCapturer } from "electron";
-import { pickSupportedMimeType } from "../lib/audioUtils";
+
+/** Same logic as `lib/audioUtils.pickSupportedMimeType` (kept local so `tsc -p electron` has a single rootDir). */
+function pickSupportedMimeType(): { mimeType: string; extension: string } {
+  if (typeof MediaRecorder === "undefined") {
+    return { mimeType: "audio/webm", extension: "webm" };
+  }
+  const candidates: Array<{ mimeType: string; extension: string }> = [
+    { mimeType: "audio/webm;codecs=opus", extension: "webm" },
+    { mimeType: "audio/webm", extension: "webm" },
+    { mimeType: "audio/mp4", extension: "mp4" },
+    { mimeType: "audio/ogg;codecs=opus", extension: "ogg" },
+  ];
+  for (const c of candidates) {
+    if (MediaRecorder.isTypeSupported(c.mimeType)) {
+      return c;
+    }
+  }
+  return { mimeType: "", extension: "webm" };
+}
 
 let recorder: MediaRecorder | null = null;
 let activeStream: MediaStream | null = null;

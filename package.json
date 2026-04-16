@@ -2,6 +2,8 @@
   "name": "dhvani",
   "version": "0.1.0",
   "private": true,
+  "main": "electron/dist/main.js",
+  "author": "ITU Innovation Hub",
   "description": "Open-source multilingual meeting transcription for everyone.",
   "license": "MIT",
   "homepage": "https://github.com/techpolicycomms/dhvani",
@@ -14,8 +16,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "electron:dev": "concurrently -k \"npm:dev\" \"wait-on http://localhost:3000 && electron electron/main.js\"",
-    "electron:build": "next build && electron-builder -mw"
+    "electron:dev": "concurrently -k \"npm:dev\" \"wait-on http://localhost:3000 && tsc -p electron/tsconfig.json && electron electron/dist/main.js\"",
+    "electron:build": "next build && node scripts/copy-electron-standalone-assets.mjs && tsc -p electron/tsconfig.json && electron-builder -mw",
+    "electron:build:mac": "next build && node scripts/copy-electron-standalone-assets.mjs && tsc -p electron/tsconfig.json && electron-builder --mac"
   },
   "dependencies": {
     "lucide-react": "^1.8.0",
@@ -47,13 +50,19 @@
     "appId": "org.techpolicycomms.dhvani",
     "productName": "Dhvani",
     "files": [
-      "electron/**/*",
-      ".next/**/*",
-      "public/**/*",
+      "electron/dist/**/*",
       "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": ".next/standalone",
+        "to": "standalone",
+        "filter": ["**/*"]
+      }
     ],
     "mac": {
       "category": "public.app-category.productivity",
+      "icon": "extension/icons/icon-512.png",
       "target": "dmg"
     },
     "win": {
