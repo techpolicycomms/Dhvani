@@ -78,12 +78,11 @@ export default async function RootLayout({
         <link rel="apple-touch-icon" href="/icons/icon-152.png" />
         <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png" />
       </head>
-      <body className="min-h-screen bg-white text-dark-navy antialiased font-sans">
-        {/* 3-px ITU Blue accent line at the top of every page. */}
-        <div
-          aria-hidden="true"
-          className="fixed top-0 left-0 right-0 h-[3px] bg-itu-blue z-50"
-        />
+      <body
+        className="min-h-screen bg-white text-dark-navy antialiased font-sans"
+        style={{ fontFamily: "var(--font-noto-sans), 'Noto Sans', sans-serif" }}
+      >
+        <div style={{ height: 3, background: "#1DA0DB", width: "100%" }} />
         {isDemoClientMode ? (
           <DemoSessionProvider>
             <DemoBanner />
