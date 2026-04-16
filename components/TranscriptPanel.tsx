@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, ArrowDown } from "lucide-react";
+import { Search, ArrowDown, Star } from "lucide-react";
 import {
   colorForSpeaker,
   type TranscriptEntry,
@@ -10,12 +10,11 @@ import {
 type Props = {
   transcript: TranscriptEntry[];
   isCapturing: boolean;
-  /** Raw speaker ids in first-seen order — powers the legend. */
   detectedSpeakers?: string[];
-  /** Resolve a raw speaker id to its current display name (renamed or default). */
   resolveSpeaker?: (rawSpeaker: string | undefined) => string | undefined;
-  /** Persist a rename — empty string resets to default. */
   renameSpeaker?: (rawSpeaker: string, displayName: string) => void;
+  pinnedIds?: Set<string>;
+  onTogglePin?: (entryId: string) => void;
 };
 
 /**
@@ -32,11 +31,14 @@ export function TranscriptPanel({
   detectedSpeakers = [],
   resolveSpeaker,
   renameSpeaker,
+  pinnedIds,
+  onTogglePin,
 }: Props) {
   const [search, setSearch] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
-  const [editing, setEditing] = useState<string | null>(null); // rawSpeaker being renamed
+  const [editing, setEditing] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
+  const entryRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -50,6 +52,34 @@ export function TranscriptPanel({
     const el = scrollRef.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [transcript, autoScroll]);
+
+  // Jump to entry by URL hash (e.g. #t=00:05:30)
+  useEffect(() => {
+    const hash = window.location.hash;
+    if (!hash.startsWith("#t=")) return;
+    const target = hash.slice(3);
+    const entry = transcript.find((e) => e.timestamp === target);
+    if (entry) {
+      const el = entryRefs.current.get(entry.id);
+      if (el) {
+        setAutoScroll(false);
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+        el.classList.add("ring-2", "ring-itu-blue");
+        setTimeout(() => el.classList.remove("ring-2", "ring-itu-blue"), 2000);
+      }
+    }
+  }, [transcript]);
+
+  const jumpToTimestamp = (entryId: string, timestamp: string) => {
+    window.history.replaceState(null, "", `#t=${timestamp}`);
+    const el = entryRefs.current.get(entryId);
+    if (el) {
+      setAutoScroll(false);
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("ring-2", "ring-itu-blue");
+      setTimeout(() => el.classList.remove("ring-2", "ring-itu-blue"), 2000);
+    }
+  };
 
   // Detect user-initiated scroll-up to pause auto-scroll.
   const handleScroll = () => {
@@ -77,10 +107,33 @@ export function TranscriptPanel({
   };
 
   const hasSpeakers = detectedSpeakers.length > 0;
+  const pinnedEntries = pinnedIds && pinnedIds.size > 0
+    ? transcript.filter((e) => pinnedIds.has(e.id))
+    : [];
 
   return (
     <div className="flex flex-col sm:flex-row h-full gap-3">
       <div className="flex flex-col flex-1 bg-white rounded-lg border border-border-gray overflow-hidden shadow-sm">
+        {pinnedEntries.length > 0 && (
+          <div className="px-3 py-2 border-b border-border-gray bg-amber-50/50">
+            <div className="text-[10px] uppercase tracking-wider text-amber-600 font-semibold mb-1.5 flex items-center gap-1">
+              <Star size={10} className="fill-amber-500 text-amber-500" /> Key Moments
+            </div>
+            <div className="space-y-1 max-h-24 overflow-y-auto">
+              {pinnedEntries.map((e) => (
+                <button
+                  key={e.id}
+                  type="button"
+                  onClick={() => jumpToTimestamp(e.id, e.timestamp)}
+                  className="block w-full text-left text-xs text-dark-navy hover:text-itu-blue truncate"
+                >
+                  <span className="font-mono text-itu-blue-dark">[{e.timestamp}]</span>{" "}
+                  {e.text.slice(0, 80)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="flex items-center gap-2 px-3 py-2 border-b border-border-gray bg-off-white">
           <div className="flex-1 relative">
             <Search
@@ -133,11 +186,17 @@ export function TranscriptPanel({
               return (
                 <div
                   key={entry.id}
-                  className={`flex gap-3 px-2 py-1.5 rounded ${zebra} transcript-entry`}
+                  ref={(el) => { if (el) entryRefs.current.set(entry.id, el); }}
+                  className={`group flex gap-3 px-2 py-1.5 rounded ${zebra} transcript-entry transition-shadow ${pinnedIds?.has(entry.id) ? "bg-amber-50/50 border-l-2 border-amber-400" : ""}`}
                 >
-                  <span className="text-itu-blue-dark font-mono text-xs shrink-0 pt-0.5 tabular-nums">
+                  <button
+                    type="button"
+                    onClick={() => jumpToTimestamp(entry.id, entry.timestamp)}
+                    className="text-itu-blue-dark font-mono text-xs shrink-0 pt-0.5 tabular-nums hover:underline cursor-pointer"
+                    title="Copy link to this timestamp"
+                  >
                     [{entry.timestamp}]
-                  </span>
+                  </button>
                   <div className="min-w-0 flex-1">
                     {display && raw && (
                       <button
@@ -158,6 +217,20 @@ export function TranscriptPanel({
                       {highlight(entry.text)}
                     </span>
                   </div>
+                  {onTogglePin && (
+                    <button
+                      type="button"
+                      onClick={() => onTogglePin(entry.id)}
+                      className={`shrink-0 p-1 rounded opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity ${
+                        pinnedIds?.has(entry.id)
+                          ? "text-amber-500"
+                          : "text-mid-gray/40 hover:text-amber-500"
+                      }`}
+                      title={pinnedIds?.has(entry.id) ? "Unpin moment" : "Pin as key moment"}
+                    >
+                      <Star size={12} className={pinnedIds?.has(entry.id) ? "fill-amber-500" : ""} />
+                    </button>
+                  )}
                 </div>
               );
             })
