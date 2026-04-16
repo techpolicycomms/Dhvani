@@ -344,17 +344,14 @@ export default function HomePage() {
       <header className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-border-gray bg-white">
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3">
-            <div className="flex flex-col">
-              <div className="flex items-baseline gap-2">
-                <span className="text-lg font-bold text-dark-navy leading-tight">
-                  Dhvani
-                </span>
-                <span className="text-mid-gray text-sm">ध्वनि</span>
+            <div className="leading-tight">
+              <div className="text-[11px] font-bold text-dark-navy uppercase tracking-wide">
+                ITU
               </div>
-              <span className="text-[11px] text-mid-gray leading-tight">
-                Meeting Transcription
-              </span>
+              <div className="text-[8px] text-mid-gray">Innovation Hub</div>
             </div>
+            <span className="h-6 w-px bg-border-gray" aria-hidden="true" />
+            <span className="text-base font-bold text-dark-navy">Dhvani</span>
             <span
               className={[
                 "w-2.5 h-2.5 rounded-full",
@@ -367,21 +364,6 @@ export default function HomePage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Link
-            href="/desktop-setup"
-            className="text-xs text-mid-gray hover:text-dark-navy hidden sm:inline"
-          >
-            Desktop setup
-          </Link>
-          <button
-            onClick={() => {
-              setSetupComplete("");
-              stopCapture();
-            }}
-            className="text-xs text-mid-gray hover:text-dark-navy hidden sm:inline"
-          >
-            Change source
-          </button>
           {user && (
             <div className="hidden sm:flex items-center gap-2 pr-1">
               <UserChip name={user.name || user.email || "?"} />
@@ -500,7 +482,7 @@ export default function HomePage() {
       {/* SUMMARY PROMPT MODAL */}
       {showSummaryPrompt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-          <div className="max-w-sm w-full bg-white rounded-xl shadow-xl p-6 text-center">
+          <div className="max-w-sm w-full bg-white rounded-lg shadow-xl p-6 text-center">
             <Sparkles className="mx-auto mb-3 text-itu-blue" size={36} />
             <h3 className="text-lg font-semibold text-dark-navy mb-1">
               Meeting ended
