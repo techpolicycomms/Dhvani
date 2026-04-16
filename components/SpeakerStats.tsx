@@ -49,7 +49,7 @@ export default function SpeakerStats({ transcript, speakerNames, talkTime }: Pro
   const totalWords = transcript.reduce((sum, e) => sum + e.text.split(/\s+/).filter(Boolean).length, 0);
 
   return (
-    <div className="border border-border-gray rounded-lg bg-white overflow-hidden">
+    <div className="border border-border-gray rounded-xl bg-white overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border-gray bg-off-white">
         <BarChart3 size={16} className="text-itu-blue" />
         <span className="text-sm font-semibold text-dark-navy">Speaker Statistics</span>

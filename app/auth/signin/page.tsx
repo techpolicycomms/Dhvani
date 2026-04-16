@@ -29,7 +29,7 @@ export default function SignInPage({
 
   return (
     <main className="min-h-screen flex items-center justify-center p-6 pt-10 bg-off-white">
-      <div className="max-w-[400px] w-full bg-white border border-border-gray rounded-lg p-8 text-center shadow-sm">
+      <div className="max-w-[400px] w-full bg-white border border-border-gray rounded-2xl p-8 text-center shadow-sm">
         <div className="flex items-baseline justify-center gap-2 mb-1">
           <h1 className="text-3xl font-bold text-dark-navy">Dhvani</h1>
           <span className="text-mid-gray text-base">ध्वनि</span>

@@ -67,7 +67,7 @@ export default function SharedTranscriptView({ transcript }: Props) {
       <div className="fixed top-0 left-0 right-0 h-[3px] bg-itu-blue z-50" aria-hidden="true" />
 
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-        <div className="bg-white border border-border-gray rounded-lg overflow-hidden">
+        <div className="bg-white border border-border-gray rounded-xl overflow-hidden">
           <div className="px-6 py-5 border-b border-border-gray">
             <h1 className="text-xl font-bold text-dark-navy mb-2">{t.title}</h1>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-mid-gray">

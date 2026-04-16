@@ -105,7 +105,7 @@ export default function MeetingSummary({
   // Idle state: show generate button.
   if (state === "idle") {
     return (
-      <div className="bg-itu-blue-pale/50 border border-itu-blue/20 rounded-lg p-6 text-center">
+      <div className="bg-itu-blue-pale/50 border border-itu-blue/20 rounded-xl p-6 text-center">
         <Sparkles className="mx-auto mb-3 text-itu-blue" size={32} />
         <h3 className="text-base font-semibold text-dark-navy mb-1">
           AI Meeting Summary
@@ -129,7 +129,7 @@ export default function MeetingSummary({
   // Loading state.
   if (state === "loading") {
     return (
-      <div className="bg-itu-blue-pale/50 border border-itu-blue/20 rounded-lg p-8 text-center">
+      <div className="bg-itu-blue-pale/50 border border-itu-blue/20 rounded-xl p-8 text-center">
         <Loader2
           className="mx-auto mb-3 text-itu-blue animate-spin"
           size={32}
@@ -147,7 +147,7 @@ export default function MeetingSummary({
   // Error state.
   if (state === "error") {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-5">
+      <div className="bg-red-50 border border-red-200 rounded-xl p-5">
         <p className="text-sm text-red-800 mb-3">{error}</p>
         <button
           onClick={generate}
@@ -161,7 +161,7 @@ export default function MeetingSummary({
 
   // Done — render the summary.
   return (
-    <div className="bg-white border border-border-gray rounded-lg overflow-hidden">
+    <div className="bg-white border border-border-gray rounded-xl overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-border-gray bg-off-white">
         <button

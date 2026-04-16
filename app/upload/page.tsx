@@ -136,7 +136,7 @@ export default function UploadPage() {
           <div
             onDragOver={(e) => e.preventDefault()}
             onDrop={onDrop}
-            className="border-2 border-dashed border-itu-blue/30 rounded-lg p-12 text-center hover:border-itu-blue/60 transition-colors cursor-pointer bg-white"
+            className="border-2 border-dashed border-itu-blue/30 rounded-xl p-12 text-center hover:border-itu-blue/60 transition-colors cursor-pointer bg-white"
             onClick={() => inputRef.current?.click()}
           >
             <Upload className="mx-auto mb-3 text-itu-blue" size={40} />
@@ -157,7 +157,7 @@ export default function UploadPage() {
         )}
 
         {state === "uploading" && (
-          <div className="bg-white border border-border-gray rounded-lg p-8 text-center">
+          <div className="bg-white border border-border-gray rounded-xl p-8 text-center">
             <Loader2 className="mx-auto mb-3 text-itu-blue animate-spin" size={32} />
             <p className="text-sm font-medium text-dark-navy mb-2">
               Processing {file?.name}...
@@ -173,7 +173,7 @@ export default function UploadPage() {
         )}
 
         {state === "error" && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-5 mb-4">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-5 mb-4">
             <p className="text-sm text-red-800 mb-3">{error}</p>
             <button
               onClick={() => setState("idle")}
@@ -195,7 +195,7 @@ export default function UploadPage() {
                 className="mt-1 w-full border border-border-gray rounded-lg px-3 py-2 text-sm text-dark-navy focus:outline-none focus:ring-2 focus:ring-itu-blue/40"
               />
             </div>
-            <div className="bg-white border border-border-gray rounded-lg p-4 mb-4">
+            <div className="bg-white border border-border-gray rounded-xl p-4 mb-4">
               <div className="flex items-center gap-2 mb-3">
                 <FileAudio size={16} className="text-itu-blue" />
                 <span className="text-sm font-semibold text-dark-navy">
