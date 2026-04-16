@@ -3,7 +3,9 @@
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Mic, Save, Settings, X } from "lucide-react";
+import { Mic, Save, Settings, Sparkles, X } from "lucide-react";
+import MeetingSummary from "@/components/MeetingSummary";
+import type { ActionItem } from "@/components/ActionItems";
 import { ControlBar } from "@/components/ControlBar";
 import { ExportMenu } from "@/components/ExportMenu";
 import { MeetingBanner } from "@/components/MeetingBanner";
@@ -75,6 +77,9 @@ export default function HomePage() {
 
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showResume, setShowResume] = useState(false);
+  const [showSummaryPrompt, setShowSummaryPrompt] = useState(false);
+  const [summaryMarkdown, setSummaryMarkdown] = useState<string | null>(null);
+  const [summaryActionItems, setSummaryActionItems] = useState<ActionItem[]>([]);
 
   // -------- Calendar prefs (drives MeetingList + reminders visibility) --------
   const { prefs: calendarPrefs } = useCalendarPrefs();
@@ -224,6 +229,7 @@ export default function HomePage() {
 
   // Auto-tag opt-in: when capture stops, if the user enabled auto-tag and we
   // have an active meeting + non-empty transcript, save automatically.
+  // Also prompt for AI summary if 5+ minutes of content.
   const wasCapturingRef = useRef(false);
   useEffect(() => {
     if (wasCapturingRef.current && !isCapturing) {
@@ -234,6 +240,10 @@ export default function HomePage() {
       ) {
         void saveTranscriptToServer();
       }
+      // Prompt for AI summary after 5+ minutes of recording.
+      if (transcript.length > 0 && totalMinutes >= 5) {
+        setShowSummaryPrompt(true);
+      }
     }
     wasCapturingRef.current = isCapturing;
   }, [
@@ -242,6 +252,7 @@ export default function HomePage() {
     activeMeeting,
     transcript.length,
     saveTranscriptToServer,
+    totalMinutes,
   ]);
 
   // -------- Reminders (browser notifications + sticky banner) --------
@@ -443,6 +454,67 @@ export default function HomePage() {
           renameSpeaker={renameSpeaker}
         />
       </section>
+
+      {/* AI SUMMARY */}
+      {transcript.length > 0 && !isCapturing && (
+        <section className="px-3 sm:px-4 pb-2">
+          <MeetingSummary
+            transcript={transcript}
+            speakerNames={speakerNames}
+            meetingSubject={activeMeeting?.subject}
+            initialSummary={summaryMarkdown || undefined}
+            initialActionItems={
+              summaryActionItems.length > 0 ? summaryActionItems : undefined
+            }
+            onSummaryGenerated={(md, items) => {
+              setSummaryMarkdown(md);
+              setSummaryActionItems(items);
+            }}
+            onActionItemsChange={setSummaryActionItems}
+          />
+        </section>
+      )}
+
+      {/* SUMMARY PROMPT MODAL */}
+      {showSummaryPrompt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="max-w-sm w-full bg-white rounded-xl shadow-xl p-6 text-center">
+            <Sparkles className="mx-auto mb-3 text-itu-blue" size={36} />
+            <h3 className="text-lg font-semibold text-dark-navy mb-1">
+              Meeting ended
+            </h3>
+            <p className="text-sm text-mid-gray mb-5">
+              Generate an AI summary with key decisions and action items?
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowSummaryPrompt(false)}
+                className="flex-1 px-4 py-2 border border-border-gray text-dark-navy rounded-lg hover:bg-light-gray text-sm font-medium"
+              >
+                Skip
+              </button>
+              <button
+                onClick={() => {
+                  setShowSummaryPrompt(false);
+                  // Summary generation is handled by the MeetingSummary
+                  // component — the presence of `summaryMarkdown === null`
+                  // renders the "idle" state with a Generate button. We
+                  // scroll down so the user sees it.
+                  setTimeout(() => {
+                    window.scrollTo({
+                      top: document.body.scrollHeight,
+                      behavior: "smooth",
+                    });
+                  }, 100);
+                }}
+                className="flex-1 px-4 py-2 bg-itu-blue text-white rounded-lg hover:bg-itu-blue-dark text-sm font-semibold"
+              >
+                Generate Summary
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* EXPORT + SAVE MENU */}
       <div className="px-3 sm:px-4 pb-2 flex justify-end items-center gap-2">

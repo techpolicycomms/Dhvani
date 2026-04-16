@@ -49,11 +49,22 @@ export type SavedTranscriptMeta = {
   >;
 };
 
+export type ActionItem = {
+  task: string;
+  assignee: string;
+  dueDate: string | null;
+  completed: boolean;
+};
+
 export type SavedTranscript = SavedTranscriptMeta & {
   /** Full transcript entries, in capture order. */
   entries: TranscriptEntry[];
   /** Custom speaker rename map at save time. */
   speakerNames?: Record<string, string>;
+  /** AI-generated meeting summary (markdown). */
+  summary?: string;
+  /** Parsed action items from the summary. */
+  actionItems?: ActionItem[];
 };
 
 /**

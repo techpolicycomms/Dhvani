@@ -40,3 +40,17 @@ export function whisperDeployment(): string {
     process.env.AZURE_OPENAI_WHISPER_DEPLOYMENT || "gpt-4o-transcribe-diarize"
   );
 }
+
+/**
+ * Deployment name for the chat/completions model used for summarization
+ * and "Ask Dhvani" features. Defaults to `gpt-4o` — override with
+ * AZURE_OPENAI_CHAT_DEPLOYMENT if your resource has a differently-named
+ * deployment (e.g. "gpt-4o-mini", "gpt-35-turbo").
+ *
+ * Returns null if no chat deployment is configured AND the default isn't
+ * set — callers should degrade gracefully (hide the "Generate Summary"
+ * button, etc.).
+ */
+export function chatDeployment(): string {
+  return process.env.AZURE_OPENAI_CHAT_DEPLOYMENT || "gpt-4o";
+}

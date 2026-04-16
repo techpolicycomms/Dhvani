@@ -3,6 +3,7 @@ import { Noto_Sans, Noto_Sans_Mono } from "next/font/google";
 import { SessionProvider } from "next-auth/react";
 import "./globals.css";
 import { auth, isAuthConfigured } from "@/lib/auth";
+import InstallPrompt from "@/components/InstallPrompt";
 
 // Noto Sans covers all six UN languages (English, French, Spanish, Russian,
 // Arabic, Chinese) plus Hindi — the practical baseline for an ITU tool.
@@ -27,8 +28,8 @@ export const metadata: Metadata = {
   applicationName: "Dhvani",
   manifest: "/manifest.json",
   icons: {
-    icon: "/icon-192.png",
-    apple: "/icon-192.png",
+    icon: "/icons/icon-192.png",
+    apple: "/icons/icon-152.png",
   },
   appleWebApp: {
     capable: true,
@@ -71,6 +72,10 @@ export default async function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#1DA0DB" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Dhvani" />
+        <link rel="apple-touch-icon" href="/icons/icon-152.png" />
+        <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png" />
       </head>
       <body className="min-h-screen bg-white text-dark-navy antialiased font-sans">
         {/* 3-px ITU Blue accent line at the top of every page. */}
@@ -78,7 +83,10 @@ export default async function RootLayout({
           aria-hidden="true"
           className="fixed top-0 left-0 right-0 h-[3px] bg-itu-blue z-50"
         />
-        <SessionProvider session={session}>{children}</SessionProvider>
+        <SessionProvider session={session}>
+          {children}
+          <InstallPrompt />
+        </SessionProvider>
         <script
           // Register the PWA service worker on supported browsers.
           dangerouslySetInnerHTML={{
