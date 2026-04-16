@@ -7,9 +7,10 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
-    "outDir": ".",
-    "rootDir": ".",
-    "sourceMap": true
+    "outDir": "./",
+    "sourceMap": true,
+    "types": ["node"]
   },
-  "include": ["*.ts"]
+  "include": ["main.ts", "preload.ts", "audioCapture.ts"],
+  "exclude": []
 }

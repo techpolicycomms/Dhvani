@@ -15,7 +15,10 @@
     "start": "next start",
     "lint": "next lint",
     "electron:dev": "concurrently -k \"npm:dev\" \"wait-on http://localhost:3000 && electron electron/main.js\"",
-    "electron:build": "next build && electron-builder -mw"
+    "electron:prepare": "node scripts/copy-electron-standalone-assets.mjs && tsc -p electron/tsconfig.json",
+    "electron:build": "next build && npm run electron:prepare && electron-builder -mw",
+    "electron:build:mac": "next build && npm run electron:prepare && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg",
+    "electron:build:win": "next build && npm run electron:prepare && electron-builder --win nsis"
   },
   "dependencies": {
     "lucide-react": "^1.8.0",
@@ -46,15 +49,44 @@
   "build": {
     "appId": "org.techpolicycomms.dhvani",
     "productName": "Dhvani",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "asar": false,
+    "afterPack": "scripts/afterPack.mjs",
     "files": [
-      "electron/**/*",
-      ".next/**/*",
+      "electron/**/*.js",
+      "electron/**/*.html",
+      {
+        "from": ".next/standalone",
+        "to": ".next/standalone",
+        "filter": ["**/*"]
+      },
+      ".next/static/**/*",
       "public/**/*",
-      "package.json"
+      "package.json",
+      "!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/**/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/**/*.d.ts",
+      "!**/node_modules/.bin",
+      "!src",
+      "!electron/src"
     ],
     "mac": {
       "category": "public.app-category.productivity",
-      "target": "dmg"
+      "target": [
+        { "target": "dmg" }
+      ],
+      "darkModeSupport": false,
+      "hardenedRuntime": false,
+      "identity": null
+    },
+    "dmg": {
+      "title": "Dhvani",
+      "contents": [
+        { "x": 130, "y": 220 },
+        { "x": 410, "y": 220, "type": "link", "path": "/Applications" }
+      ]
     },
     "win": {
       "target": "nsis"
