@@ -7,14 +7,14 @@
 
   /* ITU brand */
   --itu-blue: #1da0db;
-  --itu-blue-dark: #0b7ab0;
-  --itu-blue-light: #5bbee8;
-  --itu-blue-pale: #e5f4fb;
-  --un-blue: #009edb;
+  --itu-blue-dark: #0c7fb5;
+  --itu-blue-light: #e8f4fa;
+  --itu-blue-pale: #f0f7fc;
+  --un-blue: #5b92e5;
 
   /* Neutrals */
   --white: #ffffff;
-  --off-white: #fafafa;
+  --off-white: #f9fafb;
   --light-gray: #f3f4f6;
   --border-gray: #e5e7eb;
   --mid-gray: #6b7280;

@@ -87,7 +87,7 @@ export default function AskDhvani({ transcriptIds, scope = "all" }: Props) {
   }
 
   return (
-    <div className="border border-border-gray rounded-xl bg-white overflow-hidden">
+    <div className="border border-border-gray rounded-lg bg-white overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-border-gray bg-off-white">
         <div className="flex items-center gap-2 text-sm font-semibold text-dark-navy">
           <MessageCircle size={16} className="text-itu-blue" />
