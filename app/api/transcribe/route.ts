@@ -13,6 +13,58 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+type RawTranscriptionResult = {
+  text?: string;
+  language?: string;
+  segments?: Array<{
+    id?: number;
+    start?: number;
+    end?: number;
+    text?: string;
+    speaker?: string;
+  }>;
+};
+
+function isIncompatibleResponseFormatError(err: unknown): boolean {
+  const e = err as { status?: number; message?: string };
+  const msg = (e.message || "").toLowerCase();
+  return (
+    e.status === 400 &&
+    msg.includes("response_format") &&
+    (msg.includes("not compatible") || msg.includes("use 'json' or 'text'"))
+  );
+}
+
+async function createTranscription(
+  openai: ReturnType<typeof createOpenAIClient>,
+  file: File,
+  model: string,
+  languageHint?: string,
+  prompt?: string
+): Promise<RawTranscriptionResult> {
+  const shared = {
+    model,
+    file,
+    ...(languageHint ? { language: languageHint } : {}),
+    ...(prompt ? { prompt } : {}),
+  };
+
+  try {
+    return (await openai.audio.transcriptions.create({
+      ...shared,
+      response_format: "verbose_json",
+      timestamp_granularities: ["word", "segment"],
+    } as unknown as Parameters<typeof openai.audio.transcriptions.create>[0])) as unknown as RawTranscriptionResult;
+  } catch (err) {
+    if (!isIncompatibleResponseFormatError(err)) throw err;
+    // Some Azure deployments reject verbose_json and only accept json/text.
+    return (await openai.audio.transcriptions.create({
+      ...shared,
+      response_format: "json",
+    } as unknown as Parameters<typeof openai.audio.transcriptions.create>[0])) as unknown as RawTranscriptionResult;
+  }
+}
+
 /**
  * POST /api/transcribe
  *
@@ -119,30 +171,16 @@ export async function POST(req: NextRequest) {
       ? `The following terms may appear in the audio: ${vocabTerms.join(", ")}`
       : undefined;
 
-    const result = (await openai.audio.transcriptions.create({
-      model: whisperDeployment(),
+    const result = await createTranscription(
+      openai,
       file,
-      ...(languageHint ? { language: languageHint } : {}),
-      ...(prompt ? { prompt } : {}),
-      response_format: "verbose_json",
-      // TS types on the shared `audio.transcriptions.create` don't
-      // narrow to the verbose-json variant cleanly, so we widen the
-      // request at the boundary.
-      timestamp_granularities: ["word", "segment"],
-    } as unknown as Parameters<typeof openai.audio.transcriptions.create>[0])) as unknown as {
-      text?: string;
-      language?: string;
-      segments?: Array<{
-        id?: number;
-        start?: number;
-        end?: number;
-        text?: string;
-        speaker?: string;
-      }>;
-    };
+      whisperDeployment(),
+      languageHint,
+      prompt
+    );
 
     const rawSegments = Array.isArray(result.segments) ? result.segments : [];
-    const segments = rawSegments
+    let segments = rawSegments
       .filter((s) => typeof s.text === "string" && (s.text ?? "").trim() !== "")
       .map((s) => ({
         speaker: (s.speaker || "speaker_0").toString(),
@@ -150,6 +188,19 @@ export async function POST(req: NextRequest) {
         start: typeof s.start === "number" ? s.start : 0,
         end: typeof s.end === "number" ? s.end : 0,
       }));
+
+    // When response_format=json returns only plain text, emit one synthetic
+    // segment so the client pipeline remains stable (single speaker fallback).
+    if (segments.length === 0 && (result.text || "").trim()) {
+      segments = [
+        {
+          speaker: "speaker_0",
+          text: (result.text || "").trim(),
+          start: 0,
+          end: estimatedSeconds,
+        },
+      ];
+    }
 
     const chunkId = req.headers.get("x-chunk-id") || `${Date.now()}`;
     const whisperCost = costFromSeconds(estimatedSeconds);

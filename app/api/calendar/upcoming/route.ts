@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActiveUser, getGraphAccessToken } from "@/lib/auth";
+import { getDemoMeetings, isDemoMode } from "@/lib/demoMode";
 import {
   cacheGet,
   cacheSet,
@@ -21,6 +22,9 @@ const CACHE_TTL_MS = 60 * 1000; // tighter TTL so reminders fire near-realtime
  * banner.
  */
 export async function GET(req: NextRequest) {
+  if (isDemoMode) {
+    return NextResponse.json({ meetings: getDemoMeetings() });
+  }
   const user = await getActiveUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

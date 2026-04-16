@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth, isAuthConfigured } from "@/lib/auth";
+import { isDemoMode } from "@/lib/demoMode";
 
 // Public route prefixes — no session required. Everything else is locked
 // behind Microsoft SSO.
@@ -37,6 +38,7 @@ function isPublic(pathname: string): boolean {
  * prints a loud console warning on startup in that mode.
  */
 export default auth((req) => {
+  if (isDemoMode) return;
   // Escape hatch for local/demo: if the client secret isn't set, let
   // everything through. All the auth machinery is still loaded so the
   // moment the secret reappears in env, this flips back to gated.

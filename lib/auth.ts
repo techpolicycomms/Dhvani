@@ -2,6 +2,7 @@ import NextAuth, { type NextAuthConfig } from "next-auth";
 import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import { getToken } from "next-auth/jwt";
 import { cookies } from "next/headers";
+import { DEMO_USER, isDemoMode } from "@/lib/demoMode";
 
 /**
  * In-process refresh-attempt deduper. If two parallel requests both find an
@@ -128,6 +129,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
  * changes — nothing here is feature-flagged in the usual sense.
  */
 export function isAuthConfigured(): boolean {
+  if (isDemoMode) return false;
   return Boolean(process.env.AZURE_AD_CLIENT_SECRET);
 }
 
@@ -176,6 +178,13 @@ const LOCAL_USER: ActiveUser = {
  * `isAuthConfigured()` themselves and refuse in no-auth mode.
  */
 export async function getActiveUser(): Promise<ActiveUser | null> {
+  if (isDemoMode) {
+    return {
+      userId: DEMO_USER.userId,
+      email: DEMO_USER.email,
+      name: DEMO_USER.name,
+    };
+  }
   if (!isAuthConfigured()) {
     warnNoAuthOnce();
     return LOCAL_USER;
@@ -209,6 +218,13 @@ export async function getActiveUser(): Promise<ActiveUser | null> {
 export async function resolveRequestUser(
   req: Request
 ): Promise<ActiveUser | null> {
+  if (isDemoMode) {
+    return {
+      userId: DEMO_USER.userId,
+      email: DEMO_USER.email,
+      name: DEMO_USER.name,
+    };
+  }
   if (!isAuthConfigured()) {
     warnNoAuthOnce();
     return LOCAL_USER;

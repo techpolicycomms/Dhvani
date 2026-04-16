@@ -4,6 +4,8 @@ import { SessionProvider } from "next-auth/react";
 import "./globals.css";
 import { auth, isAuthConfigured } from "@/lib/auth";
 import InstallPrompt from "@/components/InstallPrompt";
+import DemoSessionProvider from "@/components/DemoSessionProvider";
+import DemoBanner from "@/components/DemoBanner";
 
 // Noto Sans covers all six UN languages (English, French, Spanish, Russian,
 // Arabic, Chinese) plus Hindi — the practical baseline for an ITU tool.
@@ -54,11 +56,12 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const isDemoClientMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
   // Prime the client SessionProvider with the server-resolved session so
   // the first paint already knows who the user is (no flash of signed-out
   // state on slow networks). Skip entirely when SSO isn't configured — the
   // provider would just resolve to null and emit spurious warnings.
-  const session = isAuthConfigured() ? await auth() : null;
+  const session = !isDemoClientMode && isAuthConfigured() ? await auth() : null;
   return (
     <html
       lang="en"
@@ -81,10 +84,18 @@ export default async function RootLayout({
           aria-hidden="true"
           className="fixed top-0 left-0 right-0 h-[3px] bg-itu-blue z-50"
         />
-        <SessionProvider session={session}>
-          {children}
-          <InstallPrompt />
-        </SessionProvider>
+        {isDemoClientMode ? (
+          <DemoSessionProvider>
+            <DemoBanner />
+            {children}
+            <InstallPrompt />
+          </DemoSessionProvider>
+        ) : (
+          <SessionProvider session={session}>
+            {children}
+            <InstallPrompt />
+          </SessionProvider>
+        )}
         <script
           // Register the PWA service worker on supported browsers.
           dangerouslySetInnerHTML={{
