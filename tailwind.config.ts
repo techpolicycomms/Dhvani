@@ -11,6 +11,9 @@ const config: Config = {
     "./components/**/*.{ts,tsx}",
     "./hooks/**/*.{ts,tsx}",
   ],
+  // Dhvani is light-only (ITU brand). Disable dark mode so Tailwind
+  // never applies dark: variants even when the OS is set to dark.
+  darkMode: "class",
   theme: {
     extend: {
       colors: {

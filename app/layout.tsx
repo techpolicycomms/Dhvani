@@ -63,6 +63,8 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
+      data-theme="light"
+      style={{ colorScheme: "light" }}
       className={`${notoSans.variable} ${notoSansMono.variable}`}
     >
       <head>
