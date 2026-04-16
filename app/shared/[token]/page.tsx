@@ -15,7 +15,7 @@ export default async function SharedPage({
   if (!share) {
     return (
       <main className="min-h-screen flex items-center justify-center p-6 bg-off-white">
-        <div className="max-w-md w-full bg-white border border-border-gray rounded-lg p-8 text-center">
+        <div className="max-w-md w-full bg-white border border-border-gray rounded-xl p-8 text-center">
           <h1 className="text-xl font-semibold text-dark-navy mb-2">Link expired</h1>
           <p className="text-sm text-mid-gray">
             This shared transcript link has expired or does not exist.
@@ -30,7 +30,7 @@ export default async function SharedPage({
     if (!session?.user?.email) {
       return (
         <main className="min-h-screen flex items-center justify-center p-6 bg-off-white">
-          <div className="max-w-md w-full bg-white border border-border-gray rounded-lg p-8 text-center">
+          <div className="max-w-md w-full bg-white border border-border-gray rounded-xl p-8 text-center">
             <h1 className="text-xl font-semibold text-dark-navy mb-2">Sign in required</h1>
             <p className="text-sm text-mid-gray mb-4">
               This transcript requires authentication to view.

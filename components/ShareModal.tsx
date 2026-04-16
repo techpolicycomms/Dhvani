@@ -43,7 +43,7 @@ export default function ShareModal({ transcriptId, onClose }: Props) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-xl overflow-hidden">
+      <div className="max-w-md w-full bg-white rounded-xl shadow-xl overflow-hidden">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border-gray">
           <div className="flex items-center gap-2 text-sm font-semibold text-dark-navy">
             <Link2 size={16} className="text-itu-blue" />

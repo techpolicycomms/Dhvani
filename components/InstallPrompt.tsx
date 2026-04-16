@@ -82,7 +82,7 @@ export default function InstallPrompt() {
 
   return (
     <div className="fixed bottom-4 left-4 right-4 z-40 flex justify-center animate-transcript-in">
-      <div className="max-w-md w-full bg-white border border-border-gray rounded-lg shadow-lg px-4 py-3 flex items-center gap-3">
+      <div className="max-w-md w-full bg-white border border-border-gray rounded-xl shadow-lg px-4 py-3 flex items-center gap-3">
         {isIOS ? (
           <>
             <Share size={20} className="shrink-0 text-itu-blue" />
