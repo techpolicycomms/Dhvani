@@ -2,7 +2,7 @@
 
 **Open-source multilingual meeting transcription for everyone.**
 
-Dhvani captures audio from Zoom, Teams, or Google Meet and transcribes it in real-time using **Azure OpenAI GPT-4o Transcribe** with built-in **speaker diarization**. Works on any device — PC, Mac, or phone — through your browser. Audio stays inside the org's Azure tenant.
+Dhvani captures audio from Zoom, Teams, or Google Meet and transcribes it in real time using **Azure OpenAI GPT-4o Transcribe** with built-in **speaker diarization**. It runs as a web app, a Chrome extension, an Electron desktop app, or a Python CLI companion — audio stays inside your Azure tenant.
 
 Named from the Sanskrit word for "sound" (ध्वनि), Dhvani is built to make meeting transcription accessible, open, and free.
 
@@ -10,32 +10,86 @@ Named from the Sanskrit word for "sound" (ध्वनि), Dhvani is built to m
 
 > Developed by the **ITU Innovation Hub**.
 
+---
+
 ## Features
 
-- 🎤 **Real-time transcription with speaker identification** — Dhvani automatically detects who said what, no manual tagging required
-- 🌐 **Works in any browser** (no install needed) or as a native desktop app via Electron
-- 🗣️ **50+ languages** supported via GPT-4o Transcribe, with auto-detection and lower word-error rate than Whisper
-- 🎨 **Color-coded speakers** with click-to-rename — "Speaker 1" becomes "Karim" in one click
-- 💾 **Export to `.txt`, `.srt`, `.json`** with speaker labels, or copy to clipboard
-- 📱 **PWA** — install on your phone's home screen for one-tap launches
-- 🔐 **Single sign-on** via Microsoft Entra ID (Azure AD) — no passwords, no per-user API keys
-- 📊 **Admin dashboard** with per-user usage, rate limits, monthly budget cap, and CSV export
-- 🆓 **Free and open source** (MIT License)
+### Core Transcription
+- **Real-time transcription with speaker diarization** — GPT-4o Transcribe identifies who said what automatically
+- **50+ languages** with auto-detection and lower word-error rate than legacy Whisper
+- **Color-coded speakers** with click-to-rename — "Speaker 1" becomes "Karim" in one click
+- **Configurable chunk duration** (3–15 s, default 10 s) — shorter = lower latency, longer = better speaker tracking
 
-## Quick Start (local development)
+### AI Meeting Summary
+- **One-click AI summary** powered by GPT-4o — generates structured markdown with key decisions, discussion points, and participant contributions
+- **Action items** automatically extracted with assignee and due date, rendered as an interactive checklist
+- **Copy / email / regenerate** — share the summary directly from the UI
+- **Auto-prompt** — after stopping a 5+ minute session, Dhvani offers to generate a summary
+
+### Transcript Management
+- **Save transcripts** to the server — persisted per-user at `DHVANI_DATA_DIR/<userId>/<id>.json`
+- **Transcript history** page with search, date filters (7 d / 30 d / all), and bulk export
+- **Export** to `.txt`, `.srt`, `.json`, `.csv`, or copy to clipboard — all speaker-aware
+- **Delete** saved transcripts at any time
+
+### Calendar Integration
+- **Microsoft Outlook calendar sync** via Graph API — shows today's meetings and an upcoming-meeting banner with countdown
+- **Platform detection** for Teams, Zoom, and Meet — one-click join from the meeting card
+- **Meeting metadata** attached to saved transcripts (subject, organizer, start/end)
+
+### Progressive Web App (PWA)
+- **Installable** on desktop and mobile — prompted automatically in Chrome/Edge, with iOS "Add to Home Screen" instructions
+- **Offline fallback** page when the network is unavailable
+- **Service worker** with versioned caches, network-first pages, cache-first hashed assets, and background sync for failed transcription chunks via IndexedDB
+
+### Chrome Extension
+- **Manifest V3** extension in the `extension/` folder
+- **One-click tab audio capture** for Teams, Zoom, and Meet tabs — uses the offscreen-document pattern for MediaRecorder
+- **Side panel** with live transcript, speaker labels, and export
+- **"Dhvani ● Recording" badge** injected into the meeting tab via content script
+- **SSO integration** — reads the session cookie via `chrome.cookies` and sends it as `x-auth-token`
+
+### Electron Desktop App
+- **System audio capture** via `desktopCapturer` — no virtual cable required
+- **Global hotkey** (`Cmd+Shift+T` / `Ctrl+Shift+T`) and system tray icon
+- **Same React UI** — the renderer auto-detects `window.electronAPI` and switches to native capture
+
+### Administration
+- **Admin dashboard** at `/admin` with 30-day spend chart, daily-minutes-by-user line chart, and sortable user table
+- **Rate limits** — per-user minutes/hour and minutes/day, org-wide monthly USD budget
+- **Kill switch** — disable the service instantly from the dashboard
+- **CSV export** of usage data for audit/finance
+- **Optional SSO** — when `AZURE_AD_CLIENT_SECRET` is unset, Dhvani runs without sign-in (local dev mode)
+
+### Security & Privacy
+- Azure OpenAI key lives server-side only — never exposed to the browser
+- Transcription goes to the org's Azure OpenAI resource — no traffic leaves the tenant
+- Every API route requires a valid Entra ID session (or local-user in no-auth mode); admin routes additionally check `ADMIN_EMAILS`
+- Audio chunks are streamed to the model and discarded — Dhvani does not persist raw audio
+- Saved transcripts are user-scoped; `/api/transcripts/[id]` returns 404 to anyone else
+- The Graph access token lives inside the signed JWT cookie, invisible to client JS, and auto-refreshes via `offline_access`
+- Usage log stores metadata only (userId, seconds, cost) — never transcript text
+- The service worker explicitly skips `/api/*` routes
+
+---
+
+## Quick Start
 
 ```bash
 git clone https://github.com/techpolicycomms/dhvani.git
 cd dhvani
 npm install
 cp .env.local.example .env.local
-# Fill in AZURE_OPENAI_*, AZURE_AD_*, NEXTAUTH_SECRET, ADMIN_EMAILS
+# Fill in AZURE_OPENAI_* at minimum.
+# Leave AZURE_AD_CLIENT_SECRET blank to run without SSO (local dev).
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in Chrome, Edge, or Firefox. Sign in with your Microsoft work account and press **Start**.
+Open [http://localhost:3000](http://localhost:3000) in Chrome or Edge and press **Start**.
 
-> Deploying this for your whole team? Skip ahead to [**For Organizations**](#for-organizations).
+> Deploying for your whole team? See [**For Organizations**](#for-organizations).
+
+---
 
 ## How It Works
 
@@ -53,81 +107,143 @@ Open [http://localhost:3000](http://localhost:3000) in Chrome, Edge, or Firefox.
                        └──────────────┘
 ```
 
-1. Users sign in via **Microsoft Entra ID SSO**. A middleware gates every route behind a valid session.
-2. Dhvani records audio in **configurable chunks** (3–15 seconds, default 10) using the browser's `MediaRecorder` API. Longer chunks give the diarizer more context for speaker tracking.
-3. Each chunk is POSTed to `/api/transcribe`, which checks rate limits and the org-wide monthly budget, then calls the org's **Azure OpenAI `gpt-4o-transcribe-diarize`** deployment with `response_format: verbose_json`. No traffic leaves the Azure tenant.
-4. The model returns segments annotated with `speaker_0`, `speaker_1`, … Dhvani groups consecutive same-speaker segments into transcript entries, assigning each a stable color and a friendly label ("Speaker 1", "Speaker 2", …) that the user can rename in one click.
-5. Usage is logged (per-chunk seconds + cost, keyed by Entra `oid`) to an append-only JSONL log, powering the admin dashboard.
-6. Transcribed text is appended to a live transcript with timestamps + speaker labels, persisted to `localStorage`, and exportable in `.txt` / `.srt` / `.json` (all speaker-aware).
+1. Users sign in via **Microsoft Entra ID SSO** (or skip sign-in in local dev mode).
+2. Dhvani records audio in configurable chunks using the browser's `MediaRecorder` API.
+3. Each chunk is POSTed to `/api/transcribe`, which checks rate limits and budget, then calls the org's **Azure OpenAI `gpt-4o-transcribe-diarize`** deployment. No traffic leaves the Azure tenant.
+4. The model returns speaker-annotated segments. Dhvani groups consecutive same-speaker segments into transcript entries with stable colors and friendly labels.
+5. Usage is logged (per-chunk seconds + cost) to an append-only JSONL file, powering the admin dashboard.
+6. After stopping, users can **generate an AI summary** (GPT-4o), **save** the transcript to the server, and **export** in multiple formats.
+
+---
 
 ## Capture Modes
 
-Dhvani supports three browser-based capture modes plus a native Electron mode:
-
 | Mode | Best for | How it works |
 | --- | --- | --- |
-| **Tab Audio** | Meetings running in a Chrome/Edge/Firefox tab | `getDisplayMedia({ audio: true })` — check "Share audio" when picking the tab |
-| **Microphone** | Mobile, or any fallback | `getUserMedia({ audio: true })` — headset or phone near speakers |
-| **Virtual Cable** | Desktop apps (Zoom/Teams installed) | BlackHole (macOS) or VB-CABLE (Windows) routes system audio into Dhvani |
-| **Electron** | Desktop apps, no virtual cable | Native `desktopCapturer` — install `npm run electron:build` |
+| **Tab Audio** | Meetings in a browser tab | `getDisplayMedia({ audio: true })` — check "Share audio" |
+| **Microphone** | Mobile, or any fallback | `getUserMedia({ audio: true })` — headset/phone near speakers |
+| **Virtual Cable** | Desktop apps (Zoom/Teams installed) | BlackHole (macOS) or VB-CABLE (Windows) routes system audio |
+| **Chrome Extension** | Meetings in a Chrome tab | One-click tab capture via side panel — no screen-share prompt |
+| **Electron** | Desktop apps, no virtual cable | Native `desktopCapturer` captures system audio directly |
+| **Python Companion** | Headless / CLI workflows | Captures from any audio device and streams via WebSocket |
 
-See [`app/desktop-setup/page.tsx`](app/desktop-setup/page.tsx) in the app for step-by-step virtual-cable guides with diagrams.
+See [`app/desktop-setup/page.tsx`](app/desktop-setup/page.tsx) for step-by-step virtual-cable guides.
+
+---
+
+## Architecture
+
+```
+dhvani/
+├── app/                        # Next.js 14 App Router
+│   ├── layout.tsx              # Root layout, PWA meta tags, session provider
+│   ├── page.tsx                # Main transcription UI
+│   ├── admin/                  # Admin dashboard (charts, controls, CSV)
+│   ├── auth/signin/            # Branded Microsoft sign-in page
+│   ├── desktop-setup/          # Virtual-cable walkthrough
+│   ├── offline/                # PWA offline fallback page
+│   ├── transcripts/            # Saved transcript history + viewer
+│   └── api/
+│       ├── auth/[...nextauth]/ # NextAuth v5 handlers
+│       ├── transcribe/         # POST: audio → GPT-4o Transcribe → text
+│       ├── summarize/          # POST: transcript → GPT-4o → summary + action items
+│       ├── transcripts/        # GET/POST: saved transcript list + create
+│       ├── transcripts/[id]/   # GET/DELETE: single saved transcript
+│       ├── calendar/today/     # GET: today's meetings (Graph API)
+│       ├── calendar/upcoming/  # GET: next N hours of meetings
+│       ├── me/usage/           # GET: per-user quota snapshot
+│       ├── admin/usage/        # GET: aggregate usage (JSON or CSV)
+│       ├── admin/config/       # GET/POST: rate limits + kill switch
+│       └── health/             # GET: liveness probe
+├── components/                 # UI components
+│   ├── TranscriptPanel.tsx     # Live transcript with speaker labels
+│   ├── ControlBar.tsx          # Start / Stop / Save controls
+│   ├── MeetingSummary.tsx      # AI summary panel (generate, copy, email)
+│   ├── ActionItems.tsx         # Interactive action-item checklist
+│   ├── MeetingList.tsx         # Today's calendar meetings
+│   ├── MeetingBanner.tsx       # Upcoming meeting countdown
+│   ├── SettingsDrawer.tsx      # Language, chunk duration, device selection
+│   ├── ExportMenu.tsx          # Export to txt / srt / json / csv
+│   ├── InstallPrompt.tsx       # PWA install prompt
+│   ├── CostEstimator.tsx       # Real-time cost display
+│   └── ...                     # DeviceSelector, CalendarToggle, SetupWizard, etc.
+├── hooks/                      # React hooks
+│   ├── useAudioCapture.ts      # MediaRecorder + chunk streaming
+│   ├── useTranscription.ts     # Chunk → /api/transcribe pipeline
+│   ├── useTranscriptStore.ts   # Zustand store, localStorage persistence
+│   ├── useCalendarPrefs.ts     # Calendar integration prefs
+│   ├── useMeetingReminders.ts  # Polls upcoming meetings
+│   └── useAudioDevices.ts      # Enumerates audio inputs
+├── lib/                        # Server-side utilities
+│   ├── auth.ts                 # NextAuth v5 + Entra ID + optional SSO
+│   ├── openai.ts               # Azure OpenAI client (Whisper + GPT-4o)
+│   ├── rateLimiter.ts          # Sliding-window per-user + monthly budget
+│   ├── usageLogger.ts          # Append-only JSONL usage log
+│   ├── usageAggregates.ts      # Aggregate usage for admin dashboard
+│   ├── transcriptStorage.ts    # Server-side transcript persistence
+│   ├── calendar.ts             # Microsoft Graph calendar integration
+│   ├── constants.ts            # Pricing, languages, speaker colors
+│   └── ...                     # audioUtils, exportUtils, theme, env
+├── extension/                  # Chrome Extension (Manifest V3)
+│   ├── manifest.json           # Permissions: tabCapture, sidePanel, offscreen
+│   ├── background.js           # Service worker — tab capture orchestration
+│   ├── offscreen.html/.js      # Hidden MediaRecorder host
+│   ├── sidepanel.html/.css/.js # Transcript side panel
+│   ├── popup.html/.css/.js     # Toolbar popup
+│   ├── content.js              # Meeting detection + recording badge
+│   └── icons/                  # 16, 48, 128 px PNGs
+├── electron/                   # Electron desktop wrapper
+│   ├── main.ts                 # Main process, tray, global shortcuts
+│   ├── preload.ts              # Context isolation bridge
+│   └── audioCapture.ts         # Native desktopCapturer
+├── companion/                  # Python audio companion (WebSocket)
+│   ├── capture.py              # Device capture → WebSocket streaming
+│   └── requirements.txt        # sounddevice, websockets
+├── public/
+│   ├── manifest.json           # PWA manifest (standalone, share_target)
+│   ├── sw.js                   # Service worker (versioned cache, offline)
+│   └── icons/                  # PWA icons (72–512 px)
+├── docs/deployment.md          # Azure deployment guide
+├── Dockerfile                  # Multi-stage production build
+├── docker-compose.yml          # Local-parity compose
+└── .github/workflows/          # Deploy to Azure on push to main
+```
+
+---
+
+## Chrome Extension
+
+The `extension/` folder contains a complete Manifest V3 Chrome extension for transcribing meeting tabs without screen-share prompts.
+
+### Install (development)
+
+1. Open `chrome://extensions`, enable **Developer mode**
+2. Click **Load unpacked** → select the `extension/` folder
+3. Pin the Dhvani icon in the toolbar
+4. Navigate to a Teams / Zoom / Meet tab and click the icon or open the side panel
+
+The extension reads the Dhvani session cookie and sends it as an `x-auth-token` header, so users must be signed in to the web app first.
+
+---
 
 ## Electron Desktop App
 
-For the cleanest desktop experience — no browser tab, no virtual cable — run Dhvani as an Electron app:
+For system audio capture without a virtual cable:
 
 ```bash
 npm run electron:dev     # develop
 npm run electron:build   # package .dmg (Mac) and .exe (Windows)
 ```
 
-Features:
-- Captures system audio natively (no BlackHole / VB-CABLE required)
-- Global hotkey to toggle capture (`Cmd+Shift+T` / `Ctrl+Shift+T`)
-- System tray icon with Start/Stop/Quit
-- Same React UI — the renderer auto-detects `window.electronAPI` and uses native capture
+Features: native system audio capture, global hotkey (`Cmd/Ctrl+Shift+T`), system tray, same React UI.
 
-## Python Companion (optional)
+---
 
-Prefer the browser but need to feed system audio from a desktop app? The `companion/` folder ships a small Python script that captures from any audio device and streams to Dhvani via WebSocket. See [`companion/README.md`](companion/README.md) for install and usage.
+## Python Companion
 
-## Architecture
+The `companion/` folder ships a small Python script that captures audio from any device and streams to Dhvani via WebSocket. See [`companion/README.md`](companion/README.md) for install and usage.
 
-```
-dhvani/
-├── app/                    # Next.js 14 App Router
-│   ├── layout.tsx          # Root layout with session provider
-│   ├── page.tsx            # Main transcription UI
-│   ├── admin/              # Admin dashboard (charts, controls, CSV)
-│   ├── auth/signin/        # Branded Microsoft sign-in page
-│   ├── desktop-setup/      # Virtual-cable walk-through
-│   └── api/
-│       ├── auth/[...nextauth]/   # NextAuth handlers
-│       ├── transcribe/           # POST: audio → Whisper → text (rate-limited)
-│       ├── me/usage/             # GET: per-user quota snapshot
-│       ├── admin/usage/          # GET: aggregate usage (JSON or CSV)
-│       ├── admin/config/         # GET/POST: rate limits + kill switch
-│       └── health/               # GET: liveness
-├── components/             # TranscriptPanel, ControlBar, SettingsDrawer, UserChip, …
-├── hooks/                  # useAudioCapture, useTranscription, useTranscriptStore
-├── lib/                    # auth, rateLimiter, usageLogger, usageAggregates, openai, …
-├── electron/               # Optional Electron wrapper
-├── companion/              # Optional Python audio companion
-├── docs/deployment.md      # Azure deployment guide
-├── Dockerfile              # Multi-stage production build
-├── docker-compose.yml      # Local-parity compose
-└── .github/workflows/      # Deploy to Azure on push to main
-```
-
-Key files to read first:
-
-- [`lib/auth.ts`](lib/auth.ts) — NextAuth v5 config with Microsoft Entra ID + admin allowlist
-- [`lib/rateLimiter.ts`](lib/rateLimiter.ts) — sliding-window per-user caps + org-wide monthly budget
-- [`lib/usageLogger.ts`](lib/usageLogger.ts) — append-only JSONL usage log
-- [`app/api/transcribe/route.ts`](app/api/transcribe/route.ts) — auth → rate-limit → Azure OpenAI gpt-4o-transcribe-diarize → log
-- [`lib/openai.ts`](lib/openai.ts) — Azure OpenAI client factory + deployment name helper
-- [`app/admin/Client.tsx`](app/admin/Client.tsx) — recharts dashboard with controls
+---
 
 ## Settings
 
@@ -136,38 +252,23 @@ User-facing settings persist in `localStorage`:
 | Setting | Default | Notes |
 | --- | --- | --- |
 | Language | Auto-detect | ISO-639-1 hint passed to GPT-4o Transcribe |
-| Chunk Duration | 10 s | 3–15 s. Shorter = lower latency. Longer = better speaker tracking. |
+| Chunk Duration | 10 s | 3–15 s. Shorter = lower latency. Longer = better speaker tracking |
 | Audio Device | Default input | Required for virtual-cable mode |
+| Calendar Integration | Off | Syncs meetings via Microsoft Graph when enabled |
 
-The Azure OpenAI key is **admin-managed** — it lives in `AZURE_OPENAI_API_KEY` server-side and is never exposed to the browser.
-
-## Security & Privacy
-
-- The Azure OpenAI key lives server-side in `AZURE_OPENAI_API_KEY`. It never reaches the browser bundle.
-- Transcription requests go to your org's Azure OpenAI resource (`AZURE_OPENAI_ENDPOINT`) — no traffic leaves the Azure tenant, no calls to `api.openai.com`.
-- Every API route requires a valid Entra ID session. Admin routes additionally check against `ADMIN_EMAILS`.
-- Audio chunks are streamed to Whisper and discarded after transcription — Dhvani doesn't persist raw audio anywhere.
-- **Live transcripts** stay in the user's browser `localStorage` until the user clicks **Save transcript** (or enables *Settings → Calendar Integration → Auto-tag transcripts*, which is **off by default**).
-- **Saved transcripts** are written to the server filesystem under `DHVANI_DATA_DIR/<userId>/<id>.json` (defaults to `./data/transcripts/`). Each file is owned by exactly one user — `/api/transcripts/[id]` returns 404 to anyone else, even if they guess the id. POST is rate-limited to 50 saves/user/day and per-entry text is capped at 4 KB. Mount `DHVANI_DATA_DIR` on a persistent, backed-up volume (Azure Files) in production.
-- The Microsoft Graph access token (used to read the user's Outlook calendar) lives only inside the signed JWT cookie. It is **not** included in the public session payload, so client JS cannot read it. Server routes call `getGraphAccessToken()` from `lib/auth.ts`, which auto-refreshes via `offline_access` when the token is within 60 s of expiry.
-- Per-chunk usage (userId, seconds, cost) is logged to an append-only JSONL file for billing/audit. The audit log only stores metadata, never transcript text.
-- The Service Worker explicitly does not cache `/api/*` routes.
+---
 
 ## For Organizations
 
-Dhvani is built to be deployed once, centrally, by an IT team — not installed per-user. It runs entirely inside your Azure tenant: SSO via Entra ID, transcription via your Azure OpenAI resource, with rate limits and a usage dashboard baked in.
+Dhvani is built to be deployed once, centrally, by an IT team. It runs entirely inside your Azure tenant: SSO via Entra ID, transcription via your Azure OpenAI resource, with rate limits and a usage dashboard baked in.
 
 ### Deployment Guide
 
-See [**docs/deployment.md**](./docs/deployment.md) for the full walkthrough — Azure Web App for Containers, Microsoft Entra ID SSO, GitHub Actions CI/CD, custom domain + HTTPS, kill switch, and ops playbook.
-
-The short version:
+See [**docs/deployment.md**](./docs/deployment.md) for the full walkthrough — Azure Web App for Containers, Entra ID SSO, GitHub Actions CI/CD, custom domain + HTTPS, kill switch, and ops playbook.
 
 ```bash
-# Build and push the container
 docker build -t dhvanicr.azurecr.io/dhvani:latest .
 docker push dhvanicr.azurecr.io/dhvani:latest
-
 # Or just merge to main — GitHub Actions deploys automatically.
 ```
 
@@ -178,47 +279,69 @@ Visit `/admin` as a user whose email is in `ADMIN_EMAILS`:
 - **30-day spend** bar chart + **daily minutes by top 5 users** line chart
 - **Sortable user table** with minutes, cost, sessions, last active
 - **Rate-limit controls** — per-user minutes/hour, minutes/day, org-wide monthly USD budget
-- **Kill switch** — flip off the whole service instantly
+- **Kill switch** — disable the service instantly
 - **CSV export** for audit/finance
 
 ### Cost Estimate
 
-Roughly what it costs ITU or a similar 50-person team to run Dhvani:
-
 | Component | Monthly cost |
 | --- | --- |
-| Azure Web App plan (B1, Linux) | ~$15 |
+| Azure Web App (B1, Linux) | ~$15 |
 | Azure Container Registry (Basic) | ~$5 |
 | Azure OpenAI transcribe @ ~$0.006/min | $0.36/hour of audio |
+| Azure OpenAI GPT-4o summary (per meeting) | ~$0.01–0.05 |
 | **Light usage (100 hours/month)** | **~$56** |
 | **Heavy usage (500 hours/month)** | **~$200** |
 
-Pricing for `gpt-4o-transcribe-diarize` may differ from the legacy Whisper rate — confirm against your Azure Cost Management view. Dhvani estimates at the Whisper rate until then.
-
-Set `RATE_LIMIT_MONTHLY_BUDGET_USD` in the admin dashboard to cap total spend — Dhvani refuses new transcriptions once the cap is hit, with a clear message to users.
+Set `RATE_LIMIT_MONTHLY_BUDGET_USD` in the admin dashboard to cap total spend.
 
 ### Environment Variables
 
-See [`.env.local.example`](./.env.local.example) for the complete list. The must-haves:
+See [`.env.local.example`](./.env.local.example) for the complete list. The essentials:
 
 | Variable | Purpose |
 | --- | --- |
-| `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_WHISPER_DEPLOYMENT` | Azure OpenAI resource + transcription deployment (default `gpt-4o-transcribe-diarize`) |
-| `AZURE_AD_CLIENT_ID`, `AZURE_AD_CLIENT_SECRET`, `AZURE_AD_TENANT_ID` | Entra ID App Registration |
-| `NEXTAUTH_SECRET`, `NEXTAUTH_URL` | NextAuth session config |
+| `AZURE_OPENAI_API_KEY` | Azure OpenAI resource key |
+| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI endpoint URL |
+| `AZURE_OPENAI_WHISPER_DEPLOYMENT` | Transcription model deployment (default `gpt-4o-transcribe-diarize`) |
+| `AZURE_OPENAI_CHAT_DEPLOYMENT` | Chat model deployment for AI summary (default `gpt-4o`) |
+| `AZURE_AD_CLIENT_ID` | Entra ID App Registration client ID |
+| `AZURE_AD_CLIENT_SECRET` | Entra ID client secret (leave blank for no-auth mode) |
+| `AZURE_AD_TENANT_ID` | Entra ID tenant |
+| `NEXTAUTH_SECRET` | NextAuth session signing secret |
+| `NEXTAUTH_URL` | Public origin (e.g. `https://dhvani.itu.int`) |
 | `ADMIN_EMAILS` | Comma-separated admin allowlist |
-| `RATE_LIMIT_MINUTES_PER_HOUR` / `_PER_DAY` | Per-user caps |
-| `RATE_LIMIT_MONTHLY_BUDGET_USD` | Org-wide monthly ceiling |
-| `USAGE_LOG_PATH` | JSONL usage log location |
-| `DHVANI_DATA_DIR` | Where saved transcripts are stored (default `./data/transcripts`). Mount a persistent volume here in production. |
+| `RATE_LIMIT_MINUTES_PER_HOUR` / `_PER_DAY` | Per-user caps (default 60 / 240) |
+| `RATE_LIMIT_MONTHLY_BUDGET_USD` | Org-wide monthly ceiling (default $500) |
+| `USAGE_LOG_PATH` | JSONL usage log location (default `./data/usage-log.jsonl`) |
+| `DHVANI_DATA_DIR` | Saved transcript storage path (default `./data/transcripts`) |
+
+---
+
+## Tech Stack
+
+| Layer | Technology |
+| --- | --- |
+| Framework | Next.js 14 (App Router, TypeScript strict) |
+| Auth | NextAuth v5 (Auth.js) + Microsoft Entra ID |
+| Transcription | Azure OpenAI GPT-4o Transcribe with diarization |
+| AI Summary | Azure OpenAI GPT-4o (chat completions) |
+| Styling | Tailwind CSS 3 |
+| Icons | Lucide React |
+| Charts | Recharts (admin dashboard) |
+| Desktop | Electron 30 |
+| Extension | Chrome Manifest V3 |
+| Container | Docker (Alpine Node 20, multi-stage) |
+| CI/CD | GitHub Actions → Azure Container Registry → Azure Web App |
+
+---
 
 ## Limitations
 
-- Each chunk must be ≤ 25 MB (not a practical limit at 10 s chunks).
+- Each audio chunk must be ≤ 25 MB (not a practical limit at 10 s chunks).
 - Tab audio requires users to check "Share audio" when picking the tab — there's no way around this browser prompt.
 - iOS Safari doesn't support `getDisplayMedia`. Use microphone mode on iPhone/iPad.
-- Diarizer speaker ids are scoped to a single audio request — "speaker_0" in one chunk is not guaranteed to be the same voice as "speaker_0" in the next. Dhvani biases the default chunk size upward (10 s) to amortise this, and lets users rename speakers after the fact; perfect cross-chunk stitching would require a persistent speaker embedding.
-- Transcription quality is best-effort on noisy audio and heavily overlapping speech.
+- Diarizer speaker IDs are scoped to a single chunk — "speaker_0" in one chunk may not match the next. Dhvani biases chunk size upward and lets users rename speakers; perfect cross-chunk stitching would require persistent speaker embeddings.
 
 ## Contributing
 
@@ -230,7 +353,7 @@ MIT — see [LICENSE](LICENSE).
 
 ## Acknowledgments
 
-- **OpenAI Whisper** — the open-weights speech-to-text model that makes this possible
+- **OpenAI** — GPT-4o Transcribe and GPT-4o chat models
 - **BlackHole** (existential.audio) and **VB-Audio CABLE** — free virtual audio drivers
 - The **Next.js**, **React**, and **Tailwind CSS** teams
 
