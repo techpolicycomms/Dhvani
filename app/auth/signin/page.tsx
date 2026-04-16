@@ -1,4 +1,6 @@
 import { signIn } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { isDemoMode } from "@/lib/demoMode";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +16,9 @@ export default function SignInPage({
 }: {
   searchParams: { callbackUrl?: string; error?: string };
 }) {
+  if (isDemoMode) {
+    redirect("/");
+  }
   const callbackUrl = searchParams?.callbackUrl || "/";
   const error = searchParams?.error;
 
