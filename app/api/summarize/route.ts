@@ -119,21 +119,33 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: chatDeployment(),
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: transcriptText },
-      ],
-      temperature: 0.3,
-      max_tokens: 2000,
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60_000);
+    const completion = await openai.chat.completions.create(
+      {
+        model: chatDeployment(),
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: transcriptText },
+        ],
+        temperature: 0.3,
+        max_tokens: 2000,
+      },
+      { signal: controller.signal }
+    );
+    clearTimeout(timeout);
 
     const markdown = completion.choices[0]?.message?.content || "";
     const actionItems = parseActionItems(markdown);
 
     return NextResponse.json({ markdown, actionItems } satisfies SummaryResponse);
   } catch (err: unknown) {
+    if ((err as Error).name === "AbortError") {
+      return NextResponse.json(
+        { error: "Summary generation timed out. Try again with a shorter transcript." },
+        { status: 504 }
+      );
+    }
     const error = err as { status?: number; message?: string };
     if (error.status === 404) {
       return NextResponse.json(

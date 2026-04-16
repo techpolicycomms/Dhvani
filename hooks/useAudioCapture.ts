@@ -154,10 +154,26 @@ export function useAudioCapture(
 
   const beginRecording = useCallback(
     (stream: MediaStream) => {
+      if (typeof MediaRecorder === "undefined") {
+        setError(
+          "Your browser doesn't support audio recording. Try Chrome, Edge, or Firefox."
+        );
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       const { mimeType, extension } = pickSupportedMimeType();
-      const recorder = mimeType
-        ? new MediaRecorder(stream, { mimeType })
-        : new MediaRecorder(stream);
+      let recorder: MediaRecorder;
+      try {
+        recorder = mimeType
+          ? new MediaRecorder(stream, { mimeType })
+          : new MediaRecorder(stream);
+      } catch {
+        setError(
+          "Failed to start audio recording. Your browser may not support the required audio format."
+        );
+        stream.getTracks().forEach((t) => t.stop());
+        return;
+      }
       recorderRef.current = recorder;
       chunkIndexRef.current = 0;
       startedAtRef.current = Date.now();

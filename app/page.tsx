@@ -126,6 +126,7 @@ export default function HomePage() {
 
   const {
     transcribeChunk,
+    abort: abortTranscription,
     queueDepth,
     inFlight,
     totalMinutes,
@@ -139,8 +140,8 @@ export default function HomePage() {
       setTimeout(() => setToast(null), 4000);
     },
     onRateLimited: (msg) => {
-      // Hard stop: the server is refusing further work.
       setRateLimitMsg(msg);
+      abortTranscription();
       stopCapture();
     },
   });

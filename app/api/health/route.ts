@@ -19,9 +19,18 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   try {
     const openai = createOpenAIClient();
-    await openai.models.list();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10_000);
+    await openai.models.list({ signal: controller.signal } as never);
+    clearTimeout(timeout);
     return NextResponse.json({ status: "ok" });
   } catch (err: unknown) {
+    if ((err as Error).name === "AbortError") {
+      return NextResponse.json(
+        { status: "error", message: "Azure OpenAI timed out" },
+        { status: 504 }
+      );
+    }
     const error = err as { status?: number; message?: string };
     const status = error.status ?? 500;
     return NextResponse.json(

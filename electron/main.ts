@@ -55,39 +55,47 @@ function createWindow() {
 }
 
 function createTray() {
-  const iconPath = path.join(__dirname, "../public/icon-192.png");
-  const icon = nativeImage.createFromPath(iconPath).resize({ width: 18, height: 18 });
-  tray = new Tray(icon);
-  const menu = Menu.buildFromTemplate([
-    {
-      label: "Show Dhvani",
-      click: () => {
-        if (!mainWindow) createWindow();
-        else mainWindow.show();
+  try {
+    const iconPath = path.join(__dirname, "../public/icons/icon-192.png");
+    const icon = nativeImage.createFromPath(iconPath).resize({ width: 18, height: 18 });
+    tray = new Tray(icon);
+    const menu = Menu.buildFromTemplate([
+      {
+        label: "Show Dhvani",
+        click: () => {
+          if (!mainWindow) createWindow();
+          else mainWindow.show();
+        },
       },
-    },
-    {
-      label: "Start / Stop Capture",
-      accelerator: process.platform === "darwin" ? "Cmd+Shift+T" : "Ctrl+Shift+T",
-      click: () => {
-        mainWindow?.webContents.send("toggle-capture");
+      {
+        label: "Start / Stop Capture",
+        accelerator: process.platform === "darwin" ? "Cmd+Shift+T" : "Ctrl+Shift+T",
+        click: () => {
+          mainWindow?.webContents.send("toggle-capture");
+        },
       },
-    },
-    { type: "separator" },
-    { label: "Quit Dhvani", click: () => app.quit() },
-  ]);
-  tray.setToolTip("Dhvani — meeting transcription");
-  tray.setContextMenu(menu);
+      { type: "separator" },
+      { label: "Quit Dhvani", click: () => app.quit() },
+    ]);
+    tray.setToolTip("Dhvani — meeting transcription");
+    tray.setContextMenu(menu);
+  } catch (err) {
+    console.warn("Dhvani: tray creation failed (icon missing?)", err);
+  }
 }
 
 app.whenReady().then(() => {
   createWindow();
   createTray();
 
-  const shortcut = process.platform === "darwin" ? "Cmd+Shift+T" : "Ctrl+Shift+T";
-  globalShortcut.register(shortcut, () => {
-    mainWindow?.webContents.send("toggle-capture");
-  });
+  try {
+    const shortcut = process.platform === "darwin" ? "Cmd+Shift+T" : "Ctrl+Shift+T";
+    globalShortcut.register(shortcut, () => {
+      mainWindow?.webContents.send("toggle-capture");
+    });
+  } catch (err) {
+    console.warn("Dhvani: global shortcut registration failed", err);
+  }
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();

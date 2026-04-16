@@ -137,8 +137,7 @@ export default function TranscriptsPage() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const body = (await res.json()) as { transcript: { entries: Array<{ timestamp: string; speaker?: string; text: string }> } };
       const lines = body.transcript.entries.map((e) => {
-        const ts = new Date(e.timestamp).toLocaleTimeString();
-        return `[${ts}]${e.speaker ? ` ${e.speaker}:` : ""} ${e.text}`;
+        return `[${e.timestamp}]${e.speaker ? ` ${e.speaker}:` : ""} ${e.text}`;
       });
       const blob = new Blob([lines.join("\n")], { type: "text/plain" });
       const url = URL.createObjectURL(blob);

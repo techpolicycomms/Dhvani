@@ -91,6 +91,13 @@ export async function POST(req: NextRequest) {
         { status: 413 }
       );
     }
+    if (file.type && !file.type.startsWith("audio/") && !file.type.startsWith("video/")) {
+      release(userId, estimatedSeconds);
+      return NextResponse.json(
+        { error: "Invalid file type. Expected an audio file." },
+        { status: 400 }
+      );
+    }
 
     let openai;
     try {
