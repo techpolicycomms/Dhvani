@@ -11,6 +11,9 @@
     "url": "https://github.com/techpolicycomms/dhvani.git"
   },
   "scripts": {
+    "predev": "node scripts/ensure-project-root.mjs",
+    "preelectron:dev": "node scripts/ensure-project-root.mjs",
+    "prebuild": "node scripts/ensure-project-root.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

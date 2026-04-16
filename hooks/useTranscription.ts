@@ -155,6 +155,16 @@ export function useTranscription(
           }
           if (!res.ok) {
             const body = await res.json().catch(() => ({}));
+            // Non-fatal: malformed browser chunk. Skip quietly.
+            if (
+              res.status === 400 &&
+              typeof body.error === "string" &&
+              /audio file might be corrupted|unsupported|invalid file format/i.test(
+                body.error
+              )
+            ) {
+              return;
+            }
             throw new Error(body.error || `HTTP ${res.status}`);
           }
           const data = (await res.json()) as {

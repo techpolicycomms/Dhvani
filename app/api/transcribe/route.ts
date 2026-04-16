@@ -35,6 +35,17 @@ function isIncompatibleResponseFormatError(err: unknown): boolean {
   );
 }
 
+function isUnsupportedAudioChunkError(err: unknown): boolean {
+  const e = err as { status?: number; message?: string };
+  const msg = (e.message || "").toLowerCase();
+  return (
+    e.status === 400 &&
+    (msg.includes("audio file might be corrupted") ||
+      msg.includes("unsupported") ||
+      msg.includes("invalid file format"))
+  );
+}
+
 async function createTranscription(
   openai: ReturnType<typeof createOpenAIClient>,
   file: File,
@@ -225,6 +236,17 @@ export async function POST(req: NextRequest) {
     release(userId, estimatedSeconds);
     const error = err as { status?: number; message?: string };
     const status = error.status || 500;
+    // Some browsers occasionally emit malformed/tiny chunks. Treat these
+    // as non-fatal and skip the chunk so the meeting can continue.
+    if (isUnsupportedAudioChunkError(err)) {
+      return NextResponse.json({
+        text: "",
+        segments: [],
+        language: languageHint ?? null,
+        remaining: quota.remaining,
+        skipped: true,
+      });
+    }
     if (status === 401) {
       return NextResponse.json(
         { error: "Transcription service is misconfigured. Please contact your administrator." },
