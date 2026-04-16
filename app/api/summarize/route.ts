@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActiveUser } from "@/lib/auth";
-import { createChatOpenAIClient, chatDeployment } from "@/lib/openai";
+import { chatDeployment } from "@/lib/openai";
+import { getAIProvider } from "@/lib/providers";
+import { events } from "@/lib/events";
 import type { TranscriptEntry } from "@/lib/constants";
 
 export const runtime = "nodejs";
@@ -121,52 +123,31 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let openai;
-  try {
-    openai = createChatOpenAIClient();
-  } catch {
-    return NextResponse.json(
-      { error: "AI service is misconfigured." },
-      { status: 500 }
-    );
-  }
-
-  // Best-effort detection: log the deployments visible on this resource
-  // so the server log makes it obvious which chat models (if any) are
-  // available. Non-fatal if the Azure resource doesn't expose /models.
-  try {
-    const models = await openai.models.list();
-    const ids = models.data?.map((m) => m.id) ?? [];
-    console.log("[summarize] Azure OpenAI deployments visible:", ids);
-  } catch (e) {
-    console.log(
-      "[summarize] Could not list deployments:",
-      (e as Error).message
-    );
-  }
+  const ai = getAIProvider();
 
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60_000);
-    const completion = await openai.chat.completions.create(
-      {
-        model: chatDeployment(),
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: transcriptText },
-        ],
-        temperature: 0.3,
-        max_tokens: 2000,
-      },
-      { signal: controller.signal }
+    const completion = await ai.chat(
+      [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: transcriptText },
+      ],
+      { temperature: 0.3, maxTokens: 2000, signal: controller.signal }
     );
     clearTimeout(timeout);
 
-    const markdown = completion.choices[0]?.message?.content || "";
+    const markdown = completion.text;
     const actionItems = parseActionItems(markdown);
     const keywords = parseKeywords(markdown);
     const sentiment = parseSentiment(markdown);
     const talkTime = parseTalkTime(markdown);
+
+    events.emit({
+      type: "summary.generated",
+      transcriptId: null,
+      userId: user.userId,
+    });
 
     return NextResponse.json({ markdown, actionItems, keywords, sentiment, talkTime } satisfies SummaryResponse);
   } catch (err: unknown) {

@@ -1,38 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { resolveRequestUser } from "@/lib/auth";
-import { createOpenAIClient, whisperDeployment } from "@/lib/openai";
+import { whisperDeployment } from "@/lib/openai";
 import {
   checkAndReserve,
   isServiceEnabled,
   release,
 } from "@/lib/rateLimiter";
 import { costFromSeconds, logUsage } from "@/lib/usageLogger";
+import { getAIProvider } from "@/lib/providers";
+import { events } from "@/lib/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
-
-type RawTranscriptionResult = {
-  text?: string;
-  language?: string;
-  segments?: Array<{
-    id?: number;
-    start?: number;
-    end?: number;
-    text?: string;
-    speaker?: string;
-  }>;
-};
-
-function isIncompatibleResponseFormatError(err: unknown): boolean {
-  const e = err as { status?: number; message?: string };
-  const msg = (e.message || "").toLowerCase();
-  return (
-    e.status === 400 &&
-    msg.includes("response_format") &&
-    (msg.includes("not compatible") || msg.includes("use 'json' or 'text'"))
-  );
-}
 
 function isUnsupportedAudioChunkError(err: unknown): boolean {
   const e = err as { status?: number; message?: string };
@@ -43,34 +23,6 @@ function isUnsupportedAudioChunkError(err: unknown): boolean {
       msg.includes("unsupported") ||
       msg.includes("invalid file format"))
   );
-}
-
-async function createTranscription(
-  openai: ReturnType<typeof createOpenAIClient>,
-  file: File,
-  model: string,
-  languageHint?: string
-): Promise<RawTranscriptionResult> {
-  const shared = {
-    model,
-    file,
-    ...(languageHint ? { language: languageHint } : {}),
-  };
-
-  try {
-    return (await openai.audio.transcriptions.create({
-      ...shared,
-      response_format: "verbose_json",
-      timestamp_granularities: ["word", "segment"],
-    } as unknown as Parameters<typeof openai.audio.transcriptions.create>[0])) as unknown as RawTranscriptionResult;
-  } catch (err) {
-    if (!isIncompatibleResponseFormatError(err)) throw err;
-    // Some Azure deployments reject verbose_json and only accept json/text.
-    return (await openai.audio.transcriptions.create({
-      ...shared,
-      response_format: "json",
-    } as unknown as Parameters<typeof openai.audio.transcriptions.create>[0])) as unknown as RawTranscriptionResult;
-  }
 }
 
 /**
@@ -168,36 +120,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let openai;
-    try {
-      openai = createOpenAIClient();
-    } catch (err) {
-      release(userId, estimatedSeconds);
-      return NextResponse.json(
-        {
-          error:
-            "Transcription service is misconfigured. Please contact your administrator.",
-        },
-        { status: 500 }
-      );
-    }
+    const ai = getAIProvider();
+    events.emit({
+      type: "transcription.started",
+      meetingSubject: req.headers.get("x-meeting-subject"),
+      userId,
+    });
 
-    const result = await createTranscription(
-      openai,
-      file,
-      whisperDeployment(),
-      languageHint
-    );
+    const result = await ai.transcribe(file, { language: languageHint });
 
-    const rawSegments = Array.isArray(result.segments) ? result.segments : [];
-    let segments = rawSegments
-      .filter((s) => typeof s.text === "string" && (s.text ?? "").trim() !== "")
-      .map((s) => ({
-        speaker: (s.speaker || "speaker_0").toString(),
-        text: (s.text ?? "").trim(),
-        start: typeof s.start === "number" ? s.start : 0,
-        end: typeof s.end === "number" ? s.end : 0,
-      }));
+    // Provider returns already-normalised segments; keep as a mutable
+    // local so the synthetic-segment fallback below can augment it.
+    let segments = result.segments.slice();
 
     // When response_format=json returns only plain text, emit one synthetic
     // segment so the client pipeline remains stable (single speaker fallback).
@@ -222,6 +156,13 @@ export async function POST(req: NextRequest) {
       audioDurationSeconds: estimatedSeconds,
       whisperCost,
       chunkId,
+    });
+
+    events.emit({
+      type: "transcription.completed",
+      transcriptId: chunkId,
+      userId,
+      durationSeconds: estimatedSeconds,
     });
 
     return NextResponse.json({
