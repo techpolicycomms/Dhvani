@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { auth, isAuthConfigured } from "@/lib/auth";
 import { isDemoMode } from "@/lib/demoMode";
 
@@ -37,13 +37,12 @@ function isPublic(pathname: string): boolean {
  * user via `getActiveUser()`. This is for local/demo use only; `lib/auth.ts`
  * prints a loud console warning on startup in that mode.
  */
-export default auth((req) => {
-  if (isDemoMode) return;
-  // Escape hatch for local/demo: if the client secret isn't set, let
-  // everything through. All the auth machinery is still loaded so the
-  // moment the secret reappears in env, this flips back to gated.
-  if (!isAuthConfigured()) return;
-
+// NextAuth v5's `auth()` wrapper reads NEXTAUTH_SECRET eagerly on every
+// invocation and throws MissingSecret when absent — even if our body
+// would have early-returned anyway. Short-circuit BEFORE invoking it
+// in demo / no-auth mode so the packaged DMG (where no secret is
+// provisioned) doesn't spam middleware errors on every request.
+const authMiddleware = auth((req) => {
   const { pathname } = req.nextUrl;
   if (isPublic(pathname)) return;
 
@@ -59,6 +58,16 @@ export default auth((req) => {
     return NextResponse.redirect(signIn);
   }
 });
+
+export default function middleware(req: NextRequest, ev: unknown) {
+  if (isDemoMode || !isAuthConfigured()) {
+    return NextResponse.next();
+  }
+  return (authMiddleware as unknown as (
+    req: NextRequest,
+    ev: unknown
+  ) => ReturnType<typeof NextResponse.next>)(req, ev);
+}
 
 export const config = {
   // Match everything, but skip static files by extension to keep the

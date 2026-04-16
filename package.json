@@ -53,12 +53,14 @@
   "build": {
     "appId": "org.techpolicycomms.dhvani",
     "productName": "Dhvani",
+    "asar": false,
     "directories": {
       "output": "dist-electron"
     },
     "files": [
-      "electron/**/*",
-      ".next/**/*",
+      "electron/dist/**/*",
+      ".next/standalone/**/*",
+      ".next/static/**/*",
       "public/**/*",
       "package.json"
     ],
