@@ -7,11 +7,15 @@ import {
   Clock,
   Download,
   FileText,
+  Link2,
   Search,
   Settings,
   Trash2,
 } from "lucide-react";
 import { NavLinks } from "@/components/NavLinks";
+import TranscriptSearch from "@/components/TranscriptSearch";
+import ShareModal from "@/components/ShareModal";
+import AskDhvani from "@/components/AskDhvani";
 import {
   PLATFORM_BADGE_CLASS,
   PLATFORM_LABELS,
@@ -61,6 +65,8 @@ export default function TranscriptsPage() {
   const [dateFilter, setDateFilter] = useState<DateFilter>("all");
   const [isAdmin, setIsAdmin] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [shareId, setShareId] = useState<string | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
 
   useEffect(() => {
     fetch("/api/admin/config")
@@ -137,8 +143,7 @@ export default function TranscriptsPage() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const body = (await res.json()) as { transcript: { entries: Array<{ timestamp: string; speaker?: string; text: string }> } };
       const lines = body.transcript.entries.map((e) => {
-        const ts = new Date(e.timestamp).toLocaleTimeString();
-        return `[${ts}]${e.speaker ? ` ${e.speaker}:` : ""} ${e.text}`;
+        return `[${e.timestamp}]${e.speaker ? ` ${e.speaker}:` : ""} ${e.text}`;
       });
       const blob = new Blob([lines.join("\n")], { type: "text/plain" });
       const url = URL.createObjectURL(blob);
@@ -188,7 +193,20 @@ export default function TranscriptsPage() {
           <h1 className="text-xl font-bold text-dark-navy">
             Transcript history
           </h1>
+          <button
+            onClick={() => setShowSearch(!showSearch)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-itu-blue text-itu-blue rounded-lg hover:bg-itu-blue-pale transition-colors"
+          >
+            <Search size={12} />
+            {showSearch ? "Hide search" : "Search all"}
+          </button>
         </div>
+
+        {showSearch && (
+          <div className="mb-6">
+            <TranscriptSearch />
+          </div>
+        )}
 
         {/* FILTERS */}
         <div className="flex flex-col sm:flex-row gap-3 mb-5">
@@ -305,6 +323,14 @@ export default function TranscriptsPage() {
 
                   <div className="shrink-0 flex items-center gap-1">
                     <button
+                      onClick={() => setShareId(it.id)}
+                      className="p-1.5 rounded text-mid-gray hover:text-itu-blue-dark hover:bg-itu-blue-pale"
+                      aria-label="Share transcript"
+                      title="Share"
+                    >
+                      <Link2 size={14} />
+                    </button>
+                    <button
                       onClick={() => onExport(it.id, it.title)}
                       disabled={busyId === it.id}
                       className="p-1.5 rounded text-mid-gray hover:text-itu-blue-dark hover:bg-itu-blue-pale disabled:opacity-50"
@@ -349,7 +375,21 @@ export default function TranscriptsPage() {
             </button>
           </div>
         )}
+        {/* ASK DHVANI */}
+        {items && items.length > 0 && (
+          <div className="mt-6">
+            <AskDhvani scope="all" />
+          </div>
+        )}
       </div>
+
+      {/* SHARE MODAL */}
+      {shareId && (
+        <ShareModal
+          transcriptId={shareId}
+          onClose={() => setShareId(null)}
+        />
+      )}
     </main>
   );
 }

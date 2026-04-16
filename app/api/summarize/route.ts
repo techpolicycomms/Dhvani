@@ -28,6 +28,16 @@ const SYSTEM_PROMPT = `You are an expert meeting assistant. Given a transcript w
 - [Speaker 1]: [role/contribution summary]
 - [Speaker 2]: [role/contribution summary]
 
+## Keywords
+[comma-separated list of 5-10 key topics discussed]
+
+## Sentiment
+[overall tone: Positive, Neutral, Negative, or Mixed]
+
+## Talk Time
+- [Speaker 1]: [estimated % of speaking time]
+- [Speaker 2]: [estimated % of speaking time]
+
 Be concise. Use the speaker names as provided. If no due date was mentioned for an action item, omit the due field. If no clear decisions were made, omit that section. If only one speaker is present, adjust accordingly.`;
 
 export type ActionItem = {
@@ -40,6 +50,9 @@ export type ActionItem = {
 export type SummaryResponse = {
   markdown: string;
   actionItems: ActionItem[];
+  keywords: string[];
+  sentiment: string;
+  talkTime: Array<{ speaker: string; percent: number }>;
 };
 
 const MAX_ENTRIES = 10_000;
@@ -119,21 +132,36 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: chatDeployment(),
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: transcriptText },
-      ],
-      temperature: 0.3,
-      max_tokens: 2000,
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60_000);
+    const completion = await openai.chat.completions.create(
+      {
+        model: chatDeployment(),
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: transcriptText },
+        ],
+        temperature: 0.3,
+        max_tokens: 2000,
+      },
+      { signal: controller.signal }
+    );
+    clearTimeout(timeout);
 
     const markdown = completion.choices[0]?.message?.content || "";
     const actionItems = parseActionItems(markdown);
+    const keywords = parseKeywords(markdown);
+    const sentiment = parseSentiment(markdown);
+    const talkTime = parseTalkTime(markdown);
 
-    return NextResponse.json({ markdown, actionItems } satisfies SummaryResponse);
+    return NextResponse.json({ markdown, actionItems, keywords, sentiment, talkTime } satisfies SummaryResponse);
   } catch (err: unknown) {
+    if ((err as Error).name === "AbortError") {
+      return NextResponse.json(
+        { error: "Summary generation timed out. Try again with a shorter transcript." },
+        { status: 504 }
+      );
+    }
     const error = err as { status?: number; message?: string };
     if (error.status === 404) {
       return NextResponse.json(
@@ -168,4 +196,37 @@ function parseActionItems(markdown: string): ActionItem[] {
     });
   }
   return items;
+}
+
+function parseKeywords(markdown: string): string[] {
+  const match = /##\s*Keywords\s*\n(.+)/i.exec(markdown);
+  if (!match) return [];
+  return match[1]
+    .split(",")
+    .map((k) => k.trim())
+    .filter((k) => k.length > 0 && k.length < 100);
+}
+
+function parseSentiment(markdown: string): string {
+  const match = /##\s*Sentiment\s*\n(.+)/i.exec(markdown);
+  if (!match) return "Neutral";
+  const raw = match[1].trim().toLowerCase();
+  if (raw.includes("positive")) return "Positive";
+  if (raw.includes("negative")) return "Negative";
+  if (raw.includes("mixed")) return "Mixed";
+  return "Neutral";
+}
+
+function parseTalkTime(markdown: string): Array<{ speaker: string; percent: number }> {
+  const results: Array<{ speaker: string; percent: number }> = [];
+  const section = markdown.match(/##\s*Talk Time\s*\n([\s\S]*?)(?=\n##|\n*$)/i);
+  if (!section) return results;
+  const lines = section[1].split("\n");
+  for (const line of lines) {
+    const m = /^-\s*(.+?):\s*~?(\d+)%/.exec(line.trim());
+    if (m) {
+      results.push({ speaker: m[1].trim(), percent: parseInt(m[2], 10) });
+    }
+  }
+  return results;
 }

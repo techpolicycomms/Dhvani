@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, BarChart3, Users } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -17,6 +17,20 @@ import {
 } from "recharts";
 import { ITU_COLORS } from "@/lib/theme";
 import type { UsageStats } from "@/lib/usageAggregates";
+
+type TeamAnalytics = {
+  totalMeetings: number;
+  totalMinutes: number;
+  totalWords: number;
+  totalUsers: number;
+  totalSpeakers: number;
+  avgDuration: number;
+  platformBreakdown: Array<{ platform: string; count: number }>;
+  durationBuckets: Record<string, number>;
+  meetingsByWeekday: Array<{ day: string; count: number }>;
+  meetingsByHour: Array<{ hour: number; count: number }>;
+  meetingsByMonth: Array<{ month: string; count: number }>;
+};
 
 type Config = {
   rateLimitMinutesPerHour: number;
@@ -62,6 +76,16 @@ export function AdminDashboardClient({ initialStats, signedInEmail }: Props) {
   const [filter, setFilter] = useState("");
   const [savingConfig, setSavingConfig] = useState(false);
   const [configToast, setConfigToast] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<"overview" | "analytics">("overview");
+  const [analytics, setAnalytics] = useState<TeamAnalytics | null>(null);
+
+  useEffect(() => {
+    if (activeTab !== "analytics" || analytics) return;
+    fetch("/api/admin/analytics")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d) setAnalytics(d); })
+      .catch(() => {});
+  }, [activeTab, analytics]);
 
   // Initial + periodic refresh.
   useEffect(() => {
@@ -175,9 +199,28 @@ export function AdminDashboardClient({ initialStats, signedInEmail }: Props) {
               · {signedInEmail}
             </span>
           </h1>
-          <p className="text-xs text-mid-gray mt-1">
-            Live usage and controls. Stats refresh every 30 s.
-          </p>
+          <div className="flex items-center gap-2 mt-2">
+            <button
+              onClick={() => setActiveTab("overview")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                activeTab === "overview"
+                  ? "bg-itu-blue text-white"
+                  : "text-mid-gray hover:text-dark-navy hover:bg-light-gray"
+              }`}
+            >
+              <BarChart3 size={12} /> Usage Overview
+            </button>
+            <button
+              onClick={() => setActiveTab("analytics")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                activeTab === "analytics"
+                  ? "bg-itu-blue text-white"
+                  : "text-mid-gray hover:text-dark-navy hover:bg-light-gray"
+              }`}
+            >
+              <Users size={12} /> Team Analytics
+            </button>
+          </div>
         </div>
         <Link
           href="/"
@@ -187,6 +230,11 @@ export function AdminDashboardClient({ initialStats, signedInEmail }: Props) {
         </Link>
       </header>
 
+      {activeTab === "analytics" && (
+        <TeamAnalyticsPanel analytics={analytics} />
+      )}
+
+      {activeTab === "overview" && (<>
       {/* Overview cards */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <Card
@@ -395,8 +443,143 @@ export function AdminDashboardClient({ initialStats, signedInEmail }: Props) {
           )}
         </div>
       </section>
+      </>)}
       </div>
     </main>
+  );
+}
+
+function TeamAnalyticsPanel({ analytics }: { analytics: TeamAnalytics | null }) {
+  if (!analytics) {
+    return <div className="text-sm text-mid-gray py-8 text-center">Loading team analytics...</div>;
+  }
+  const a = analytics;
+  const WEEKDAY_COLORS = ["#94A3B8", "#1DA0DB", "#1DA0DB", "#1DA0DB", "#1DA0DB", "#1DA0DB", "#94A3B8"];
+  const durationLabels: Record<string, string> = {
+    under5: "< 5 min",
+    "5to15": "5–15 min",
+    "15to30": "15–30 min",
+    "30to60": "30–60 min",
+    over60: "60+ min",
+  };
+
+  return (
+    <div className="space-y-6">
+      <section className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <Card label="Total Meetings" primary={String(a.totalMeetings)} />
+        <Card label="Total Minutes" primary={String(a.totalMinutes)} secondary={`${(a.totalMinutes / 60).toFixed(1)} hours`} />
+        <Card label="Active Users" primary={String(a.totalUsers)} />
+        <Card label="Avg Duration" primary={`${a.avgDuration} min`} />
+        <Card label="Total Words" primary={a.totalWords.toLocaleString()} />
+      </section>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <section className="bg-white border border-border-gray rounded-lg p-4 shadow-sm">
+          <h3 className="text-sm font-semibold text-dark-navy mb-3">Meetings by Day of Week</h3>
+          <div className="flex items-end gap-2 h-32">
+            {a.meetingsByWeekday.map((d, i) => {
+              const max = Math.max(...a.meetingsByWeekday.map((w) => w.count), 1);
+              return (
+                <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
+                  <div
+                    className="w-full rounded-t"
+                    style={{
+                      height: `${(d.count / max) * 100}%`,
+                      minHeight: d.count > 0 ? 4 : 0,
+                      backgroundColor: WEEKDAY_COLORS[i],
+                    }}
+                  />
+                  <span className="text-[10px] text-mid-gray">{d.day}</span>
+                  <span className="text-[10px] font-mono text-dark-navy">{d.count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="bg-white border border-border-gray rounded-lg p-4 shadow-sm">
+          <h3 className="text-sm font-semibold text-dark-navy mb-3">Meeting Duration Distribution</h3>
+          <div className="space-y-2">
+            {Object.entries(a.durationBuckets).map(([key, count]) => {
+              const total = a.totalMeetings || 1;
+              const pct = Math.round((count / total) * 100);
+              return (
+                <div key={key} className="flex items-center gap-3">
+                  <span className="text-xs text-mid-gray w-20 shrink-0">{durationLabels[key]}</span>
+                  <div className="flex-1 h-4 bg-light-gray rounded-full overflow-hidden">
+                    <div className="h-full bg-itu-blue rounded-full" style={{ width: `${Math.max(pct, count > 0 ? 2 : 0)}%` }} />
+                  </div>
+                  <span className="text-xs font-mono text-dark-navy w-8 text-right">{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="bg-white border border-border-gray rounded-lg p-4 shadow-sm">
+          <h3 className="text-sm font-semibold text-dark-navy mb-3">Platform Breakdown</h3>
+          {a.platformBreakdown.length === 0 ? (
+            <p className="text-xs text-mid-gray">No data yet.</p>
+          ) : (
+            <div className="space-y-2">
+              {a.platformBreakdown.map(({ platform, count }) => {
+                const pct = Math.round((count / (a.totalMeetings || 1)) * 100);
+                return (
+                  <div key={platform} className="flex items-center gap-3">
+                    <span className="text-xs text-dark-navy w-24 shrink-0 capitalize">{platform}</span>
+                    <div className="flex-1 h-4 bg-light-gray rounded-full overflow-hidden">
+                      <div className="h-full bg-itu-blue-dark rounded-full" style={{ width: `${Math.max(pct, count > 0 ? 2 : 0)}%` }} />
+                    </div>
+                    <span className="text-xs font-mono text-dark-navy w-12 text-right">{count} ({pct}%)</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        <section className="bg-white border border-border-gray rounded-lg p-4 shadow-sm">
+          <h3 className="text-sm font-semibold text-dark-navy mb-3">Peak Meeting Hours</h3>
+          <div className="flex items-end gap-px h-24">
+            {a.meetingsByHour.map((h) => {
+              const max = Math.max(...a.meetingsByHour.map((x) => x.count), 1);
+              return (
+                <div
+                  key={h.hour}
+                  className="flex-1 bg-itu-blue rounded-t"
+                  style={{ height: `${(h.count / max) * 100}%`, minHeight: h.count > 0 ? 2 : 0 }}
+                  title={`${h.hour}:00 — ${h.count} meetings`}
+                />
+              );
+            })}
+          </div>
+          <div className="flex justify-between text-[9px] text-mid-gray mt-1">
+            <span>0:00</span><span>6:00</span><span>12:00</span><span>18:00</span><span>23:00</span>
+          </div>
+        </section>
+      </div>
+
+      {a.meetingsByMonth.length > 0 && (
+        <section className="bg-white border border-border-gray rounded-lg p-4 shadow-sm">
+          <h3 className="text-sm font-semibold text-dark-navy mb-3">Monthly Meeting Trend</h3>
+          <div className="flex items-end gap-2 h-32">
+            {a.meetingsByMonth.map((m) => {
+              const max = Math.max(...a.meetingsByMonth.map((x) => x.count), 1);
+              return (
+                <div key={m.month} className="flex-1 flex flex-col items-center gap-1">
+                  <div
+                    className="w-full bg-itu-blue rounded-t"
+                    style={{ height: `${(m.count / max) * 100}%`, minHeight: m.count > 0 ? 4 : 0 }}
+                  />
+                  <span className="text-[9px] text-mid-gray">{m.month.slice(5)}</span>
+                  <span className="text-[10px] font-mono text-dark-navy">{m.count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      )}
+    </div>
   );
 }
 

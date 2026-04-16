@@ -18,12 +18,9 @@ type Props = {
   transcript: TranscriptEntry[];
   speakerNames: Record<string, string>;
   meetingSubject?: string;
-  /** Pre-loaded summary (from saved transcript). */
   initialSummary?: string;
   initialActionItems?: ActionItem[];
-  /** Called when a new summary is generated, so parent can persist it. */
-  onSummaryGenerated?: (summary: string, items: ActionItem[]) => void;
-  /** Called when action items change (checkbox toggle). */
+  onSummaryGenerated?: (summary: string, items: ActionItem[], keywords: string[], sentiment: string, talkTime: Array<{ speaker: string; percent: number }>) => void;
   onActionItemsChange?: (items: ActionItem[]) => void;
 };
 
@@ -70,7 +67,7 @@ export default function MeetingSummary({
       setSummary(body.markdown || "");
       setActionItems(body.actionItems || []);
       setState("done");
-      onSummaryGenerated?.(body.markdown || "", body.actionItems || []);
+      onSummaryGenerated?.(body.markdown || "", body.actionItems || [], body.keywords || [], body.sentiment || "", body.talkTime || []);
     } catch (err) {
       setError((err as Error).message || "Summary generation failed.");
       setState("error");

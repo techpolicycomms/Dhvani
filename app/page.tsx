@@ -6,6 +6,11 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Mic, Save, Settings, Sparkles, X } from "lucide-react";
 import MeetingSummary from "@/components/MeetingSummary";
 import type { ActionItem } from "@/components/ActionItems";
+import AskDhvani from "@/components/AskDhvani";
+import SpeakerStats from "@/components/SpeakerStats";
+import MeetingKeywords from "@/components/MeetingKeywords";
+import SentimentBadge from "@/components/SentimentBadge";
+import FollowUpEmail from "@/components/FollowUpEmail";
 import { ControlBar } from "@/components/ControlBar";
 import { ExportMenu } from "@/components/ExportMenu";
 import { MeetingBanner } from "@/components/MeetingBanner";
@@ -80,6 +85,10 @@ export default function HomePage() {
   const [showSummaryPrompt, setShowSummaryPrompt] = useState(false);
   const [summaryMarkdown, setSummaryMarkdown] = useState<string | null>(null);
   const [summaryActionItems, setSummaryActionItems] = useState<ActionItem[]>([]);
+  const [summaryKeywords, setSummaryKeywords] = useState<string[]>([]);
+  const [summarySentiment, setSummarySentiment] = useState("");
+  const [summaryTalkTime, setSummaryTalkTime] = useState<Array<{ speaker: string; percent: number }>>([]);
+  const [pinnedIds, setPinnedIds] = useState<Set<string>>(new Set());
 
   // -------- Calendar prefs (drives MeetingList + reminders visibility) --------
   const { prefs: calendarPrefs } = useCalendarPrefs();
@@ -126,6 +135,7 @@ export default function HomePage() {
 
   const {
     transcribeChunk,
+    abort: abortTranscription,
     queueDepth,
     inFlight,
     totalMinutes,
@@ -139,8 +149,8 @@ export default function HomePage() {
       setTimeout(() => setToast(null), 4000);
     },
     onRateLimited: (msg) => {
-      // Hard stop: the server is refusing further work.
       setRateLimitMsg(msg);
+      abortTranscription();
       stopCapture();
     },
   });
@@ -452,6 +462,15 @@ export default function HomePage() {
           detectedSpeakers={detectedSpeakers}
           resolveSpeaker={resolveSpeaker}
           renameSpeaker={renameSpeaker}
+          pinnedIds={pinnedIds}
+          onTogglePin={(id) =>
+            setPinnedIds((prev) => {
+              const next = new Set(prev);
+              if (next.has(id)) next.delete(id);
+              else next.add(id);
+              return next;
+            })
+          }
         />
       </section>
 
@@ -466,9 +485,12 @@ export default function HomePage() {
             initialActionItems={
               summaryActionItems.length > 0 ? summaryActionItems : undefined
             }
-            onSummaryGenerated={(md, items) => {
+            onSummaryGenerated={(md, items, kw, sent, tt) => {
               setSummaryMarkdown(md);
               setSummaryActionItems(items);
+              setSummaryKeywords(kw);
+              setSummarySentiment(sent);
+              setSummaryTalkTime(tt);
             }}
             onActionItemsChange={setSummaryActionItems}
           />
@@ -514,6 +536,37 @@ export default function HomePage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* POST-SUMMARY INSIGHTS */}
+      {transcript.length > 0 && !isCapturing && summaryMarkdown && (
+        <section className="px-3 sm:px-4 pb-2 space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            {summarySentiment && <SentimentBadge sentiment={summarySentiment} />}
+            {summaryKeywords.length > 0 && <MeetingKeywords keywords={summaryKeywords} />}
+          </div>
+          <div className="grid gap-3 lg:grid-cols-2">
+            <SpeakerStats
+              transcript={transcript}
+              speakerNames={speakerNames}
+              talkTime={summaryTalkTime}
+            />
+            <div className="space-y-3">
+              <FollowUpEmail
+                summary={summaryMarkdown}
+                actionItems={summaryActionItems}
+                meetingSubject={activeMeeting?.subject}
+              />
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ASK DHVANI */}
+      {transcript.length > 0 && !isCapturing && (
+        <section className="px-3 sm:px-4 pb-2">
+          <AskDhvani scope="single" />
+        </section>
       )}
 
       {/* EXPORT + SAVE MENU */}

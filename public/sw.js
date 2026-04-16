@@ -179,16 +179,23 @@ async function replayPendingChunks() {
   } catch {
     return;
   }
-  const tx = db.transaction(STORE_NAME, "readwrite");
+  const tx = db.transaction(STORE_NAME, "readonly");
   const store = tx.objectStore(STORE_NAME);
-  const all = await new Promise((res, rej) => {
+  const allKeys = await new Promise((res, rej) => {
+    const req = store.getAllKeys();
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+  });
+  const allValues = await new Promise((res, rej) => {
     const req = store.getAll();
     req.onsuccess = () => res(req.result);
     req.onerror = () => rej(req.error);
   });
-  if (!all || all.length === 0) return;
+  if (!allValues || allValues.length === 0) return;
 
-  for (const item of all) {
+  const keysToRemove = [];
+  for (let i = 0; i < allValues.length; i++) {
+    const item = allValues[i];
     try {
       const resp = await fetch(item.url, {
         method: "POST",
@@ -197,20 +204,20 @@ async function replayPendingChunks() {
         credentials: "include",
       });
       if (resp.ok || resp.status === 401 || resp.status === 400) {
-        // Success or permanent failure — remove from queue.
-      } else {
-        // Transient failure — leave in queue for next sync.
-        continue;
+        keysToRemove.push(allKeys[i]);
       }
     } catch {
-      // Still offline — leave in queue.
-      continue;
+      // Still offline — leave in queue for next sync.
     }
   }
 
-  // Clear successfully-sent items (simplistic: clear all, retry handles leftovers).
-  const clearTx = db.transaction(STORE_NAME, "readwrite");
-  clearTx.objectStore(STORE_NAME).clear();
+  if (keysToRemove.length > 0) {
+    const delTx = db.transaction(STORE_NAME, "readwrite");
+    const delStore = delTx.objectStore(STORE_NAME);
+    for (const key of keysToRemove) {
+      delStore.delete(key);
+    }
+  }
 }
 
 self.addEventListener("sync", (event) => {

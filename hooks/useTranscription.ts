@@ -21,6 +21,7 @@ export type UseTranscriptionOptions = {
 
 export type UseTranscriptionReturn = {
   transcribeChunk: (chunk: CapturedChunk) => void;
+  abort: () => void;
   queueDepth: number;
   inFlight: number;
   totalMinutes: number;
@@ -95,6 +96,7 @@ export function useTranscription(
   // We model the queue as a ref to avoid re-render thrash on every push.
   const queueRef = useRef<CapturedChunk[]>([]);
   const inFlightRef = useRef(0);
+  const abortRef = useRef<AbortController | null>(null);
 
   const syncState = useCallback(() => {
     setQueueDepth(queueRef.current.length);
@@ -119,10 +121,12 @@ export function useTranscription(
       while (attempt < maxAttempts) {
         attempt++;
         try {
+          if (abortRef.current?.signal.aborted) return;
           const res = await fetch("/api/transcribe", {
             method: "POST",
             body: form,
             headers,
+            signal: abortRef.current?.signal,
           });
           if (res.status === 429) {
             // Rate-limited by our server. Surface to UI and stop — further
@@ -198,6 +202,7 @@ export function useTranscription(
           setTotalMinutes((t) => t + minutes);
           return;
         } catch (err) {
+          if ((err as Error).name === "AbortError") return;
           lastErr = err as Error;
           if (attempt < maxAttempts) {
             await sleep(1000 * Math.pow(2, attempt - 1));
@@ -232,6 +237,9 @@ export function useTranscription(
 
   const transcribeChunk = useCallback(
     (chunk: CapturedChunk) => {
+      if (!abortRef.current || abortRef.current.signal.aborted) {
+        abortRef.current = new AbortController();
+      }
       queueRef.current.push(chunk);
       syncState();
       void drain();
@@ -239,10 +247,18 @@ export function useTranscription(
     [drain, syncState]
   );
 
+  const abort = useCallback(() => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    queueRef.current = [];
+    syncState();
+  }, [syncState]);
+
   const estimatedCost = totalMinutes * WHISPER_PRICE_PER_MINUTE;
 
   return {
     transcribeChunk,
+    abort,
     queueDepth,
     inFlight,
     totalMinutes,
