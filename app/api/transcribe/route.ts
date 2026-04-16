@@ -215,7 +215,12 @@ export async function POST(req: NextRequest) {
     }
     // Preserve the known-safe error messages we construct ourselves
     // above; for everything else, return a generic message so Azure /
-    // stack-trace details never leak to the client.
+    // stack-trace details never leak to the client. Full context is
+    // logged server-side for debugging.
+    console.error("Dhvani: transcription failed", {
+      status,
+      message: error.message,
+    });
     return NextResponse.json(
       { error: "Transcription failed." },
       { status }

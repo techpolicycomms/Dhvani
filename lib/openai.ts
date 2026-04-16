@@ -24,7 +24,7 @@ export function createOpenAIClient(): AzureOpenAI {
   return new AzureOpenAI({
     apiKey,
     endpoint,
-    apiVersion: "2024-06-01",
+    apiVersion: process.env.AZURE_OPENAI_API_VERSION || "2025-03-01-preview",
   });
 }
 
