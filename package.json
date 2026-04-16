@@ -3,6 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Open-source multilingual meeting transcription for everyone.",
+  "main": "electron/main.js",
   "license": "MIT",
   "homepage": "https://github.com/techpolicycomms/dhvani",
   "repository": {

@@ -119,17 +119,7 @@ export async function POST(req: NextRequest) {
       ? `The following terms may appear in the audio: ${vocabTerms.join(", ")}`
       : undefined;
 
-    const result = (await openai.audio.transcriptions.create({
-      model: whisperDeployment(),
-      file,
-      ...(languageHint ? { language: languageHint } : {}),
-      ...(prompt ? { prompt } : {}),
-      response_format: "verbose_json",
-      // TS types on the shared `audio.transcriptions.create` don't
-      // narrow to the verbose-json variant cleanly, so we widen the
-      // request at the boundary.
-      timestamp_granularities: ["word", "segment"],
-    } as unknown as Parameters<typeof openai.audio.transcriptions.create>[0])) as unknown as {
+    type VerboseJson = {
       text?: string;
       language?: string;
       segments?: Array<{
@@ -140,6 +130,35 @@ export async function POST(req: NextRequest) {
         speaker?: string;
       }>;
     };
+
+    // gpt-4o-transcribe-diarize rejects `prompt` on some API versions.
+    // Try with prompt first (so vocabulary hints work when the deployment
+    // accepts them), fall back without on a 400 that mentions the
+    // parameter.
+    const runTranscribe = (includePrompt: boolean) =>
+      openai.audio.transcriptions.create({
+        model: whisperDeployment(),
+        file,
+        ...(languageHint ? { language: languageHint } : {}),
+        ...(includePrompt && prompt ? { prompt } : {}),
+        response_format: "verbose_json",
+        // TS types on the shared `audio.transcriptions.create` don't
+        // narrow to the verbose-json variant cleanly, so we widen the
+        // request at the boundary.
+        timestamp_granularities: ["word", "segment"],
+      } as unknown as Parameters<typeof openai.audio.transcriptions.create>[0]);
+
+    let result: VerboseJson;
+    try {
+      result = (await runTranscribe(!!prompt)) as unknown as VerboseJson;
+    } catch (err) {
+      const e = err as { status?: number; message?: string };
+      if (prompt && e.status === 400 && /prompt|parameter/i.test(e.message || "")) {
+        result = (await runTranscribe(false)) as unknown as VerboseJson;
+      } else {
+        throw err;
+      }
+    }
 
     const rawSegments = Array.isArray(result.segments) ? result.segments : [];
     const segments = rawSegments
@@ -192,9 +211,13 @@ export async function POST(req: NextRequest) {
         { status: 413 }
       );
     }
+    console.error("Dhvani: transcription failed", {
+      status,
+      message: error.message,
+    });
     return NextResponse.json(
-      { error: error.message || "Transcription failed." },
-      { status }
+      { error: "Transcription failed. Please try again." },
+      { status: status >= 400 && status < 500 ? status : 500 }
     );
   }
 }
