@@ -7,6 +7,7 @@ import {
   release,
 } from "@/lib/rateLimiter";
 import { costFromSeconds, logUsage } from "@/lib/usageLogger";
+import { loadVocabulary } from "@/lib/vocabulary";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -113,14 +114,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // gpt-4o-transcribe-diarize returns verbose_json with segments that
-    // carry a `speaker` label (e.g. "speaker_0"). We request word- and
-    // segment-level granularity so callers can align the transcript
-    // against the original audio timeline.
+    const vocabTerms = await loadVocabulary(userId);
+    const prompt = vocabTerms.length > 0
+      ? `The following terms may appear in the audio: ${vocabTerms.join(", ")}`
+      : undefined;
+
     const result = (await openai.audio.transcriptions.create({
       model: whisperDeployment(),
       file,
       ...(languageHint ? { language: languageHint } : {}),
+      ...(prompt ? { prompt } : {}),
       response_format: "verbose_json",
       // TS types on the shared `audio.transcriptions.create` don't
       // narrow to the verbose-json variant cleanly, so we widen the
