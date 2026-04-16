@@ -32,6 +32,12 @@ export type UseTranscriptStoreReturn = {
   resolveSpeaker: (rawSpeaker: string | undefined) => string | undefined;
   /** Rename a speaker. Pass empty string to reset to the default label. */
   renameSpeaker: (rawSpeaker: string, displayName: string) => void;
+  /**
+   * Seed speaker_0/speaker_1/… with the signed-in user's name followed by
+   * meeting attendee names. Only fills slots the user hasn't already
+   * customised — so a manual rename is never clobbered on a restart.
+   */
+  primeSpeakers: (userName: string | null | undefined, attendees?: string[]) => void;
   /** Calendar meeting the current capture is tagged against, if any. */
   activeMeeting: Meeting | null;
   /** Tag the in-progress session with a calendar meeting. */
@@ -219,6 +225,32 @@ export function useTranscriptStore(): UseTranscriptStoreReturn {
     []
   );
 
+  const primeSpeakers = useCallback(
+    (userName: string | null | undefined, attendees: string[] = []) => {
+      const candidates: string[] = [];
+      if (userName && userName.trim()) candidates.push(userName.trim());
+      for (const a of attendees) {
+        if (a && typeof a === "string" && a.trim()) candidates.push(a.trim());
+      }
+      if (candidates.length === 0) return;
+      setSpeakerNames((prev) => {
+        const next = { ...prev };
+        let changed = false;
+        candidates.forEach((name, i) => {
+          const rawId = `speaker_${i}`;
+          // Only seed slots the user hasn't already customised — we must
+          // never overwrite a manual rename the user set in a past session.
+          if (!next[rawId]) {
+            next[rawId] = name;
+            changed = true;
+          }
+        });
+        return changed ? next : prev;
+      });
+    },
+    []
+  );
+
   return {
     transcript,
     addEntry,
@@ -230,6 +262,7 @@ export function useTranscriptStore(): UseTranscriptStoreReturn {
     speakerNames,
     resolveSpeaker,
     renameSpeaker,
+    primeSpeakers,
     activeMeeting,
     setActiveMeeting,
   };

@@ -180,7 +180,12 @@ function MeetingCard({
         </div>
 
         <button
-          onClick={onStart}
+          onClick={() => {
+            console.log("[MeetingList] per-meeting Start clicked", {
+              meetingId: meeting.id,
+            });
+            onStart();
+          }}
           className={[
             "shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold",
             "transition-colors",

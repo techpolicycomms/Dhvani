@@ -11,6 +11,8 @@ import SpeakerStats from "@/components/SpeakerStats";
 import MeetingKeywords from "@/components/MeetingKeywords";
 import SentimentBadge from "@/components/SentimentBadge";
 import FollowUpEmail from "@/components/FollowUpEmail";
+import { AudioModeSelector } from "@/components/AudioModeSelector";
+import { AudioWaveform } from "@/components/AudioWaveform";
 import { ControlBar } from "@/components/ControlBar";
 import { ExportMenu } from "@/components/ExportMenu";
 import { MeetingBanner } from "@/components/MeetingBanner";
@@ -104,6 +106,7 @@ export default function HomePage() {
     detectedSpeakers,
     resolveSpeaker,
     renameSpeaker,
+    primeSpeakers,
     activeMeeting,
     setActiveMeeting,
     speakerNames,
@@ -124,6 +127,7 @@ export default function HomePage() {
     error,
     elapsedTime,
     chunkCount,
+    mediaStream,
   } = useAudioCapture({
     chunkDuration,
     preferredDeviceId: deviceId || undefined,
@@ -168,11 +172,30 @@ export default function HomePage() {
   const captureStartedAtRef = useRef<string | null>(null);
 
   const onStart = useCallback(() => {
+    console.log("[page] onStart called", {
+      chosenMode,
+      resolvedMode: (chosenMode as CaptureMode) || "microphone",
+      startCaptureType: typeof startCapture,
+    });
     setRateLimitMsg(null);
     captureStartedAtRef.current = new Date().toISOString();
+    // Seed the speaker map: the signed-in user is almost always the
+    // closest voice to the mic, so they become Speaker 1; further slots
+    // come from the active meeting's attendee list, if any. Manual renames
+    // are preserved by primeSpeakers.
+    const userName = user?.name || user?.email || null;
+    const attendeeNames = extractAttendeeNames(activeMeeting?.attendees);
+    primeSpeakers(userName, attendeeNames);
     const mode = (chosenMode as CaptureMode) || "microphone";
     void startCapture(mode);
-  }, [chosenMode, startCapture]);
+  }, [
+    chosenMode,
+    startCapture,
+    user?.name,
+    user?.email,
+    activeMeeting,
+    primeSpeakers,
+  ]);
 
   const onStartFromMeeting = useCallback(
     (meeting: Meeting) => {
@@ -430,6 +453,7 @@ export default function HomePage() {
                 </p>
                 <button
                   onClick={() => {
+                    console.log("[page] Start now (quick transcription) clicked");
                     setActiveMeeting(null);
                     onStart();
                   }}
@@ -444,13 +468,25 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* ACTIVE MEETING CHIP */}
-      {activeMeeting && isCapturing && (
-        <div className="px-4 sm:px-6 pt-3">
-          <div className="inline-flex items-center gap-2 text-xs text-itu-blue-dark bg-itu-blue-pale border border-itu-blue/30 rounded px-2.5 py-1">
-            <span className="font-semibold">Tagged:</span>
-            <span className="truncate max-w-xs">{activeMeeting.subject}</span>
-          </div>
+      {/* ACTIVE MEETING CHIP + live waveform */}
+      {(activeMeeting || isCapturing) && (
+        <div className="px-4 sm:px-6 pt-3 flex flex-wrap items-center gap-3">
+          {activeMeeting && isCapturing && (
+            <div className="inline-flex items-center gap-2 text-xs text-itu-blue-dark bg-itu-blue-pale border border-itu-blue/30 rounded px-2.5 py-1">
+              <span className="font-semibold">Tagged:</span>
+              <span className="truncate max-w-xs">{activeMeeting.subject}</span>
+            </div>
+          )}
+          {isCapturing && (
+            <div className="inline-flex items-center gap-2 text-xs text-itu-blue-dark">
+              <span className="relative inline-flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-error opacity-75 animate-ping" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-error" />
+              </span>
+              <span className="font-semibold">Recording</span>
+              <AudioWaveform stream={mediaStream} active={isCapturing} />
+            </div>
+          )}
         </div>
       )}
 
@@ -463,6 +499,7 @@ export default function HomePage() {
           resolveSpeaker={resolveSpeaker}
           renameSpeaker={renameSpeaker}
           pinnedIds={pinnedIds}
+          isProcessing={isCapturing && (inFlight > 0 || queueDepth > 0)}
           onTogglePin={(id) =>
             setPinnedIds((prev) => {
               const next = new Set(prev);
@@ -595,6 +632,18 @@ export default function HomePage() {
         <ExportMenu transcript={transcript} resolveSpeaker={resolveSpeaker} />
       </div>
 
+      {/* AUDIO SOURCE SELECTOR — always visible, disabled during capture */}
+      <div className="px-3 sm:px-4 pb-2">
+        <AudioModeSelector
+          value={(chosenMode as CaptureMode) || ""}
+          onChange={(next) => setChosenMode(next)}
+          locked={isCapturing}
+          lockReason={
+            isCapturing ? "Stop recording to switch audio source." : undefined
+          }
+        />
+      </div>
+
       {/* CONTROL BAR */}
       <ControlBar
         isCapturing={isCapturing}
@@ -694,6 +743,32 @@ function usePersistedNumber(
     [key]
   );
   return [value, update];
+}
+
+/**
+ * Normalise meeting.attendees into a flat `string[]` of display names.
+ *
+ * The `Meeting` type's contract is `string[]` (via `fromGraphEvent`), but
+ * `getDemoMeetings()` currently returns `{ name, email }[]` so we handle
+ * both rather than force a type migration while the demo data evolves.
+ */
+function extractAttendeeNames(attendees: unknown): string[] {
+  if (!Array.isArray(attendees)) return [];
+  const names: string[] = [];
+  for (const a of attendees) {
+    if (typeof a === "string" && a.trim()) {
+      names.push(a.trim());
+    } else if (
+      a &&
+      typeof a === "object" &&
+      "name" in a &&
+      typeof (a as { name?: unknown }).name === "string"
+    ) {
+      const n = (a as { name: string }).name.trim();
+      if (n) names.push(n);
+    }
+  }
+  return names;
 }
 
 function UserChip({ name }: { name: string }) {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActiveUser } from "@/lib/auth";
-import { createOpenAIClient, chatDeployment } from "@/lib/openai";
+import { createChatOpenAIClient, chatDeployment } from "@/lib/openai";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
 
   let openai;
   try {
-    openai = createOpenAIClient();
+    openai = createChatOpenAIClient();
   } catch {
     return NextResponse.json({ error: "AI service is misconfigured." }, { status: 500 });
   }

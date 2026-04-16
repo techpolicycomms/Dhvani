@@ -15,6 +15,8 @@ type Props = {
   renameSpeaker?: (rawSpeaker: string, displayName: string) => void;
   pinnedIds?: Set<string>;
   onTogglePin?: (entryId: string) => void;
+  /** True when a chunk is being transcribed — shows the listening dots. */
+  isProcessing?: boolean;
 };
 
 /**
@@ -33,6 +35,7 @@ export function TranscriptPanel({
   renameSpeaker,
   pinnedIds,
   onTogglePin,
+  isProcessing,
 }: Props) {
   const [search, setSearch] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
@@ -170,12 +173,24 @@ export function TranscriptPanel({
           className="transcript-scroll flex-1 overflow-y-auto px-4 py-3 text-sm leading-relaxed"
         >
           {filtered.length === 0 ? (
-            <div className="h-full flex items-center justify-center text-mid-gray text-center py-12">
-              {transcript.length === 0
-                ? isCapturing
-                  ? "Listening… transcript will appear here."
-                  : "Press Start to begin transcribing your meeting."
-                : "No entries match your search."}
+            <div className="h-full flex flex-col items-center justify-center text-mid-gray text-center py-12 gap-2">
+              {transcript.length === 0 && isCapturing ? (
+                <>
+                  <span>Listening…</span>
+                  <span
+                    className="dhvani-listening-dots"
+                    aria-label="Transcribing audio"
+                  >
+                    <span />
+                    <span />
+                    <span />
+                  </span>
+                </>
+              ) : transcript.length === 0 ? (
+                <span>Press Start to begin transcribing your meeting.</span>
+              ) : (
+                <span>No entries match your search.</span>
+              )}
             </div>
           ) : (
             filtered.map((entry, idx) => {
@@ -234,6 +249,19 @@ export function TranscriptPanel({
                 </div>
               );
             })
+          )}
+          {/* Pulsing dots below the last entry while a chunk is in flight. */}
+          {isProcessing && filtered.length > 0 && (
+            <div className="flex items-center gap-2 pl-14 pt-1 text-[11px] text-mid-gray">
+              <span
+                className="dhvani-listening-dots"
+                aria-label="Transcribing next chunk"
+              >
+                <span />
+                <span />
+                <span />
+              </span>
+            </div>
           )}
         </div>
       </div>

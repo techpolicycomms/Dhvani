@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActiveUser } from "@/lib/auth";
-import { createOpenAIClient, chatDeployment } from "@/lib/openai";
+import { createChatOpenAIClient, chatDeployment } from "@/lib/openai";
 import type { TranscriptEntry } from "@/lib/constants";
 
 export const runtime = "nodejs";
@@ -123,11 +123,25 @@ export async function POST(req: NextRequest) {
 
   let openai;
   try {
-    openai = createOpenAIClient();
+    openai = createChatOpenAIClient();
   } catch {
     return NextResponse.json(
       { error: "AI service is misconfigured." },
       { status: 500 }
+    );
+  }
+
+  // Best-effort detection: log the deployments visible on this resource
+  // so the server log makes it obvious which chat models (if any) are
+  // available. Non-fatal if the Azure resource doesn't expose /models.
+  try {
+    const models = await openai.models.list();
+    const ids = models.data?.map((m) => m.id) ?? [];
+    console.log("[summarize] Azure OpenAI deployments visible:", ids);
+  } catch (e) {
+    console.log(
+      "[summarize] Could not list deployments:",
+      (e as Error).message
     );
   }
 
@@ -163,10 +177,15 @@ export async function POST(req: NextRequest) {
       );
     }
     const error = err as { status?: number; message?: string };
-    if (error.status === 404) {
+    if (error.status === 404 || error.status === 400) {
       return NextResponse.json(
         {
-          error: `Chat model "${chatDeployment()}" not found on your Azure OpenAI resource. Deploy a GPT-4o model and set AZURE_OPENAI_CHAT_DEPLOYMENT.`,
+          error:
+            `Chat model "${chatDeployment()}" is not deployed on this Azure OpenAI resource. ` +
+            "To enable AI summaries, deploy a GPT-4o chat model in Azure AI Foundry and set " +
+            "AZURE_OPENAI_CHAT_DEPLOYMENT to its deployment name. Your transcript is saved and " +
+            "can still be exported — a summary will be available once the chat model is deployed.",
+          chatModelMissing: true,
         },
         { status: 501 }
       );

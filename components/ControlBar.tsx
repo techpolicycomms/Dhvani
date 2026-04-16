@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Play, Square, RotateCw } from "lucide-react";
 import { formatElapsed } from "@/lib/audioUtils";
 import type { CaptureMode } from "@/lib/constants";
@@ -58,33 +59,78 @@ export function ControlBar(props: Props) {
 
   const canReconnect = !!error && !isCapturing && captureMode !== null;
 
+  // Transient "Starting…"/"Stopping…" state so the button gives instant
+  // feedback even when getUserMedia / teardown takes a moment. Cleared as
+  // soon as isCapturing flips to the target value (or after a 4 s
+  // safety timeout, in case capture fails silently).
+  const [transition, setTransition] = useState<"idle" | "starting" | "stopping">(
+    "idle"
+  );
+  useEffect(() => {
+    if (transition === "starting" && isCapturing) setTransition("idle");
+    if (transition === "stopping" && !isCapturing) setTransition("idle");
+  }, [isCapturing, transition]);
+  useEffect(() => {
+    if (transition === "idle") return;
+    const t = window.setTimeout(() => setTransition("idle"), 4000);
+    return () => window.clearTimeout(t);
+  }, [transition]);
+
+  const handleClick = () => {
+    console.log("[ControlBar] Start/Stop clicked", {
+      isCapturing,
+      transition,
+      willCall: isCapturing ? "onStop" : "onStart",
+    });
+    if (disabled) {
+      console.log("[ControlBar] click ignored — button disabled");
+      return;
+    }
+    if (isCapturing) {
+      setTransition("stopping");
+      onStop();
+    } else {
+      setTransition("starting");
+      onStart();
+    }
+  };
+
+  const buttonBusy = transition !== "idle";
+  const buttonLabel =
+    transition === "starting"
+      ? "Starting…"
+      : transition === "stopping"
+      ? "Stopping…"
+      : isCapturing
+      ? "Stop"
+      : "Start";
+  const showStopVisual = isCapturing || transition === "stopping";
+
   return (
     <div className="bg-white border-t border-border-gray p-3 sm:p-4">
       <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
         {/* Big Start/Stop button. */}
         <button
           type="button"
-          onClick={isCapturing ? onStop : onStart}
-          disabled={disabled}
+          onClick={handleClick}
+          disabled={disabled || buttonBusy}
           className={[
             "w-full sm:w-auto inline-flex items-center justify-center gap-2",
             "px-6 py-3 rounded-lg font-semibold text-base text-white",
-            "transition-colors disabled:opacity-50 disabled:cursor-not-allowed",
-            isCapturing
+            "transition-colors disabled:opacity-70 disabled:cursor-wait",
+            showStopVisual
               ? "bg-error hover:bg-[#B91C1C]"
               : "bg-itu-blue hover:bg-itu-blue-dark",
           ].join(" ")}
           aria-pressed={isCapturing}
+          aria-busy={buttonBusy}
         >
-          {isCapturing ? (
-            <>
-              <Square size={16} fill="currentColor" /> Stop
-            </>
+          {showStopVisual ? (
+            <Square size={16} fill="currentColor" />
           ) : (
-            <>
-              <Play size={16} fill="currentColor" /> Start
-            </>
+            <Play size={16} fill="currentColor" />
           )}
+          <span>{buttonLabel}</span>
         </button>
 
         {canReconnect && (

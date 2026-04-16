@@ -5,10 +5,11 @@
 // Azure Cost Management.
 export const WHISPER_PRICE_PER_MINUTE = 0.006;
 
-// Default chunk duration in milliseconds for MediaRecorder timeslice.
-// gpt-4o-transcribe's 16k-token context handles 10–15 s comfortably, and
-// longer chunks give the diarizer more context for speaker tracking.
-export const DEFAULT_CHUNK_DURATION_MS = 10000;
+// Default chunk duration in milliseconds for the MediaRecorder rotation
+// cycle. 3 s keeps perceived latency close to real-time (Fireflies/Otter
+// feel); users can trade up to 15 s via the settings slider if they want
+// better cross-chunk speaker tracking from the diarizer.
+export const DEFAULT_CHUNK_DURATION_MS = 3000;
 export const MIN_CHUNK_DURATION_MS = 3000;
 export const MAX_CHUNK_DURATION_MS = 15000;
 

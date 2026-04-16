@@ -54,3 +54,28 @@ export function whisperDeployment(): string {
 export function chatDeployment(): string {
   return process.env.AZURE_OPENAI_CHAT_DEPLOYMENT || "gpt-4o";
 }
+
+/**
+ * Chat features (summarize, Ask Dhvani, follow-up email) may live on a
+ * different Azure OpenAI resource than transcription — e.g. the SWC
+ * resource has the audio/diarize deployment while chat models are on
+ * EUW. Any of AZURE_OPENAI_CHAT_{API_KEY,ENDPOINT,API_VERSION} overrides
+ * the corresponding transcription-side value; unset fields fall back to
+ * the shared AZURE_OPENAI_* config.
+ */
+export function createChatOpenAIClient(): AzureOpenAI {
+  const apiKey =
+    process.env.AZURE_OPENAI_CHAT_API_KEY || process.env.AZURE_OPENAI_API_KEY;
+  const endpoint =
+    process.env.AZURE_OPENAI_CHAT_ENDPOINT || process.env.AZURE_OPENAI_ENDPOINT;
+  const apiVersion =
+    process.env.AZURE_OPENAI_CHAT_API_VERSION ||
+    process.env.AZURE_OPENAI_API_VERSION ||
+    "2024-06-01";
+  if (!apiKey || !endpoint) {
+    throw new Error(
+      "Missing Azure OpenAI chat config. Set AZURE_OPENAI_CHAT_API_KEY and AZURE_OPENAI_CHAT_ENDPOINT (or the shared AZURE_OPENAI_* pair) in .env.local."
+    );
+  }
+  return new AzureOpenAI({ apiKey, endpoint, apiVersion });
+}

@@ -71,7 +71,12 @@ export function MeetingBanner({ meeting, onStart, onDismiss }: Props) {
         </div>
 
         <button
-          onClick={onStart}
+          onClick={() => {
+            console.log("[MeetingBanner] Start transcription clicked", {
+              meetingId: meeting.id,
+            });
+            onStart();
+          }}
           className="shrink-0 px-3 py-1.5 rounded text-xs font-semibold bg-itu-blue text-white hover:bg-itu-blue-dark"
         >
           Start transcription

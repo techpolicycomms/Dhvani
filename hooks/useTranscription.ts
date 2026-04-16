@@ -165,6 +165,13 @@ export function useTranscription(
             ) {
               return;
             }
+            if (res.status === 404) {
+              throw new Error(
+                typeof body.error === "string"
+                  ? body.error
+                  : "Transcription deployment not found. Check server model deployment configuration."
+              );
+            }
             throw new Error(body.error || `HTTP ${res.status}`);
           }
           const data = (await res.json()) as {

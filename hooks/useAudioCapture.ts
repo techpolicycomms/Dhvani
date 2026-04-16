@@ -32,6 +32,12 @@ export type UseAudioCaptureReturn = {
   error: string | null;
   elapsedTime: number; // milliseconds
   chunkCount: number;
+  /**
+   * Live MediaStream while capture is active. Consumers (e.g. the audio
+   * waveform visualizer) can tap this with an AnalyserNode. Null before
+   * start, after stop, and in Electron mode (no browser stream exists).
+   */
+  mediaStream: MediaStream | null;
 };
 
 // Detect if we're running inside the Electron wrapper.
@@ -63,6 +69,8 @@ export function useAudioCapture(
   const [captureMode, setCaptureMode] = useState<CaptureMode | null>(null);
   const [audioChunks, setAudioChunks] = useState<CapturedChunk[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // React state mirror of `mediaStreamRef` so consumers can useEffect on it.
+  const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
 
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -75,6 +83,13 @@ export function useAudioCapture(
   const startedAtRef = useRef<number>(0);
   const lastChunkAtRef = useRef<number>(0);
   const tickRef = useRef<number | null>(null);
+  // Cycle timer rotates the MediaRecorder every chunkDuration ms so each
+  // emitted blob is a self-contained WebM container (timeslice mode emits
+  // header-less fragments after the first chunk that Whisper cannot decode).
+  const cycleTimerRef = useRef<number | null>(null);
+  // Set before we initiate a rotation stop so onstop can distinguish a
+  // planned cycle from an unexpected interruption.
+  const cycleStopRef = useRef(false);
   // Preserve the last-used mode for reconnect().
   const lastModeRef = useRef<CaptureMode | null>(null);
 
@@ -84,6 +99,11 @@ export function useAudioCapture(
       window.clearInterval(tickRef.current);
       tickRef.current = null;
     }
+    if (cycleTimerRef.current !== null) {
+      window.clearInterval(cycleTimerRef.current);
+      cycleTimerRef.current = null;
+    }
+    cycleStopRef.current = false;
     if (electronCleanupRef.current) {
       try {
         electronCleanupRef.current();
@@ -104,6 +124,7 @@ export function useAudioCapture(
       mediaStreamRef.current.getTracks().forEach((t) => t.stop());
       mediaStreamRef.current = null;
     }
+    setMediaStream(null);
   }, []);
 
   useEffect(() => {
@@ -162,58 +183,90 @@ export function useAudioCapture(
         return;
       }
       const { mimeType, extension } = pickSupportedMimeType();
-      let recorder: MediaRecorder;
-      try {
-        recorder = mimeType
-          ? new MediaRecorder(stream, { mimeType })
-          : new MediaRecorder(stream);
-      } catch {
-        setError(
-          "Failed to start audio recording. Your browser may not support the required audio format."
-        );
-        stream.getTracks().forEach((t) => t.stop());
-        return;
-      }
-      recorderRef.current = recorder;
       chunkIndexRef.current = 0;
       startedAtRef.current = Date.now();
       lastChunkAtRef.current = Date.now();
 
-      recorder.ondataavailable = (event: BlobEvent) => {
-        if (!event.data || event.data.size === 0) return;
-        const now = Date.now();
-        const elapsed = now - startedAtRef.current;
-        const duration = now - lastChunkAtRef.current;
-        lastChunkAtRef.current = now;
-        const chunk: CapturedChunk = {
-          index: chunkIndexRef.current++,
-          blob: event.data,
-          mimeType: recorder.mimeType || mimeType,
-          extension,
-          capturedAtMs: elapsed,
-          durationMs: duration,
+      const createRecorder = (): MediaRecorder | null => {
+        let recorder: MediaRecorder;
+        try {
+          recorder = mimeType
+            ? new MediaRecorder(stream, { mimeType })
+            : new MediaRecorder(stream);
+        } catch {
+          setError(
+            "Failed to start audio recording. Your browser may not support the required audio format."
+          );
+          stream.getTracks().forEach((t) => t.stop());
+          return null;
+        }
+
+        recorder.ondataavailable = (event: BlobEvent) => {
+          if (!event.data || event.data.size === 0) return;
+          const now = Date.now();
+          const elapsed = now - startedAtRef.current;
+          const duration = now - lastChunkAtRef.current;
+          lastChunkAtRef.current = now;
+          const chunk: CapturedChunk = {
+            index: chunkIndexRef.current++,
+            blob: event.data,
+            mimeType: recorder.mimeType || mimeType,
+            extension,
+            capturedAtMs: elapsed,
+            durationMs: duration,
+          };
+          setAudioChunks((prev) => [...prev, chunk]);
         };
-        setAudioChunks((prev) => [...prev, chunk]);
-      };
 
-      recorder.onerror = (event) => {
-        const err = (event as unknown as { error?: Error }).error;
-        setError(err?.message || "MediaRecorder error");
-      };
+        recorder.onerror = (event) => {
+          const err = (event as unknown as { error?: Error }).error;
+          setError(err?.message || "MediaRecorder error");
+        };
 
-      recorder.onstop = () => {
-        // If this stop wasn't user-initiated, surface a reconnect hint.
-        if (isCapturingRef.current) {
+        recorder.onstop = () => {
+          // Planned cycle: we stopped this recorder to rotate to a fresh
+          // container. Start a new recorder so capture continues seamlessly.
+          if (cycleStopRef.current && isCapturingRef.current) {
+            cycleStopRef.current = false;
+            const next = createRecorder();
+            if (next) {
+              recorderRef.current = next;
+              next.start();
+            }
+            return;
+          }
+          cycleStopRef.current = false;
+          // User-initiated stop (stopCapture set isCapturingRef=false first).
+          if (!isCapturingRef.current) return;
+          // Unexpected stop (track ended, permission revoked, tab backgrounded).
           setError(
             "Recording was interrupted (tab may have been backgrounded or permission revoked). Press Reconnect to resume."
           );
           setIsCapturing(false);
           isCapturingRef.current = false;
-        }
+        };
+
+        return recorder;
       };
 
-      // The timeslice parameter gives us a chunk every `chunkDuration` ms.
-      recorder.start(chunkDuration);
+      const first = createRecorder();
+      if (!first) return;
+      recorderRef.current = first;
+      first.start();
+
+      // Rotate the recorder every chunkDuration ms. Each emitted blob is
+      // a complete, decodable WebM file — required by Whisper.
+      cycleTimerRef.current = window.setInterval(() => {
+        const r = recorderRef.current;
+        if (r && r.state === "recording") {
+          cycleStopRef.current = true;
+          try {
+            r.stop();
+          } catch {
+            cycleStopRef.current = false;
+          }
+        }
+      }, chunkDuration);
 
       // Elapsed-time ticker.
       tickRef.current = window.setInterval(() => {
@@ -231,6 +284,7 @@ export function useAudioCapture(
 
   const startCapture = useCallback(
     async (mode: CaptureMode) => {
+      console.log("[useAudioCapture] startCapture called", { mode });
       setError(null);
       try {
         // Electron mode: delegate to the preload bridge.
@@ -282,14 +336,19 @@ export function useAudioCapture(
         }
 
         lastModeRef.current = mode;
+        console.log("[useAudioCapture] acquiring stream for mode", mode);
         const stream = await acquireStream(mode);
+        console.log("[useAudioCapture] stream acquired, starting recorder");
         mediaStreamRef.current = stream;
+        setMediaStream(stream);
         setCaptureMode(mode);
         beginRecording(stream);
         setIsCapturing(true);
         isCapturingRef.current = true;
+        console.log("[useAudioCapture] startCapture complete, isCapturing=true");
       } catch (err: unknown) {
         const e = err as { name?: string; message?: string };
+        console.log("[useAudioCapture] startCapture error:", e.name, e.message);
         if (e.name === "NotAllowedError") {
           setError(
             "Please allow audio access to start transcription."
@@ -310,6 +369,11 @@ export function useAudioCapture(
   );
 
   const stopCapture = useCallback(() => {
+    console.log("[useAudioCapture] stopCapture called", {
+      mode: lastModeRef.current,
+      recorderState: recorderRef.current?.state,
+      trackCount: mediaStreamRef.current?.getTracks().length ?? 0,
+    });
     isCapturingRef.current = false;
     setIsCapturing(false);
     if (lastModeRef.current === "electron") {
@@ -335,5 +399,6 @@ export function useAudioCapture(
     error,
     elapsedTime,
     chunkCount: audioChunks.length,
+    mediaStream,
   };
 }

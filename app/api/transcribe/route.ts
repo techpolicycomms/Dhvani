@@ -7,7 +7,6 @@ import {
   release,
 } from "@/lib/rateLimiter";
 import { costFromSeconds, logUsage } from "@/lib/usageLogger";
-import { loadVocabulary } from "@/lib/vocabulary";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,14 +49,12 @@ async function createTranscription(
   openai: ReturnType<typeof createOpenAIClient>,
   file: File,
   model: string,
-  languageHint?: string,
-  prompt?: string
+  languageHint?: string
 ): Promise<RawTranscriptionResult> {
   const shared = {
     model,
     file,
     ...(languageHint ? { language: languageHint } : {}),
-    ...(prompt ? { prompt } : {}),
   };
 
   try {
@@ -139,6 +136,14 @@ export async function POST(req: NextRequest) {
   }
 
   try {
+    const contentType = req.headers.get("content-type") || "";
+    if (!contentType.startsWith("multipart/form-data")) {
+      release(userId, estimatedSeconds);
+      return NextResponse.json(
+        { error: "Expected multipart/form-data with a 'file' field." },
+        { status: 400 }
+      );
+    }
     const form = await req.formData();
     const file = form.get("file");
     if (!file || !(file instanceof File)) {
@@ -177,17 +182,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const vocabTerms = await loadVocabulary(userId);
-    const prompt = vocabTerms.length > 0
-      ? `The following terms may appear in the audio: ${vocabTerms.join(", ")}`
-      : undefined;
-
     const result = await createTranscription(
       openai,
       file,
       whisperDeployment(),
-      languageHint,
-      prompt
+      languageHint
     );
 
     const rawSegments = Array.isArray(result.segments) ? result.segments : [];
@@ -263,6 +262,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Audio file too large." },
         { status: 413 }
+      );
+    }
+    if (status === 404) {
+      return NextResponse.json(
+        {
+          error: `Transcription deployment "${whisperDeployment()}" was not found on this Azure OpenAI resource. Check AZURE_OPENAI_WHISPER_DEPLOYMENT.`,
+        },
+        { status: 404 }
       );
     }
     return NextResponse.json(
