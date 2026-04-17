@@ -11,6 +11,7 @@ import SpeakerStats from "@/components/SpeakerStats";
 import MeetingKeywords from "@/components/MeetingKeywords";
 import SentimentBadge from "@/components/SentimentBadge";
 import FollowUpEmail from "@/components/FollowUpEmail";
+import { AudioModeCards } from "@/components/AudioModeCards";
 import { AudioModeSelector } from "@/components/AudioModeSelector";
 import { AudioWaveform } from "@/components/AudioWaveform";
 import { ControlBar } from "@/components/ControlBar";
@@ -390,21 +391,6 @@ export default function HomePage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Link
-            href="/desktop-setup"
-            className="text-xs text-mid-gray hover:text-dark-navy hidden sm:inline"
-          >
-            Desktop setup
-          </Link>
-          <button
-            onClick={() => {
-              setSetupComplete("");
-              stopCapture();
-            }}
-            className="text-xs text-mid-gray hover:text-dark-navy hidden sm:inline"
-          >
-            Change source
-          </button>
           {user && (
             <div className="hidden sm:flex items-center gap-2 pr-1">
               <UserChip name={user.name || user.email || "?"} />
@@ -432,9 +418,13 @@ export default function HomePage() {
         />
       )}
 
-      {/* CALENDAR + QUICK ACTION ROW */}
+      {/* CALENDAR + AUDIO SOURCE + QUICK ACTION ROW */}
       {calendarPrefs.showMeetings && !isCapturing && (
-        <section className="px-4 sm:px-6 pt-4">
+        <section className="px-4 sm:px-6 pt-4 space-y-4">
+          <AudioModeCards
+            value={(chosenMode as CaptureMode) || ""}
+            onChange={(next) => setChosenMode(next)}
+          />
           <div className="grid gap-3 lg:grid-cols-3">
             <div className="lg:col-span-2">
               <h2 className="text-xs font-semibold text-mid-gray uppercase tracking-wider mb-2">

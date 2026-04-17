@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Calendar, FileText, Shield, Upload } from "lucide-react";
+import { Calendar, Download, FileText, Shield, Upload } from "lucide-react";
 
 type Props = {
   /** Whether to render the Admin link (probed by the parent). */
@@ -19,14 +19,23 @@ type Props = {
 export function NavLinks({ isAdmin, orientation = "horizontal" }: Props) {
   const pathname = usePathname();
 
-  const items = [
+  // Demo mode shows Admin to everyone — the /admin pages gate access
+  // server-side in production. This just controls the nav affordance.
+  const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+
+  const items: Array<{
+    href: string;
+    label: string;
+    icon: typeof Calendar;
+  }> = [
     { href: "/", label: "Home", icon: Calendar },
     { href: "/transcripts", label: "Transcripts", icon: FileText },
     { href: "/upload", label: "Upload", icon: Upload },
   ];
-  if (isAdmin) {
+  if (isAdmin || demoMode) {
     items.push({ href: "/admin", label: "Admin", icon: Shield });
   }
+  items.push({ href: "/download", label: "Download", icon: Download });
 
   const containerCls =
     orientation === "horizontal"
