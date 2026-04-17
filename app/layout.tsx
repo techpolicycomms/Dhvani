@@ -112,14 +112,35 @@ export default async function RootLayout({
           </SessionProvider>
         )}
         <script
-          // Register the PWA service worker on supported browsers.
+          // PWA service worker management.
+          //
+          // Production: register the SW so offline + install work.
+          // Dev: actively UNREGISTER any SW + wipe its caches. Dev
+          // builds change webpack chunk hashes on every restart, but
+          // the SW's cache-first strategy for /_next/* keeps serving
+          // stale chunks across hard refreshes and incognito windows —
+          // which surfaces as a "Cannot read properties of undefined
+          // (reading 'call')" webpack factory error.
           dangerouslySetInnerHTML={{
             __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js').catch(function(){});
+              (function () {
+                if (!('serviceWorker' in navigator)) return;
+                var IS_DEV = location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+                if (IS_DEV) {
+                  navigator.serviceWorker.getRegistrations().then(function (regs) {
+                    for (var i = 0; i < regs.length; i++) regs[i].unregister();
+                  }).catch(function () {});
+                  if (window.caches) {
+                    caches.keys().then(function (names) {
+                      for (var j = 0; j < names.length; j++) caches.delete(names[j]);
+                    }).catch(function () {});
+                  }
+                  return;
+                }
+                window.addEventListener('load', function () {
+                  navigator.serviceWorker.register('/sw.js').catch(function () {});
                 });
-              }
+              })();
             `,
           }}
         />
