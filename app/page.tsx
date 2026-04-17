@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Mic, Save, Settings, Sparkles, X } from "lucide-react";
+import { Mic, Plus, Save, Settings, Sparkles, X } from "lucide-react";
 import MeetingSummary from "@/components/MeetingSummary";
 import type { ActionItem } from "@/components/ActionItems";
 import AskDhvani from "@/components/AskDhvani";
@@ -21,21 +21,12 @@ import { MeetingList } from "@/components/MeetingList";
 import { NavLinks } from "@/components/NavLinks";
 import { SettingsDrawer } from "@/components/SettingsDrawer";
 import { TranscriptPanel } from "@/components/TranscriptPanel";
-import { useAudioCapture } from "@/hooks/useAudioCapture";
 import { useCalendarPrefs } from "@/hooks/useCalendarPrefs";
 import { useMeetingReminders } from "@/hooks/useMeetingReminders";
-import {
-  useChunkDispatcher,
-  useTranscription,
-} from "@/hooks/useTranscription";
-import { useTranscriptStore } from "@/hooks/useTranscriptStore";
 import { useAudioDevices } from "@/hooks/useAudioDevices";
+import { useTranscriptionContext } from "@/contexts/TranscriptionContext";
 import type { Meeting } from "@/lib/calendar";
-import {
-  DEFAULT_CHUNK_DURATION_MS,
-  LS_KEYS,
-  type CaptureMode,
-} from "@/lib/constants";
+import { type CaptureMode } from "@/lib/constants";
 
 /**
  * Main Dhvani transcription interface.
@@ -71,18 +62,57 @@ export default function HomePage() {
       .catch(() => setIsAdmin(false));
   }, []);
 
-  // -------- Persisted UI preferences --------
-  const [language, setLanguage] = usePersistedString(LS_KEYS.language, "");
-  const [chunkDuration, setChunkDuration] = usePersistedNumber(
-    LS_KEYS.chunkDuration,
-    DEFAULT_CHUNK_DURATION_MS
-  );
-  const [deviceId, setDeviceId] = usePersistedString(LS_KEYS.deviceId, "");
-  const [chosenMode, setChosenMode] = usePersistedString(
-    LS_KEYS.captureMode,
-    ""
-  );
+  // -------- Global transcription state (survives navigation) --------
+  const ctx = useTranscriptionContext();
+  const {
+    language,
+    setLanguage,
+    chunkDuration,
+    setChunkDuration,
+    deviceId,
+    setDeviceId,
+    chosenMode,
+    setChosenMode,
+    toast,
+    setToast,
+    rateLimitMsg,
+    setRateLimitMsg,
+    clearSession,
+  } = ctx;
+  const {
+    transcript,
+    clearTranscript,
+    hasSavedSession,
+    resumeSession,
+    discardSavedSession,
+    detectedSpeakers,
+    resolveSpeaker,
+    renameSpeaker,
+    primeSpeakers,
+    activeMeeting,
+    setActiveMeeting,
+    speakerNames,
+  } = ctx.store;
+  const {
+    startCapture,
+    stopCapture,
+    reconnect,
+    isCapturing,
+    captureMode,
+    error,
+    elapsedTime,
+    chunkCount,
+    mediaStream,
+  } = ctx.capture;
+  const {
+    queueDepth,
+    inFlight,
+    totalMinutes,
+    estimatedCost,
+    failedChunks,
+  } = ctx.tx;
 
+  // -------- UI-only state (home page only) --------
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showResume, setShowResume] = useState(false);
   const [showSummaryPrompt, setShowSummaryPrompt] = useState(false);
@@ -96,71 +126,9 @@ export default function HomePage() {
   // -------- Calendar prefs (drives MeetingList + reminders visibility) --------
   const { prefs: calendarPrefs } = useCalendarPrefs();
 
-  // -------- Transcript store --------
-  const {
-    transcript,
-    addEntry,
-    clearTranscript,
-    hasSavedSession,
-    resumeSession,
-    discardSavedSession,
-    detectedSpeakers,
-    resolveSpeaker,
-    renameSpeaker,
-    primeSpeakers,
-    activeMeeting,
-    setActiveMeeting,
-    speakerNames,
-  } = useTranscriptStore();
-
   useEffect(() => {
     if (hasSavedSession) setShowResume(true);
   }, [hasSavedSession]);
-
-  // -------- Audio capture --------
-  const {
-    startCapture,
-    stopCapture,
-    reconnect,
-    isCapturing,
-    captureMode,
-    audioChunks,
-    error,
-    elapsedTime,
-    chunkCount,
-    mediaStream,
-  } = useAudioCapture({
-    chunkDuration,
-    preferredDeviceId: deviceId || undefined,
-  });
-
-  // -------- Transcription pipeline --------
-  const [toast, setToast] = useState<string | null>(null);
-  const [rateLimitMsg, setRateLimitMsg] = useState<string | null>(null);
-
-  const {
-    transcribeChunk,
-    abort: abortTranscription,
-    queueDepth,
-    inFlight,
-    totalMinutes,
-    estimatedCost,
-    failedChunks,
-  } = useTranscription({
-    language,
-    onEntry: addEntry,
-    onError: (msg, idx) => {
-      setToast(`Chunk ${idx + 1} failed: ${msg}`);
-      setTimeout(() => setToast(null), 4000);
-    },
-    onRateLimited: (msg) => {
-      setRateLimitMsg(msg);
-      abortTranscription();
-      stopCapture();
-    },
-  });
-
-  useChunkDispatcher(audioChunks, transcribeChunk);
 
   // -------- Device label for the Source stat --------
   const { devices } = useAudioDevices();
@@ -579,8 +547,25 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* EXPORT + SAVE MENU */}
+      {/* EXPORT + SAVE + NEW SESSION MENU */}
       <div className="px-3 sm:px-4 pb-2 flex justify-end items-center gap-2">
+        {transcript.length > 0 && !isCapturing && (
+          <button
+            onClick={async () => {
+              const confirmed =
+                transcript.length === 0 ||
+                window.confirm(
+                  "Start a new session? The current transcript will be auto-saved to your history, then cleared. Make sure you've exported it if you need a local copy."
+                );
+              if (!confirmed) return;
+              await clearSession({ autoSave: true });
+            }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold border bg-white border-border-gray text-dark-navy hover:bg-light-gray transition-colors"
+            title="Clear the transcript and start a fresh recording session"
+          >
+            <Plus size={12} /> New Session
+          </button>
+        )}
         {transcript.length > 0 && (
           <button
             onClick={saveTranscriptToServer}
@@ -671,51 +656,6 @@ export default function HomePage() {
       />
     </main>
   );
-}
-
-// -------- Small persistence helpers for client-side state --------
-
-function usePersistedString(
-  key: string,
-  initial: string
-): [string, (v: string) => void] {
-  const [value, setValue] = useState<string>(initial);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = localStorage.getItem(key);
-    if (stored !== null) setValue(stored);
-  }, [key]);
-  const update = useCallback(
-    (v: string) => {
-      setValue(v);
-      if (typeof window !== "undefined") localStorage.setItem(key, v);
-    },
-    [key]
-  );
-  return [value, update];
-}
-
-function usePersistedNumber(
-  key: string,
-  initial: number
-): [number, (v: number) => void] {
-  const [value, setValue] = useState<number>(initial);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = localStorage.getItem(key);
-    if (stored !== null) {
-      const n = parseInt(stored, 10);
-      if (!Number.isNaN(n)) setValue(n);
-    }
-  }, [key]);
-  const update = useCallback(
-    (v: number) => {
-      setValue(v);
-      if (typeof window !== "undefined") localStorage.setItem(key, String(v));
-    },
-    [key]
-  );
-  return [value, update];
 }
 
 /**

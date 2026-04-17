@@ -6,6 +6,8 @@ import { auth, isAuthConfigured } from "@/lib/auth";
 import InstallPrompt from "@/components/InstallPrompt";
 import DemoSessionProvider from "@/components/DemoSessionProvider";
 import DemoBanner from "@/components/DemoBanner";
+import { RecordingBadge } from "@/components/RecordingBadge";
+import { TranscriptionProvider } from "@/contexts/TranscriptionContext";
 
 // Noto Sans covers all six UN languages (English, French, Spanish, Russian,
 // Arabic, Chinese) plus Hindi — the practical baseline for an ITU tool.
@@ -85,14 +87,20 @@ export default async function RootLayout({
         <div style={{ height: 3, background: "#1DA0DB", width: "100%" }} />
         {isDemoClientMode ? (
           <DemoSessionProvider>
-            <DemoBanner />
-            {children}
-            <InstallPrompt />
+            <TranscriptionProvider>
+              <DemoBanner />
+              {children}
+              <RecordingBadge />
+              <InstallPrompt />
+            </TranscriptionProvider>
           </DemoSessionProvider>
         ) : (
           <SessionProvider session={session}>
-            {children}
-            <InstallPrompt />
+            <TranscriptionProvider>
+              {children}
+              <RecordingBadge />
+              <InstallPrompt />
+            </TranscriptionProvider>
           </SessionProvider>
         )}
         <script
