@@ -20,11 +20,14 @@ import { MeetingBanner } from "@/components/MeetingBanner";
 import { MeetingList } from "@/components/MeetingList";
 import { NavLinks } from "@/components/NavLinks";
 import { SettingsDrawer } from "@/components/SettingsDrawer";
+import { TaskChecklist } from "@/components/TaskChecklist";
 import { TranscriptPanel } from "@/components/TranscriptPanel";
+import { WellnessIndicator } from "@/components/WellnessIndicator";
 import { useCalendarPrefs } from "@/hooks/useCalendarPrefs";
 import { useMeetingReminders } from "@/hooks/useMeetingReminders";
 import { useAudioDevices } from "@/hooks/useAudioDevices";
 import { useTranscriptionContext } from "@/contexts/TranscriptionContext";
+import { useUserProfile } from "@/contexts/UserProfileContext";
 import type { Meeting } from "@/lib/calendar";
 import { type CaptureMode } from "@/lib/constants";
 
@@ -363,6 +366,21 @@ export default function HomePage() {
         />
       )}
 
+      {/* ROLE GREETING */}
+      {!isCapturing && <RoleGreeting />}
+
+      {/* DASHBOARD — tasks + wellness, visible when idle */}
+      {!isCapturing && (
+        <section className="px-4 sm:px-6 pt-4 grid gap-3 lg:grid-cols-3">
+          <div className="lg:col-span-2">
+            <TaskChecklist limit={5} hideCompleted />
+          </div>
+          <div>
+            <WellnessIndicator />
+          </div>
+        </section>
+      )}
+
       {/* AUDIO SOURCE — always visible while idle so users pick before hitting Start */}
       {!isCapturing && (
         <section className="px-4 sm:px-6 pt-4">
@@ -699,5 +717,37 @@ function UserChip({ name }: { name: string }) {
     >
       {initials || "?"}
     </span>
+  );
+}
+
+/**
+ * Role-aware welcome strip. Pulls the active role from the profile
+ * context and offers a quick link to re-open the onboarding wizard.
+ * Silent (returns null) until the profile has loaded.
+ */
+function RoleGreeting() {
+  const { data: session } = useSession();
+  const { role, loading, resetProfile } = useUserProfile();
+  if (loading) return null;
+  const name =
+    (session?.user?.name as string | undefined) ||
+    (session?.user?.email as string | undefined) ||
+    "there";
+  return (
+    <section className="px-4 sm:px-6 pt-4 flex flex-wrap items-center gap-3">
+      <div className="text-sm text-dark-gray">
+        Welcome back,{" "}
+        <span className="font-semibold text-dark-navy">{name.split("@")[0]}</span> —{" "}
+        <span className="text-itu-blue-dark">{role.label}</span>
+        <span className="text-mid-gray"> · {role.sector}</span>
+      </div>
+      <button
+        type="button"
+        onClick={resetProfile}
+        className="text-[11px] text-mid-gray hover:text-itu-blue underline underline-offset-2"
+      >
+        Change role
+      </button>
+    </section>
   );
 }

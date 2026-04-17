@@ -6,6 +6,7 @@ import { DeviceSelector } from "./DeviceSelector";
 import { CalendarToggle } from "./CalendarToggle";
 import VocabularyManager from "./VocabularyManager";
 import { OrgInsightsOptIn } from "./OrgInsightsOptIn";
+import { useUserProfile } from "@/contexts/UserProfileContext";
 import {
   MAX_CHUNK_DURATION_MS,
   MIN_CHUNK_DURATION_MS,
@@ -203,6 +204,10 @@ export function SettingsDrawer(props: Props) {
             <VocabularyManager />
           </div>
 
+          <div className="pt-4 border-t border-border-gray">
+            <RoleSection />
+          </div>
+
           <div className="pt-4 border-t border-border-gray space-y-3">
             <div className="text-xs font-semibold text-mid-gray uppercase tracking-wider">
               Privacy
@@ -298,6 +303,33 @@ function Field({
       </label>
       {children}
       {hint && <p className="mt-1 text-[11px] text-mid-gray">{hint}</p>}
+    </div>
+  );
+}
+
+function RoleSection() {
+  const { role, resetProfile } = useUserProfile();
+  return (
+    <div className="space-y-2">
+      <div className="text-xs font-semibold text-mid-gray uppercase tracking-wider">
+        Role profile
+      </div>
+      <div className="rounded-lg border border-border-gray bg-white p-3 text-xs text-dark-gray">
+        <div className="font-medium text-dark-navy">{role.label}</div>
+        <div className="text-mid-gray mt-0.5">
+          {role.department} · {role.sector}
+        </div>
+        <div className="mt-1 text-[11px] text-mid-gray leading-snug">
+          {role.description}
+        </div>
+        <button
+          type="button"
+          onClick={resetProfile}
+          className="mt-3 text-[11px] text-itu-blue hover:text-itu-blue-dark underline underline-offset-2"
+        >
+          Change role
+        </button>
+      </div>
     </div>
   );
 }
