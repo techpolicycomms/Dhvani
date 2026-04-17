@@ -20,7 +20,6 @@ import { MeetingBanner } from "@/components/MeetingBanner";
 import { MeetingList } from "@/components/MeetingList";
 import { NavLinks } from "@/components/NavLinks";
 import { SettingsDrawer } from "@/components/SettingsDrawer";
-import { SetupWizard } from "@/components/SetupWizard";
 import { TranscriptPanel } from "@/components/TranscriptPanel";
 import { useAudioCapture } from "@/hooks/useAudioCapture";
 import { useCalendarPrefs } from "@/hooks/useCalendarPrefs";
@@ -76,10 +75,6 @@ export default function HomePage() {
   const [deviceId, setDeviceId] = usePersistedString(LS_KEYS.deviceId, "");
   const [chosenMode, setChosenMode] = usePersistedString(
     LS_KEYS.captureMode,
-    ""
-  );
-  const [setupComplete, setSetupComplete] = usePersistedString(
-    LS_KEYS.setupComplete,
     ""
   );
 
@@ -292,15 +287,6 @@ export default function HomePage() {
   // -------- Reminders (browser notifications + sticky banner) --------
   const { currentReminder, dismissReminder } = useMeetingReminders();
 
-  const onWizardComplete = useCallback(
-    (mode: CaptureMode, chosenDeviceId?: string) => {
-      setChosenMode(mode);
-      if (chosenDeviceId !== undefined) setDeviceId(chosenDeviceId);
-      setSetupComplete("1");
-    },
-    [setChosenMode, setDeviceId, setSetupComplete]
-  );
-
   // Connection status dot color.
   const statusColor = error
     ? "bg-error"
@@ -343,27 +329,6 @@ export default function HomePage() {
             </button>
           </div>
         </div>
-      </main>
-    );
-  }
-
-  // -------- Optional first-run wizard (opt-in via ?setup=1 or Settings) --------
-  // The AudioModeCards up-front and the audio-device picker in Settings
-  // cover what the wizard used to gate. Keep the wizard accessible for
-  // anyone who explicitly wants the audio-level test, but don't force
-  // new users through it.
-  const forceWizard =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("setup") === "1";
-  if (forceWizard) {
-    return (
-      <main className="min-h-screen pt-3">
-        <SetupWizard
-          onComplete={onWizardComplete}
-          language={language || undefined}
-          deviceId={deviceId}
-          setDeviceId={setDeviceId}
-        />
       </main>
     );
   }
