@@ -186,6 +186,34 @@ function createWindow() {
     }
   });
 
+  // Lock navigation to our target origin. Any attempt to navigate to an
+  // external site (malicious link in transcript text, phishing tab
+  // handoff, etc.) opens in the user's default browser instead of
+  // taking over the BrowserWindow.
+  mainWindow.webContents.on("will-navigate", (event, nextUrl) => {
+    try {
+      const dest = new URL(nextUrl);
+      const allowed = new URL(url);
+      const isData = dest.protocol === "data:";
+      const sameOrigin = dest.origin === allowed.origin;
+      if (!isData && !sameOrigin) {
+        event.preventDefault();
+        console.warn("[dhvani] blocked will-navigate to", nextUrl);
+        // Open externally so users can still follow legitimate links.
+        void import("electron").then(({ shell }) => shell.openExternal(nextUrl));
+      }
+    } catch {
+      event.preventDefault();
+    }
+  });
+
+  // New-window requests go to the user's default browser — never a
+  // second BrowserWindow inside Dhvani.
+  mainWindow.webContents.setWindowOpenHandler(({ url: nextUrl }) => {
+    void import("electron").then(({ shell }) => shell.openExternal(nextUrl));
+    return { action: "deny" };
+  });
+
   if (IS_DEV) {
     mainWindow.loadURL(url).catch((err) =>
       console.error("Dhvani: failed to load dev renderer", err)

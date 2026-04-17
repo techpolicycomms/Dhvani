@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActiveUser } from "@/lib/auth";
+import {
+  ensureWithinDir,
+  logSecurityEvent,
+  sanitizePathSegment,
+} from "@/lib/security";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
@@ -9,6 +14,7 @@ export const dynamic = "force-dynamic";
 
 const DATA_DIR =
   process.env.DHVANI_DATA_DIR || path.join(process.cwd(), "data", "transcripts");
+const VOCAB_DIR = path.join(DATA_DIR, "_vocabulary");
 
 type VocabEntry = {
   id: string;
@@ -16,13 +22,26 @@ type VocabEntry = {
   definition: string;
 };
 
-function vocabFile(userId: string): string {
-  return path.join(DATA_DIR, "_vocabulary", `${userId}.json`);
+function vocabFile(userId: string): string | null {
+  const safeId = sanitizePathSegment(userId);
+  if (!safeId) return null;
+  const p = path.join(VOCAB_DIR, `${safeId}.json`);
+  if (!ensureWithinDir(p, VOCAB_DIR)) {
+    logSecurityEvent({
+      type: "path_traversal",
+      userId,
+      details: "vocabulary path outside VOCAB_DIR",
+    });
+    return null;
+  }
+  return p;
 }
 
 async function readVocab(userId: string): Promise<VocabEntry[]> {
+  const p = vocabFile(userId);
+  if (!p) return [];
   try {
-    const raw = await fs.readFile(vocabFile(userId), "utf8");
+    const raw = await fs.readFile(p, "utf8");
     return JSON.parse(raw);
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === "ENOENT") return [];
@@ -31,11 +50,12 @@ async function readVocab(userId: string): Promise<VocabEntry[]> {
 }
 
 async function writeVocab(userId: string, entries: VocabEntry[]): Promise<void> {
-  const dir = path.dirname(vocabFile(userId));
-  await fs.mkdir(dir, { recursive: true });
-  const tmp = vocabFile(userId) + ".tmp";
+  const p = vocabFile(userId);
+  if (!p) throw new Error("Invalid user id");
+  await fs.mkdir(path.dirname(p), { recursive: true });
+  const tmp = p + ".tmp";
   await fs.writeFile(tmp, JSON.stringify(entries), "utf8");
-  await fs.rename(tmp, vocabFile(userId));
+  await fs.rename(tmp, p);
 }
 
 export async function GET() {

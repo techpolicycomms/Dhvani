@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActiveUser } from "@/lib/auth";
 import { createChatOpenAIClient, chatDeployment } from "@/lib/openai";
+import { checkChatRate } from "@/lib/rateLimiter";
+import { logSecurityEvent } from "@/lib/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,6 +14,22 @@ export async function POST(req: NextRequest) {
   const user = await getActiveUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const rate = checkChatRate(user.userId);
+  if (!rate.allowed) {
+    logSecurityEvent({
+      type: "rate_limit",
+      userId: user.userId,
+      details: `followup hourly limit — retry in ${rate.retryAfterSeconds}s`,
+    });
+    return NextResponse.json(
+      { error: "Too many requests. Please try again shortly." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(rate.retryAfterSeconds) },
+      }
+    );
   }
 
   let body: {

@@ -195,6 +195,41 @@ export function release(userId: string, seconds: number): void {
   w.dayMinutes = Math.max(0, w.dayMinutes - minutes);
 }
 
+/**
+ * Lightweight per-user request counter for chat endpoints
+ * (/api/summarize, /api/ask, /api/followup). Separate from the
+ * minutes-based transcription quota — we don't bill chat calls the
+ * same way and the request pattern is bursty. Defaults to 30 calls
+ * per hour per user; override with RATE_LIMIT_CHAT_PER_HOUR.
+ *
+ * Like the transcription counter this is in-process; swap for Redis
+ * in a multi-instance deployment without changing the public API.
+ */
+type ChatWindow = { count: number; start: number };
+const chatState: Map<string, ChatWindow> = new Map();
+
+export type ChatRateResult =
+  | { allowed: true }
+  | { allowed: false; retryAfterSeconds: number };
+
+export function checkChatRate(userId: string): ChatRateResult {
+  const perHour = env("RATE_LIMIT_CHAT_PER_HOUR", 30);
+  const now = Date.now();
+  let w = chatState.get(userId);
+  if (!w || now - w.start >= HOUR_MS) {
+    w = { count: 0, start: now };
+    chatState.set(userId, w);
+  }
+  if (w.count >= perHour) {
+    return {
+      allowed: false,
+      retryAfterSeconds: Math.ceil((HOUR_MS - (now - w.start)) / 1000),
+    };
+  }
+  w.count += 1;
+  return { allowed: true };
+}
+
 function secondsUntilNextMonth(): number {
   const now = new Date();
   const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);

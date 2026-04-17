@@ -213,8 +213,11 @@ export async function POST(req: NextRequest) {
         { status: 404 }
       );
     }
+    // Preserve the known-safe error messages we construct ourselves
+    // above; for everything else, return a generic message so Azure /
+    // stack-trace details never leak to the client.
     return NextResponse.json(
-      { error: error.message || "Transcription failed." },
+      { error: "Transcription failed." },
       { status }
     );
   }

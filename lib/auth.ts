@@ -50,11 +50,31 @@ export const authConfig: NextAuthConfig = {
       },
     }),
   ],
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    // Shorter than NextAuth's 30-day default — staff re-auth daily so a
+    // stolen cookie has limited lifespan. Refresh token rotation keeps
+    // Graph calls working without user interaction within the window.
+    maxAge: 24 * 60 * 60,
+    updateAge: 60 * 60,
+  },
   pages: {
     signIn: "/auth/signin",
   },
   callbacks: {
+    // Only allow redirects to our own origin. NextAuth v5 is already
+    // same-origin by default, but we pin it explicitly so a crafted
+    // `callbackUrl` query can't bounce users to an attacker-controlled
+    // host on an open-redirect chain.
+    async redirect({ url, baseUrl }) {
+      try {
+        const u = new URL(url, baseUrl);
+        if (u.origin === baseUrl) return u.toString();
+      } catch {
+        /* fall through */
+      }
+      return baseUrl;
+    },
     async jwt({ token, profile, account }) {
       // On first sign-in, copy identity claims into the JWT so subsequent
       // requests don't need to hit the /userinfo endpoint.

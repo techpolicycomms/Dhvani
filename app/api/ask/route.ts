@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getActiveUser } from "@/lib/auth";
 import { createChatOpenAIClient, chatDeployment } from "@/lib/openai";
 import { listTranscripts, getTranscript } from "@/lib/transcriptStorage";
+import { checkChatRate } from "@/lib/rateLimiter";
+import { logSecurityEvent } from "@/lib/security";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,6 +20,22 @@ export async function POST(req: NextRequest) {
   const user = await getActiveUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const rate = checkChatRate(user.userId);
+  if (!rate.allowed) {
+    logSecurityEvent({
+      type: "rate_limit",
+      userId: user.userId,
+      details: `ask hourly limit — retry in ${rate.retryAfterSeconds}s`,
+    });
+    return NextResponse.json(
+      { error: "Too many requests. Please try again shortly." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(rate.retryAfterSeconds) },
+      }
+    );
   }
 
   let body: {
@@ -122,9 +140,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Request timed out." }, { status: 504 });
     }
     const error = err as { status?: number; message?: string };
+    console.error("[ask] upstream error:", error.message);
     return NextResponse.json(
-      { error: error.message || "Failed to get answer." },
-      { status: error.status || 500 }
+      { error: "Failed to get answer." },
+      { status: error.status && error.status < 500 ? error.status : 500 }
     );
   }
 }

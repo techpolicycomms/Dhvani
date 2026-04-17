@@ -29,6 +29,21 @@ yarn-error.log*
 .env.backup
 .env.*.backup
 
+# credentials & build artifacts (never ship these)
+*.pem
+*.key
+*.cert
+*.p12
+*.pfx
+dist/
+dist-electron/
+*.dmg
+*.exe
+*.blockmap
+
+# user-data (transcripts, usage log, org-insights — may contain PII)
+/data/
+
 # vercel
 .vercel
 

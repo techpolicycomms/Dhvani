@@ -8,6 +8,8 @@ import {
   extractKeywords,
   recordAnonymisedMeeting,
 } from "@/lib/orgIntelligence";
+import { checkChatRate } from "@/lib/rateLimiter";
+import { logSecurityEvent } from "@/lib/security";
 import type { TranscriptEntry } from "@/lib/constants";
 
 export const runtime = "nodejs";
@@ -75,6 +77,22 @@ export async function POST(req: NextRequest) {
   const user = await getActiveUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const rate = checkChatRate(user.userId);
+  if (!rate.allowed) {
+    logSecurityEvent({
+      type: "rate_limit",
+      userId: user.userId,
+      details: `summarize hourly limit — retry in ${rate.retryAfterSeconds}s`,
+    });
+    return NextResponse.json(
+      { error: "Too many requests. Please try again shortly." },
+      {
+        status: 429,
+        headers: { "Retry-After": String(rate.retryAfterSeconds) },
+      }
+    );
   }
 
   let body: {
@@ -214,9 +232,10 @@ export async function POST(req: NextRequest) {
         { status: 501 }
       );
     }
+    console.error("[summarize] upstream error:", error.message);
     return NextResponse.json(
-      { error: error.message || "Summary generation failed." },
-      { status: error.status || 500 }
+      { error: "Summary generation failed." },
+      { status: error.status && error.status < 500 ? error.status : 500 }
     );
   }
 }
