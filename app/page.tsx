@@ -347,8 +347,15 @@ export default function HomePage() {
     );
   }
 
-  // -------- Setup wizard for first-run --------
-  if (!setupComplete) {
+  // -------- Optional first-run wizard (opt-in via ?setup=1 or Settings) --------
+  // The AudioModeCards up-front and the audio-device picker in Settings
+  // cover what the wizard used to gate. Keep the wizard accessible for
+  // anyone who explicitly wants the audio-level test, but don't force
+  // new users through it.
+  const forceWizard =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.search).get("setup") === "1";
+  if (forceWizard) {
     return (
       <main className="min-h-screen pt-3">
         <SetupWizard
@@ -418,13 +425,19 @@ export default function HomePage() {
         />
       )}
 
-      {/* CALENDAR + AUDIO SOURCE + QUICK ACTION ROW */}
-      {calendarPrefs.showMeetings && !isCapturing && (
-        <section className="px-4 sm:px-6 pt-4 space-y-4">
+      {/* AUDIO SOURCE — always visible while idle so users pick before hitting Start */}
+      {!isCapturing && (
+        <section className="px-4 sm:px-6 pt-4">
           <AudioModeCards
             value={(chosenMode as CaptureMode) || ""}
             onChange={(next) => setChosenMode(next)}
           />
+        </section>
+      )}
+
+      {/* CALENDAR + QUICK ACTION ROW */}
+      {calendarPrefs.showMeetings && !isCapturing && (
+        <section className="px-4 sm:px-6 pt-4 space-y-4">
           <div className="grid gap-3 lg:grid-cols-3">
             <div className="lg:col-span-2">
               <h2 className="text-xs font-semibold text-mid-gray uppercase tracking-wider mb-2">

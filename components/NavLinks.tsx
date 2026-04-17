@@ -2,7 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Calendar, Download, FileText, Shield, Upload } from "lucide-react";
+import {
+  Calendar,
+  Download,
+  FileText,
+  Laptop,
+  Shield,
+  Upload,
+} from "lucide-react";
 
 type Props = {
   /** Whether to render the Admin link (probed by the parent). */
@@ -31,6 +38,7 @@ export function NavLinks({ isAdmin, orientation = "horizontal" }: Props) {
     { href: "/", label: "Home", icon: Calendar },
     { href: "/transcripts", label: "Transcripts", icon: FileText },
     { href: "/upload", label: "Upload", icon: Upload },
+    { href: "/desktop-setup", label: "Desktop Setup", icon: Laptop },
   ];
   if (isAdmin || demoMode) {
     items.push({ href: "/admin", label: "Admin", icon: Shield });
