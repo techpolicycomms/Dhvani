@@ -29,7 +29,7 @@ import { useAudioDevices } from "@/hooks/useAudioDevices";
 import { useTranscriptionContext } from "@/contexts/TranscriptionContext";
 import { useUserProfile } from "@/contexts/UserProfileContext";
 import type { Meeting } from "@/lib/calendar";
-import { type CaptureMode } from "@/lib/constants";
+import { type CaptureMode, type TranscriptEntry } from "@/lib/constants";
 
 /**
  * Main Dhvani transcription interface.
@@ -171,12 +171,28 @@ export default function HomePage() {
 
   const onStartFromMeeting = useCallback(
     (meeting: Meeting) => {
-      // Tag the upcoming session with this meeting before kicking off capture
-      // so the auto-save (and any user-initiated save) carries the metadata.
+      // Per UX Addendum C2: never auto-start. Just pre-fill state so the
+      // user lands on the idle home with title + source + a "Ready for…"
+      // banner, then taps Record themselves.
       setActiveMeeting(meeting);
-      onStart();
+      // Map detected platform → preferred capture mode. Browser-based
+      // meeting clients work great with tab audio; native desktop apps
+      // need either Electron (preferred) or virtual-cable.
+      if (meeting.platform === "meet" || meeting.platform === "teams") {
+        setChosenMode("tab-audio");
+      } else if (typeof window !== "undefined" && (window as any).electronAPI) {
+        setChosenMode("electron");
+      } else if (meeting.platform === "zoom") {
+        setChosenMode("virtual-cable");
+      } else {
+        setChosenMode("microphone");
+      }
+      // Scroll to the title input so the user sees the pre-fill landed.
+      if (typeof window !== "undefined") {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
     },
-    [onStart, setActiveMeeting]
+    [setActiveMeeting, setChosenMode]
   );
 
   // -------- Save transcript to server --------
@@ -430,6 +446,23 @@ export default function HomePage() {
       {/* ACTIVE MEETING CHIP + live waveform */}
       {(activeMeeting || isCapturing) && (
         <div className="px-4 sm:px-6 pt-3 flex flex-wrap items-center gap-3">
+          {/* "Ready for…" pre-fill banner — Addendum C2.
+              Shows when a meeting is queued via Transcribe but recording
+              hasn't started yet. Disappears the moment isCapturing flips. */}
+          {activeMeeting && !isCapturing && (
+            <div className="inline-flex items-center gap-2 text-xs bg-itu-blue-pale border border-itu-blue/40 text-itu-blue-dark rounded px-3 py-1.5">
+              <span className="font-semibold">Ready for:</span>
+              <span className="truncate max-w-xs">{activeMeeting.subject}</span>
+              <button
+                type="button"
+                onClick={() => setActiveMeeting(null)}
+                aria-label="Dismiss"
+                className="text-itu-blue-dark/60 hover:text-itu-blue-dark ml-1"
+              >
+                ×
+              </button>
+            </div>
+          )}
           {activeMeeting && isCapturing && (
             <div className="inline-flex items-center gap-2 text-xs text-itu-blue-dark bg-itu-blue-pale border border-itu-blue/30 rounded px-2.5 py-1">
               <span className="font-semibold">Tagged:</span>
@@ -444,6 +477,7 @@ export default function HomePage() {
               </span>
               <span className="font-semibold">Recording</span>
               <AudioWaveform stream={mediaStream} active={isCapturing} />
+              <LiveStats transcript={transcript} startedAtIso={captureStartedAtRef.current} />
             </div>
           )}
         </div>
@@ -749,5 +783,35 @@ function RoleGreeting() {
         Change role
       </button>
     </section>
+  );
+}
+
+/**
+ * D1 — live word count + speaking-rate indicator next to the Recording
+ * dot. Updates every 500ms, throttled to a rolling 60s WPM average.
+ */
+function LiveStats({
+  transcript,
+  startedAtIso,
+}: {
+  transcript: TranscriptEntry[];
+  startedAtIso: string | null;
+}) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((t) => t + 1), 500);
+    return () => window.clearInterval(id);
+  }, []);
+  const wordCount = transcript.reduce(
+    (n, e) => n + (e.text?.trim() ? e.text.trim().split(/\s+/).length : 0),
+    0
+  );
+  if (!startedAtIso) return null;
+  const elapsedSec = Math.max(1, (Date.now() - new Date(startedAtIso).getTime()) / 1000);
+  const wpm = Math.round((wordCount / elapsedSec) * 60);
+  return (
+    <span className="text-[11px] text-mid-gray font-mono tabular-nums">
+      {wordCount} words · {Number.isFinite(wpm) ? wpm : 0} wpm
+    </span>
   );
 }

@@ -7,6 +7,7 @@ import { CalendarToggle } from "./CalendarToggle";
 import VocabularyManager from "./VocabularyManager";
 import { OrgInsightsOptIn } from "./OrgInsightsOptIn";
 import { useUserProfile } from "@/contexts/UserProfileContext";
+import { useMode } from "@/hooks/useMode";
 import {
   MAX_CHUNK_DURATION_MS,
   MIN_CHUNK_DURATION_MS,
@@ -153,6 +154,8 @@ export function SettingsDrawer(props: Props) {
             </section>
           )}
 
+          <ModeField />
+
           <Field
             label="Language"
             hint="Auto-detect works well; choose a specific language to improve accuracy."
@@ -284,6 +287,46 @@ export function SettingsDrawer(props: Props) {
         </div>
       </aside>
     </>
+  );
+}
+
+function ModeField() {
+  const { mode, setMode } = useMode();
+  return (
+    <div>
+      <label className="block text-sm font-medium text-dark-navy mb-1">Mode</label>
+      <div
+        role="radiogroup"
+        aria-label="Mode"
+        className="inline-flex items-stretch rounded-lg border border-border-gray bg-white overflow-hidden"
+      >
+        {(["personal", "power"] as const).map((m) => {
+          const selected = mode === m;
+          return (
+            <button
+              key={m}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => setMode(m)}
+              className={[
+                "px-4 h-9 text-sm font-medium capitalize transition-colors",
+                selected
+                  ? "bg-itu-blue text-white"
+                  : "text-dark-navy hover:bg-itu-blue-pale",
+              ].join(" ")}
+            >
+              {m}
+            </button>
+          );
+        })}
+      </div>
+      <p className="mt-1 text-[11px] text-mid-gray">
+        {mode === "personal"
+          ? "Quiet, first-person — your private notes."
+          : "Dense, third-person — shareable meeting notes with Bureau tagging."}
+      </p>
+    </div>
   );
 }
 

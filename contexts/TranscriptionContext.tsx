@@ -25,6 +25,7 @@ import {
   type ReactNode,
 } from "react";
 import { useAudioCapture } from "@/hooks/useAudioCapture";
+import { interpretError } from "@/lib/azureErrorMessages";
 import {
   useChunkDispatcher,
   useTranscription,
@@ -112,12 +113,17 @@ export function TranscriptionProvider({ children }: { children: ReactNode }) {
   const tx = useTranscription({
     language,
     onEntry: store.addEntry,
-    onError: (msg, idx) => {
-      setToast(`Chunk ${idx + 1} failed: ${msg}`);
-      setTimeout(() => setToast(null), 4000);
+    onError: (msg, _idx) => {
+      // D11: interpret raw Azure / network errors as plain language.
+      // The verbose original message is still console.warn'd for debug.
+      const smart = interpretError(msg);
+      console.warn("[transcription] chunk error", msg);
+      setToast(smart.title + (smart.hint ? ` — ${smart.hint}` : ""));
+      setTimeout(() => setToast(null), smart.severity === "error" ? 8000 : 4000);
     },
     onRateLimited: (msg) => {
-      setRateLimitMsg(msg);
+      const smart = interpretError(msg);
+      setRateLimitMsg(smart.title + (smart.hint ? ` ${smart.hint}` : ""));
       tx.abort();
       capture.stopCapture();
     },

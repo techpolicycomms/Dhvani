@@ -195,7 +195,11 @@ function MeetingCard({
           ].join(" ")}
         >
           <Video size={12} />
-          {ongoing ? "Transcribe Now" : "Transcribe"}
+          {ongoing
+            ? "Join & record"
+            : startingSoon
+              ? "Start"
+              : "Set up"}
         </button>
       </div>
     </li>

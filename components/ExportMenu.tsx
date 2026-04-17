@@ -6,6 +6,7 @@ import {
   buildFilename,
   downloadText,
   toJson,
+  toMarkdown,
   toSrt,
   toTxt,
   type SpeakerResolver,
@@ -38,12 +39,28 @@ export function ExportMenu({ transcript, resolveSpeaker }: Props) {
     }
   };
 
-  const doDownload = (kind: "txt" | "srt" | "json") => {
-    const file = buildFilename(kind);
+  const doCopyMarkdown = async () => {
+    try {
+      await navigator.clipboard.writeText(toMarkdown(transcript, resolveSpeaker));
+      setStatus("Copied as Markdown");
+      setTimeout(() => setStatus(null), 1500);
+    } catch {
+      setStatus("Copy failed");
+      setTimeout(() => setStatus(null), 1500);
+    }
+    setOpen(false);
+  };
+
+  const doDownload = (kind: "txt" | "srt" | "json" | "md") => {
+    const file = buildFilename(kind === "md" ? "txt" : kind).replace(
+      /\.txt$/,
+      kind === "md" ? ".md" : ".txt"
+    );
     if (kind === "txt") downloadText(toTxt(transcript, resolveSpeaker), file);
     if (kind === "srt") downloadText(toSrt(transcript, resolveSpeaker), file);
     if (kind === "json")
       downloadText(toJson(transcript, resolveSpeaker), file, "application/json");
+    if (kind === "md") downloadText(toMarkdown(transcript, resolveSpeaker), file, "text/markdown");
     setOpen(false);
   };
 
@@ -60,6 +77,8 @@ export function ExportMenu({ transcript, resolveSpeaker }: Props) {
       {open && !disabled && (
         <div className="absolute right-0 bottom-full mb-2 w-48 bg-white border border-border-gray rounded-lg shadow-xl overflow-hidden z-10">
           <MenuItem onClick={doCopy}>Copy All (clipboard)</MenuItem>
+          <MenuItem onClick={doCopyMarkdown}>Copy as Markdown</MenuItem>
+          <MenuItem onClick={() => doDownload("md")}>Download .md</MenuItem>
           <MenuItem onClick={() => doDownload("txt")}>Download .txt</MenuItem>
           <MenuItem onClick={() => doDownload("srt")}>Download .srt</MenuItem>
           <MenuItem onClick={() => doDownload("json")}>Download .json</MenuItem>

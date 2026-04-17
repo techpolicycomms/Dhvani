@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Calendar,
   Clock,
@@ -11,6 +11,8 @@ import {
   Search,
   Settings,
   Trash2,
+  Undo2,
+  X,
 } from "lucide-react";
 import { NavLinks } from "@/components/NavLinks";
 import TranscriptSearch from "@/components/TranscriptSearch";
@@ -67,6 +69,10 @@ export default function TranscriptsPage() {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [shareId, setShareId] = useState<string | null>(null);
   const [showSearch, setShowSearch] = useState(false);
+  // D2 — undo-delete: hide the row immediately, keep the deletion in
+  // memory for 10s, then commit to the server. Restore on Undo.
+  const [pendingDelete, setPendingDelete] = useState<ListItem | null>(null);
+  const undoTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     fetch("/api/admin/config")
@@ -118,20 +124,48 @@ export default function TranscriptsPage() {
     });
   }, [items, search, dateFilter]);
 
-  async function onDelete(id: string) {
-    if (!confirm("Delete this transcript permanently?")) return;
-    setBusyId(id);
+  function onDelete(id: string) {
+    // D2 — soft-delete with 10s grace period. Hide the row immediately,
+    // surface an Undo toast, and only call the API once the timer fires.
+    const target = items?.find((i) => i.id === id);
+    if (!target) return;
+    setItems((prev) => (prev ? prev.filter((i) => i.id !== id) : prev));
+    setPendingDelete(target);
+    if (undoTimerRef.current !== null) window.clearTimeout(undoTimerRef.current);
+    undoTimerRef.current = window.setTimeout(() => {
+      void commitDelete(target.id);
+      setPendingDelete(null);
+      undoTimerRef.current = null;
+    }, 10_000);
+  }
+
+  async function commitDelete(id: string) {
     try {
-      const res = await fetch(`/api/transcripts/${id}`, {
-        method: "DELETE",
-      });
+      const res = await fetch(`/api/transcripts/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setItems((prev) => (prev ? prev.filter((i) => i.id !== id) : prev));
     } catch (e) {
-      alert(`Failed to delete: ${(e as Error).message}`);
-    } finally {
-      setBusyId(null);
+      // Restore on hard failure so the user isn't silently lied to.
+      console.warn("[transcripts] delete failed", e);
+      setError(`Failed to delete: ${(e as Error).message}`);
     }
+  }
+
+  function onUndoDelete() {
+    if (!pendingDelete) return;
+    const restored = pendingDelete;
+    if (undoTimerRef.current !== null) {
+      window.clearTimeout(undoTimerRef.current);
+      undoTimerRef.current = null;
+    }
+    setItems((prev) =>
+      prev
+        ? [restored, ...prev].sort(
+            (a, b) =>
+              new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+          )
+        : [restored]
+    );
+    setPendingDelete(null);
   }
 
   async function onExport(id: string, title: string) {
@@ -389,6 +423,41 @@ export default function TranscriptsPage() {
           transcriptId={shareId}
           onClose={() => setShareId(null)}
         />
+      )}
+
+      {/* D2 — undo-delete toast (10s grace period) */}
+      {pendingDelete && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 max-w-sm w-[calc(100%-2rem)] bg-dark-navy text-white shadow-lg rounded-lg px-4 py-3 flex items-center gap-3"
+        >
+          <span className="flex-1 text-sm truncate">
+            Deleted &ldquo;{pendingDelete.title || "transcript"}&rdquo;
+          </span>
+          <button
+            type="button"
+            onClick={onUndoDelete}
+            className="inline-flex items-center gap-1 text-sm font-medium underline underline-offset-2"
+          >
+            <Undo2 size={14} /> Undo
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              if (undoTimerRef.current !== null) {
+                window.clearTimeout(undoTimerRef.current);
+                undoTimerRef.current = null;
+              }
+              if (pendingDelete) void commitDelete(pendingDelete.id);
+              setPendingDelete(null);
+            }}
+            aria-label="Dismiss"
+            className="opacity-60 hover:opacity-100"
+          >
+            <X size={14} />
+          </button>
+        </div>
       )}
     </main>
   );

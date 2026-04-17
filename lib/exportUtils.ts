@@ -87,6 +87,41 @@ export function toJson(
 }
 
 /**
+ * D4 — Markdown export with timestamp anchors. Pastes cleanly into
+ * Obsidian, Notion, Bear, etc. Title + recap are appended by the caller
+ * when they have access to that data.
+ *
+ *   # Meeting title
+ *   *Date · Duration*
+ *
+ *   ## Transcript
+ *   **[10:23:15]** **Speaker 1:** So the way I see it…
+ */
+export function toMarkdown(
+  transcript: TranscriptEntry[],
+  resolve?: SpeakerResolver,
+  opts?: { title?: string; durationMin?: number }
+): string {
+  const lines: string[] = [];
+  const date = new Date().toLocaleDateString();
+  if (opts?.title) {
+    lines.push(`# ${opts.title}`);
+    const meta = opts.durationMin
+      ? `*${date} · ${opts.durationMin.toFixed(0)} min*`
+      : `*${date}*`;
+    lines.push(meta, "", "## Transcript", "");
+  }
+  for (const e of transcript) {
+    const speaker = displayFor(e, resolve);
+    const head = speaker
+      ? `**[${e.timestamp}]** **${speaker}:**`
+      : `**[${e.timestamp}]**`;
+    lines.push(`${head} ${e.text}`, "");
+  }
+  return lines.join("\n").trim();
+}
+
+/**
  * Build a filename like "dhvani-transcript-2026-04-14.txt".
  */
 export function buildFilename(extension: string): string {
