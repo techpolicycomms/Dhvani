@@ -3,12 +3,14 @@ import { getActiveUser } from "@/lib/auth";
 import { createChatOpenAIClient, chatDeployment } from "@/lib/openai";
 import { checkChatRate } from "@/lib/rateLimiter";
 import { logSecurityEvent } from "@/lib/security";
+import { findRoleProfile } from "@/lib/roleProfiles";
+import { readUserProfile } from "@/lib/userProfileStorage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const SYSTEM_PROMPT = `Write a professional follow-up email for this meeting. Include: brief summary, action items with assignees, next steps, and any deadlines mentioned. Tone: professional but warm. Address it to the meeting attendees. Format as plain text email (not HTML).`;
+const BASE_PROMPT = `Write a professional follow-up email for this meeting. Include: brief summary, action items with assignees, next steps, and any deadlines mentioned. Address it to the meeting attendees. Format as plain text email (not HTML).`;
 
 export async function POST(req: NextRequest) {
   const user = await getActiveUser();
@@ -66,6 +68,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "AI service is misconfigured." }, { status: 500 });
   }
 
+  // Role-aware tone guidance.
+  const storedProfile = await readUserProfile(user.userId);
+  const role = findRoleProfile(storedProfile?.roleId);
+  const systemPrompt =
+    BASE_PROMPT + `\n\nTone: ${role.followUpTone}`;
+
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 30_000);
@@ -73,7 +81,7 @@ export async function POST(req: NextRequest) {
       {
         model: chatDeployment(),
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemPrompt },
           { role: "user", content: context },
         ],
         temperature: 0.4,

@@ -4,10 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Calendar,
+  CheckSquare,
   Download,
   FileText,
   Laptop,
   Link2,
+  Rocket,
   Shield,
   Upload,
 } from "lucide-react";
@@ -38,6 +40,8 @@ export function NavLinks({ isAdmin, orientation = "horizontal" }: Props) {
   }> = [
     { href: "/", label: "Home", icon: Calendar },
     { href: "/transcripts", label: "Transcripts", icon: FileText },
+    { href: "/tasks", label: "Tasks", icon: CheckSquare },
+    { href: "/mission", label: "Mission", icon: Rocket },
     { href: "/upload", label: "Upload", icon: Upload },
     { href: "/url-transcribe", label: "URL", icon: Link2 },
     { href: "/desktop-setup", label: "Desktop Setup", icon: Laptop },

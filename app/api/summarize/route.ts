@@ -10,13 +10,22 @@ import {
 } from "@/lib/orgIntelligence";
 import { checkChatRate } from "@/lib/rateLimiter";
 import { logSecurityEvent } from "@/lib/security";
+import {
+  extractTasksFromLLM,
+  inferDeadline,
+  stripTasksBlock,
+  upsertTask,
+  newTaskId,
+} from "@/lib/taskManager";
+import { findRoleProfile } from "@/lib/roleProfiles";
+import { readUserProfile } from "@/lib/userProfileStorage";
 import type { TranscriptEntry } from "@/lib/constants";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
-const SYSTEM_PROMPT = `You are an expert meeting assistant. Given a transcript with speaker labels, generate a structured meeting summary. Format your response EXACTLY as follows:
+const BASE_PROMPT = `You are an expert meeting assistant. Given a transcript with speaker labels, generate a structured meeting summary. Format the response EXACTLY as follows:
 
 ## Summary
 [3-5 sentence overview of what was discussed]
@@ -47,7 +56,20 @@ const SYSTEM_PROMPT = `You are an expert meeting assistant. Given a transcript w
 - [Speaker 1]: [estimated % of speaking time]
 - [Speaker 2]: [estimated % of speaking time]
 
-Be concise. Use the speaker names as provided. If no due date was mentioned for an action item, omit the due field. If no clear decisions were made, omit that section. If only one speaker is present, adjust accordingly.`;
+Be concise. Use the speaker names as provided. If no due date was mentioned for an action item, omit the due field. If no clear decisions were made, omit that section. If only one speaker is present, adjust accordingly.
+
+After the summary, on a new line, emit exactly this sentinel then a JSON array of extracted tasks:
+
+---TASKS---
+[
+  { "task": "specific actionable task", "assignee": "name or Unassigned", "deadline": "YYYY-MM-DD or null or natural-language", "priority": "critical|high|medium|low", "timestamp": "HH:MM:SS or null" }
+]
+
+Rules:
+- Tasks must be specific and actionable ("Send updated spectrum analysis to Working Party 5D by Friday" — not "follow up").
+- If the deadline is relative ("by next week"), pass it through as-is — the server will resolve it.
+- Priority: "critical" only for explicit urgency language ("urgent", "ASAP", "blocker").
+- If no tasks are extractable, emit an empty array: [].`;
 
 export type ActionItem = {
   task: string;
@@ -62,6 +84,14 @@ export type SummaryResponse = {
   keywords: string[];
   sentiment: string;
   talkTime: Array<{ speaker: string; percent: number }>;
+  /** Tasks auto-extracted from the transcript by the LLM. */
+  extractedTasks: Array<{
+    task: string;
+    assignee: string;
+    deadline: string | null;
+    priority: "critical" | "high" | "medium" | "low";
+    timestamp: string | null;
+  }>;
 };
 
 const MAX_ENTRIES = 10_000;
@@ -148,19 +178,36 @@ export async function POST(req: NextRequest) {
 
   const ai = getAIProvider();
 
+  // Role-aware prompt: fetch the user's profile and compose an
+  // extended system prompt that includes domain vocabulary, the
+  // role's preferred summary structure, action-item format, and
+  // follow-up tone guidance.
+  const storedProfile = await readUserProfile(user.userId);
+  const role = findRoleProfile(storedProfile?.roleId);
+  const systemPrompt =
+    BASE_PROMPT +
+    `\n\n## Role context\n` +
+    `The reader is a ${role.label} in ${role.department} (${role.sector}).\n\n` +
+    `${role.summaryTemplate}\n\n` +
+    `Action-item guidance: ${role.actionItemFormat}\n\n` +
+    `Domain vocabulary to recognize and spell correctly:\n` +
+    role.vocabulary.slice(0, 40).join(", ");
+
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60_000);
     const completion = await ai.chat(
       [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: systemPrompt },
         { role: "user", content: transcriptText },
       ],
       { temperature: 0.3, maxTokens: 2000, signal: controller.signal }
     );
     clearTimeout(timeout);
 
-    const markdown = completion.text;
+    const rawMarkdown = completion.text;
+    const extractedTasks = extractTasksFromLLM(rawMarkdown);
+    const markdown = stripTasksBlock(rawMarkdown);
     const actionItems = parseActionItems(markdown);
     const keywords = parseKeywords(markdown);
     const sentiment = parseSentiment(markdown);
@@ -212,7 +259,35 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    return NextResponse.json({ markdown, actionItems, keywords, sentiment, talkTime } satisfies SummaryResponse);
+    // Persist extracted tasks into the per-user task log so they
+    // show up on /tasks and the home-page checklist.
+    for (const et of extractedTasks) {
+      try {
+        await upsertTask(user.userId, {
+          id: newTaskId(),
+          title: et.task,
+          assignee: et.assignee,
+          deadline: inferDeadline(et.deadline),
+          priority: et.priority,
+          transcriptTimestamp: et.timestamp,
+          meetingTitle: body.meetingSubject || null,
+          meetingDate: new Date().toISOString(),
+          category: role.id,
+          relatedKeywords: keywords.slice(0, 5),
+        });
+      } catch (err) {
+        console.warn("[summarize] failed to persist extracted task", err);
+      }
+    }
+
+    return NextResponse.json({
+      markdown,
+      actionItems,
+      keywords,
+      sentiment,
+      talkTime,
+      extractedTasks,
+    } satisfies SummaryResponse);
   } catch (err: unknown) {
     if ((err as Error).name === "AbortError") {
       return NextResponse.json(
