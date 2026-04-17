@@ -3,6 +3,11 @@ import { getActiveUser } from "@/lib/auth";
 import { chatDeployment } from "@/lib/openai";
 import { getAIProvider } from "@/lib/providers";
 import { events } from "@/lib/events";
+import { logChatUsage } from "@/lib/greenIct";
+import {
+  extractKeywords,
+  recordAnonymisedMeeting,
+} from "@/lib/orgIntelligence";
 import type { TranscriptEntry } from "@/lib/constants";
 
 export const runtime = "nodejs";
@@ -149,6 +154,44 @@ export async function POST(req: NextRequest) {
       userId: user.userId,
     });
 
+    // Track chat-side energy for the Green ICT dashboard.
+    void logChatUsage({
+      userId: user.userId,
+      timestamp: new Date().toISOString(),
+      activity: "summary",
+    });
+
+    // Optional anonymised contribution to the org-intelligence log.
+    // Gated on an explicit request header from the client — default off.
+    if (req.headers.get("x-contribute-insights") === "true") {
+      const department =
+        (user as unknown as { department?: string }).department ||
+        req.headers.get("x-department") ||
+        "Unknown";
+      const firstTs = entries[0]?.timestamp || "00:00:00";
+      const lastTs = entries[entries.length - 1]?.timestamp || firstTs;
+      const durationMinutes = approxDurationMinutes(firstTs, lastTs);
+      const speakerCount = new Set(
+        entries
+          .map((e) => e.rawSpeaker || e.speaker)
+          .filter((s): s is string => !!s)
+      ).size;
+      void recordAnonymisedMeeting({
+        timestamp: new Date().toISOString(),
+        department,
+        durationMinutes,
+        topicKeywords:
+          keywords.length > 0
+            ? keywords.slice(0, 5).map((k) => k.toLowerCase())
+            : extractKeywords(markdown),
+        sentiment,
+        actionItemCount: actionItems.length,
+        speakerCount,
+        languageUsed:
+          (req.headers.get("x-language") || "").toLowerCase() || "unknown",
+      });
+    }
+
     return NextResponse.json({ markdown, actionItems, keywords, sentiment, talkTime } satisfies SummaryResponse);
   } catch (err: unknown) {
     if ((err as Error).name === "AbortError") {
@@ -229,4 +272,20 @@ function parseTalkTime(markdown: string): Array<{ speaker: string; percent: numb
     }
   }
   return results;
+}
+
+/**
+ * Best-effort meeting duration from the first/last transcript timestamps.
+ * Expects HH:MM:SS or MM:SS strings as produced by lib/audioUtils.formatElapsed.
+ */
+function approxDurationMinutes(firstTs: string, lastTs: string): number {
+  const parse = (s: string): number => {
+    const parts = s.split(":").map((p) => parseInt(p, 10));
+    if (parts.some((n) => Number.isNaN(n))) return 0;
+    if (parts.length === 3) return parts[0] * 3600 + parts[1] * 60 + parts[2];
+    if (parts.length === 2) return parts[0] * 60 + parts[1];
+    return 0;
+  };
+  const delta = Math.max(0, parse(lastTs) - parse(firstTs));
+  return +(delta / 60).toFixed(1);
 }

@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, BarChart3, Users } from "lucide-react";
+import { ArrowLeft, BarChart3, Users, Leaf, ShieldCheck } from "lucide-react";
+import { EmissionsDashboard } from "@/components/admin/EmissionsDashboard";
+import { OrgIntelligence } from "@/components/admin/OrgIntelligence";
 import {
   Bar,
   BarChart,
@@ -76,7 +78,9 @@ export function AdminDashboardClient({ initialStats, signedInEmail }: Props) {
   const [filter, setFilter] = useState("");
   const [savingConfig, setSavingConfig] = useState(false);
   const [configToast, setConfigToast] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "analytics">("overview");
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "analytics" | "green-ict" | "org-intel"
+  >("overview");
   const [analytics, setAnalytics] = useState<TeamAnalytics | null>(null);
 
   useEffect(() => {
@@ -220,6 +224,26 @@ export function AdminDashboardClient({ initialStats, signedInEmail }: Props) {
             >
               <Users size={12} /> Team Analytics
             </button>
+            <button
+              onClick={() => setActiveTab("green-ict")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                activeTab === "green-ict"
+                  ? "bg-itu-blue text-white"
+                  : "text-mid-gray hover:text-dark-navy hover:bg-light-gray"
+              }`}
+            >
+              <Leaf size={12} /> Green ICT
+            </button>
+            <button
+              onClick={() => setActiveTab("org-intel")}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors ${
+                activeTab === "org-intel"
+                  ? "bg-itu-blue text-white"
+                  : "text-mid-gray hover:text-dark-navy hover:bg-light-gray"
+              }`}
+            >
+              <ShieldCheck size={12} /> Org Intelligence
+            </button>
           </div>
         </div>
         <Link
@@ -233,6 +257,10 @@ export function AdminDashboardClient({ initialStats, signedInEmail }: Props) {
       {activeTab === "analytics" && (
         <TeamAnalyticsPanel analytics={analytics} />
       )}
+
+      {activeTab === "green-ict" && <EmissionsDashboard />}
+
+      {activeTab === "org-intel" && <OrgIntelligence />}
 
       {activeTab === "overview" && (<>
       {/* Overview cards */}

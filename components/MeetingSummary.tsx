@@ -49,9 +49,16 @@ export default function MeetingSummary({
     setState("loading");
     setError("");
     try {
+      const contribute =
+        typeof window !== "undefined" &&
+        localStorage.getItem("dhvani-contribute-insights") === "true";
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (contribute) headers["x-contribute-insights"] = "true";
       const res = await fetch("/api/summarize", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         credentials: "include",
         body: JSON.stringify({
           transcript,

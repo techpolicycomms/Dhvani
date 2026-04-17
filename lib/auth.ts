@@ -65,10 +65,16 @@ export const authConfig: NextAuthConfig = {
           email?: string;
           preferred_username?: string;
           name?: string;
+          department?: string;
+          jobTitle?: string;
         };
         token.userId = p.oid || p.sub || token.sub || "";
         token.email = p.email || p.preferred_username || token.email || "";
         token.name = p.name || token.name || "";
+        // Org Intelligence tab uses this (if present) to group anonymised
+        // meeting records by department. Entra populates it from the
+        // tenant's user directory; absent for personal accounts.
+        if (p.department) token.department = p.department;
       }
       // Persist the Microsoft access token + refresh token + expiry so
       // server-side calls to Microsoft Graph (calendar) can authenticate
@@ -92,6 +98,8 @@ export const authConfig: NextAuthConfig = {
         // Expose our app-specific identity fields on session.user.
         (session.user as { userId?: string }).userId =
           (token.userId as string) || "";
+        (session.user as { department?: string }).department =
+          (token.department as string) || undefined;
       }
       // NOTE: we deliberately do NOT surface the Microsoft Graph access
       // token here. NextAuth's SessionProvider serializes the session
@@ -153,6 +161,7 @@ export type ActiveUser = {
   userId: string;
   email: string;
   name: string | null;
+  department?: string;
 };
 
 /**
@@ -191,13 +200,19 @@ export async function getActiveUser(): Promise<ActiveUser | null> {
   }
   const session = await auth();
   const user = session?.user as
-    | { userId?: string; email?: string | null; name?: string | null }
+    | {
+        userId?: string;
+        email?: string | null;
+        name?: string | null;
+        department?: string;
+      }
     | undefined;
   if (!user?.email) return null;
   return {
     userId: user.userId || user.email,
     email: user.email,
     name: user.name || null,
+    department: user.department,
   };
 }
 

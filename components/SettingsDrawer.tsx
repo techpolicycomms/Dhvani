@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, ExternalLink } from "lucide-react";
+import { X, ExternalLink, Leaf } from "lucide-react";
 import { DeviceSelector } from "./DeviceSelector";
 import { CalendarToggle } from "./CalendarToggle";
 import VocabularyManager from "./VocabularyManager";
+import { OrgInsightsOptIn } from "./OrgInsightsOptIn";
 import {
   MAX_CHUNK_DURATION_MS,
   MIN_CHUNK_DURATION_MS,
@@ -203,6 +204,17 @@ export function SettingsDrawer(props: Props) {
           </div>
 
           <div className="pt-4 border-t border-border-gray space-y-3">
+            <div className="text-xs font-semibold text-mid-gray uppercase tracking-wider">
+              Privacy
+            </div>
+            <OrgInsightsOptIn />
+          </div>
+
+          <div className="pt-4 border-t border-border-gray">
+            <CarbonFootprintCard />
+          </div>
+
+          <div className="pt-4 border-t border-border-gray space-y-3">
             {isAdmin && (
               <a
                 href="/admin"
@@ -286,6 +298,47 @@ function Field({
       </label>
       {children}
       {hint && <p className="mt-1 text-[11px] text-mid-gray">{hint}</p>}
+    </div>
+  );
+}
+
+function CarbonFootprintCard() {
+  const [data, setData] = useState<{
+    minutes: number;
+    carbonGrams: number;
+    googleSearches: number;
+  } | null>(null);
+  useEffect(() => {
+    fetch("/api/me/emissions")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setData(d))
+      .catch(() => {});
+  }, []);
+  return (
+    <div className="rounded-lg border border-border-gray bg-white p-3">
+      <div className="flex items-center gap-2 text-xs font-semibold text-dark-navy mb-2">
+        <Leaf size={14} className="text-success" /> Your Carbon Footprint
+      </div>
+      {!data ? (
+        <div className="text-[11px] text-mid-gray">
+          No activity in the last 30 days yet.
+        </div>
+      ) : (
+        <div className="text-[11px] text-mid-gray leading-relaxed">
+          <div className="text-dark-navy">
+            <span className="font-semibold tabular-nums">
+              {data.minutes.toFixed(1)} min
+            </span>{" "}
+            transcribed →{" "}
+            <span className="font-semibold tabular-nums">
+              {(data.carbonGrams / 1000).toFixed(4)} kg CO₂e
+            </span>
+          </div>
+          <div>
+            Equivalent to ~{data.googleSearches.toLocaleString()} Google searches.
+          </div>
+        </div>
+      )}
     </div>
   );
 }
