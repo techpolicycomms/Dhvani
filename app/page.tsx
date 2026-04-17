@@ -52,7 +52,12 @@ import {
 export default function HomePage() {
   const { data: session } = useSession();
   const user = session?.user as
-    | { name?: string | null; email?: string | null; userId?: string }
+    | {
+        name?: string | null;
+        email?: string | null;
+        userId?: string;
+        department?: string;
+      }
     | undefined;
 
   // Whether the signed-in user can see the admin dashboard link. We

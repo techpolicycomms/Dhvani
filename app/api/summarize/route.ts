@@ -182,10 +182,12 @@ export async function POST(req: NextRequest) {
     // Optional anonymised contribution to the org-intelligence log.
     // Gated on an explicit request header from the client — default off.
     if (req.headers.get("x-contribute-insights") === "true") {
-      const department =
-        (user as unknown as { department?: string }).department ||
-        req.headers.get("x-department") ||
-        "Unknown";
+      // Department is sourced **only** from the authenticated session
+      // (Entra claim). Accepting an `x-department` header would let a
+      // user spoof which bucket their anonymised meeting lands in —
+      // low-impact (the aggregate is privacy-safe either way) but
+      // undermines the legitimacy of the grouping.
+      const department = user.department || "Unknown";
       const firstTs = entries[0]?.timestamp || "00:00:00";
       const lastTs = entries[entries.length - 1]?.timestamp || firstTs;
       const durationMinutes = approxDurationMinutes(firstTs, lastTs);
