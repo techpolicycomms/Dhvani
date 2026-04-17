@@ -2,10 +2,21 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  AUDIO_BITS_PER_SECOND,
   DEFAULT_CHUNK_DURATION_MS,
+  MIN_FREE_STORAGE_BYTES,
   type CaptureMode,
 } from "@/lib/constants";
 import { pickSupportedMimeType } from "@/lib/audioUtils";
+import {
+  checkStorageQuota,
+  finalizeSession,
+  newSessionId,
+  persistChunk,
+  requestPersistentStorage,
+  startRecordingSession,
+} from "@/lib/audioPersistence";
+import { useWakeLock } from "@/hooks/useWakeLock";
 
 export type CapturedChunk = {
   index: number;
@@ -15,6 +26,11 @@ export type CapturedChunk = {
   // Elapsed time in ms when this chunk finished capturing.
   capturedAtMs: number;
   durationMs: number;
+  // Session id — used by the transcription pipeline to delete the
+  // persisted copy after a successful upload. Recovered orphan chunks
+  // reuse their original session id so the same cleanup path applies.
+  // Empty string means persistence is unsupported on this browser.
+  sessionId: string;
 };
 
 export type UseAudioCaptureOptions = {
@@ -83,6 +99,9 @@ export function useAudioCapture(
   const startedAtRef = useRef<number>(0);
   const lastChunkAtRef = useRef<number>(0);
   const tickRef = useRef<number | null>(null);
+  // Current recording session id for crash-safe chunk persistence.
+  const sessionIdRef = useRef<string>("");
+  const wakeLock = useWakeLock();
   // Cycle timer rotates the MediaRecorder every chunkDuration ms so each
   // emitted blob is a self-contained WebM container (timeslice mode emits
   // header-less fragments after the first chunk that Whisper cannot decode).
@@ -190,9 +209,11 @@ export function useAudioCapture(
       const createRecorder = (): MediaRecorder | null => {
         let recorder: MediaRecorder;
         try {
-          recorder = mimeType
-            ? new MediaRecorder(stream, { mimeType })
-            : new MediaRecorder(stream);
+          const opts: MediaRecorderOptions = {
+            audioBitsPerSecond: AUDIO_BITS_PER_SECOND,
+          };
+          if (mimeType) opts.mimeType = mimeType;
+          recorder = new MediaRecorder(stream, opts);
         } catch {
           setError(
             "Failed to start audio recording. Your browser may not support the required audio format."
@@ -214,7 +235,15 @@ export function useAudioCapture(
             extension,
             capturedAtMs: elapsed,
             durationMs: duration,
+            sessionId: sessionIdRef.current,
           };
+          // Persist in the background; don't block the capture tick.
+          if (sessionIdRef.current) {
+            void persistChunk(sessionIdRef.current, chunk.index, chunk.blob, {
+              capturedAtMs: chunk.capturedAtMs,
+              durationMs: chunk.durationMs,
+            });
+          }
           setAudioChunks((prev) => [...prev, chunk]);
         };
 
@@ -287,6 +316,24 @@ export function useAudioCapture(
       console.log("[useAudioCapture] startCapture called", { mode });
       setError(null);
       try {
+        // Pre-flight: make sure we have somewhere to put the chunks.
+        const { available } = await checkStorageQuota();
+        if (available > 0 && available < MIN_FREE_STORAGE_BYTES) {
+          setError(
+            `Low storage: only ${Math.floor(available / 1_048_576)} MB free. Clear space before recording.`
+          );
+          return;
+        }
+        await requestPersistentStorage();
+
+        // New session id for this recording — all subsequent chunks
+        // (including Electron-sourced ones) attach to it.
+        const sessionId = newSessionId();
+        sessionIdRef.current = sessionId;
+        const { mimeType, extension } = pickSupportedMimeType();
+        await startRecordingSession(sessionId, { mimeType, extension });
+        await wakeLock.acquire();
+
         // Electron mode: delegate to the preload bridge.
         if (mode === "electron" || isElectron()) {
           const api = (window as any).electronAPI;
@@ -306,15 +353,23 @@ export function useAudioCapture(
             const duration = now - lastChunkAtRef.current;
             lastChunkAtRef.current = now;
             const blob = new Blob([payload], { type: "audio/webm" });
+            const index = chunkIndexRef.current++;
+            if (sessionIdRef.current) {
+              void persistChunk(sessionIdRef.current, index, blob, {
+                capturedAtMs: elapsed,
+                durationMs: duration,
+              });
+            }
             setAudioChunks((prev) => [
               ...prev,
               {
-                index: chunkIndexRef.current++,
+                index,
                 blob,
                 mimeType: "audio/webm",
                 extension: "webm",
                 capturedAtMs: elapsed,
                 durationMs: duration,
+                sessionId: sessionIdRef.current,
               },
             ]);
           });
@@ -365,7 +420,7 @@ export function useAudioCapture(
         isCapturingRef.current = false;
       }
     },
-    [acquireStream, beginRecording, chunkDuration, teardown]
+    [acquireStream, beginRecording, chunkDuration, teardown, wakeLock]
   );
 
   const stopCapture = useCallback(() => {
@@ -381,7 +436,16 @@ export function useAudioCapture(
       api?.stopCapture?.();
     }
     teardown();
-  }, [teardown]);
+    void wakeLock.release();
+    // Mark the session finalized. The transcription pipeline deletes
+    // chunks as they upload successfully; once the last one lands, the
+    // OPFS directory is cleaned up by markChunkTranscribed / finalize.
+    const sid = sessionIdRef.current;
+    if (sid) {
+      void finalizeSession(sid);
+      sessionIdRef.current = "";
+    }
+  }, [teardown, wakeLock]);
 
   const reconnect = useCallback(async () => {
     if (!lastModeRef.current) return;

@@ -1,6 +1,7 @@
 "use client";
 
-import { Mic, MonitorPlay, Cable } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Mic, MonitorPlay, Cable, Laptop } from "lucide-react";
 import type { CaptureMode } from "@/lib/constants";
 
 type Props = {
@@ -11,12 +12,14 @@ type Props = {
   lockReason?: string;
 };
 
-const OPTIONS: Array<{
+type Option = {
   value: CaptureMode;
   label: string;
   hint: string;
   icon: typeof Mic;
-}> = [
+};
+
+const COMMON_OPTIONS: Option[] = [
   {
     value: "tab-audio",
     label: "Browser Tab",
@@ -29,13 +32,21 @@ const OPTIONS: Array<{
     hint: "Capture from your computer's microphone.",
     icon: Mic,
   },
-  {
-    value: "virtual-cable",
-    label: "System Audio",
-    hint: "Route system audio via BlackHole / VB-Cable / Electron bridge.",
-    icon: Cable,
-  },
 ];
+
+const ELECTRON_OPTION: Option = {
+  value: "electron",
+  label: "Desktop App",
+  hint: "Capture system audio natively — Teams, Zoom, Webex, Slack, WhatsApp.",
+  icon: Laptop,
+};
+
+const VIRTUAL_CABLE_OPTION: Option = {
+  value: "virtual-cable",
+  label: "System Audio",
+  hint: "Route via BlackHole / VB-Cable (setup required).",
+  icon: Cable,
+};
 
 /**
  * Persistent capture-mode switcher. Sits above the Start/Stop bar so
@@ -44,6 +55,18 @@ const OPTIONS: Array<{
  * capture is in progress, since swapping streams live would drop data.
  */
 export function AudioModeSelector({ value, onChange, locked, lockReason }: Props) {
+  const [hasElectron, setHasElectron] = useState(false);
+  useEffect(() => {
+    setHasElectron(
+      typeof window !== "undefined" &&
+        Boolean((window as unknown as { electronAPI?: unknown }).electronAPI)
+    );
+  }, []);
+  const options: Option[] = [
+    ...COMMON_OPTIONS,
+    hasElectron ? ELECTRON_OPTION : VIRTUAL_CABLE_OPTION,
+  ];
+
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-mid-gray">
@@ -59,7 +82,7 @@ export function AudioModeSelector({ value, onChange, locked, lockReason }: Props
         aria-label="Audio source"
         className="inline-flex items-stretch rounded-lg border border-border-gray bg-white overflow-hidden"
       >
-        {OPTIONS.map((opt) => {
+        {options.map((opt) => {
           const Icon = opt.icon;
           const selected = value === opt.value;
           return (

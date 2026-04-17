@@ -10,6 +10,7 @@ import { RecordingBadge } from "@/components/RecordingBadge";
 import { TranscriptionProvider } from "@/contexts/TranscriptionContext";
 import { UserProfileProvider } from "@/contexts/UserProfileContext";
 import { OnboardingGate } from "@/components/OnboardingGate";
+import { OrphanRecordingBanner } from "@/components/OrphanRecordingBanner";
 
 // Noto Sans covers all six UN languages (English, French, Spanish, Russian,
 // Arabic, Chinese) plus Hindi — the practical baseline for an ITU tool.
@@ -95,6 +96,7 @@ export default async function RootLayout({
                 {children}
                 <RecordingBadge />
                 <OnboardingGate />
+                <OrphanRecordingBanner />
                 <InstallPrompt />
               </TranscriptionProvider>
             </UserProfileProvider>
@@ -106,6 +108,7 @@ export default async function RootLayout({
                 {children}
                 <RecordingBadge />
                 <OnboardingGate />
+                <OrphanRecordingBanner />
                 <InstallPrompt />
               </TranscriptionProvider>
             </UserProfileProvider>

@@ -10,6 +10,10 @@ import {
   type TranscriptEntry,
 } from "@/lib/constants";
 import { blobToFile, formatElapsed } from "@/lib/audioUtils";
+import {
+  markChunkTranscribed,
+  sweepFinalizedSession,
+} from "@/lib/audioPersistence";
 import type { CapturedChunk } from "./useAudioCapture";
 
 export type UseTranscriptionOptions = {
@@ -136,11 +140,13 @@ export function useTranscription(
               body.error || "Rate limit reached.",
               body.retryAfterSeconds
             );
+            // Leave the chunk on disk so the user can retry later via
+            // orphan recovery.
             return;
           }
           if (res.status === 401) {
             // Session expired — stop silently; the middleware will redirect
-            // the next navigation back to signin.
+            // the next navigation back to signin. Keep the chunk persisted.
             onError?.("Session expired. Please sign in again.", chunk.index);
             return;
           }
@@ -163,6 +169,11 @@ export function useTranscription(
                 body.error
               )
             ) {
+              // Unrecoverable chunk — drop the persisted copy so it
+              // doesn't surface as a recoverable orphan.
+              if (chunk.sessionId) {
+                void markChunkTranscribed(chunk.sessionId, chunk.index);
+              }
               return;
             }
             if (res.status === 404) {
@@ -217,6 +228,11 @@ export function useTranscription(
           // Update cost accounting.
           const minutes = chunk.durationMs / 60000;
           setTotalMinutes((t) => t + minutes);
+          // Audio is safely captured in the transcript now — drop the
+          // on-disk copy.
+          if (chunk.sessionId) {
+            void markChunkTranscribed(chunk.sessionId, chunk.index);
+          }
           return;
         } catch (err) {
           if ((err as Error).name === "AbortError") return;
@@ -242,10 +258,20 @@ export function useTranscription(
       const chunk = queueRef.current.shift()!;
       inFlightRef.current++;
       syncState();
+      const sessionId = chunk.sessionId;
       // Fire and forget — sendOne manages its own lifecycle.
       sendOne(chunk).finally(() => {
         inFlightRef.current--;
         syncState();
+        // When the queue empties and nothing is in flight, sweep any
+        // session whose stop() beat the last chunk to the finish line.
+        if (
+          sessionId &&
+          inFlightRef.current === 0 &&
+          queueRef.current.length === 0
+        ) {
+          void sweepFinalizedSession(sessionId);
+        }
         // After a slot opens, try to drain more work.
         void drain();
       });

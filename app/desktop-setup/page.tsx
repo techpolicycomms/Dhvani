@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowLeft, ExternalLink } from "lucide-react";
+import { ArrowLeft, Check, Download } from "lucide-react";
 import { AudioRoutingDiagram } from "@/components/AudioRoutingDiagram";
 
 /**
- * Virtual-cable setup guide for users running the Zoom / Teams desktop
- * app instead of a browser tab. Two tabs: macOS (BlackHole) and
- * Windows (VB-Cable).
+ * Desktop-app capture guide. Leads with the Dhvani desktop app (native
+ * system-audio capture, no extra drivers) and keeps the virtual-cable
+ * workflow available as a collapsible fallback for users who can't
+ * install the desktop build.
  */
 export default function DesktopSetupPage() {
   const [platform, setPlatform] = useState<"mac" | "windows">("mac");
@@ -22,45 +23,88 @@ export default function DesktopSetupPage() {
         <ArrowLeft size={14} /> Back to Dhvani
       </Link>
       <h1 className="text-3xl font-bold mt-3 mb-2 text-dark-navy">
-        Desktop App Setup
+        Transcribe desktop meeting apps
       </h1>
       <p className="text-mid-gray mb-6">
-        Running Zoom, Teams, or another meeting app as a desktop install? A
-        free virtual audio cable lets Dhvani hear the meeting while you still
-        hear it in your speakers.
+        Want Dhvani to hear your Teams, Zoom, Webex, Slack, or WhatsApp
+        desktop calls? The easiest path is the Dhvani desktop app — no
+        extra drivers, no system settings to change.
       </p>
 
-      <div className="flex gap-2 mb-6">
-        <Tab active={platform === "mac"} onClick={() => setPlatform("mac")}>
-          macOS
-        </Tab>
-        <Tab
-          active={platform === "windows"}
-          onClick={() => setPlatform("windows")}
-        >
-          Windows
-        </Tab>
-      </div>
+      <section className="rounded-xl border border-itu-blue bg-white p-5 mb-8 shadow-sm">
+        <div className="flex items-start gap-3">
+          <div className="shrink-0 mt-1 w-8 h-8 rounded-full bg-itu-blue-pale text-itu-blue-dark flex items-center justify-center">
+            <Download size={16} />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-semibold text-dark-navy">
+              Install the Dhvani desktop app (recommended)
+            </h2>
+            <p className="mt-1 text-sm text-mid-gray">
+              Captures system audio natively via the Electron bridge. Works
+              with every desktop meeting client — Teams, Zoom, Webex, Google
+              Meet, Slack, WhatsApp, Skype, and more.
+            </p>
+            <ul className="mt-3 space-y-1.5 text-sm text-dark-navy">
+              <li className="flex items-center gap-2">
+                <Check size={14} className="text-itu-blue-dark" /> No
+                BlackHole / VB-Cable install
+              </li>
+              <li className="flex items-center gap-2">
+                <Check size={14} className="text-itu-blue-dark" /> No system
+                audio routing changes
+              </li>
+              <li className="flex items-center gap-2">
+                <Check size={14} className="text-itu-blue-dark" /> You still
+                hear the meeting on your speakers, unchanged
+              </li>
+            </ul>
+            <div className="mt-4 flex gap-2">
+              <Link
+                href="/download"
+                className="inline-flex items-center gap-2 bg-itu-blue text-white text-sm font-medium px-3 py-2 rounded-lg hover:bg-itu-blue-dark"
+              >
+                <Download size={14} /> Download Dhvani
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      <div className="rounded-lg border border-border-gray bg-white p-5 mb-6 shadow-sm">
-        <AudioRoutingDiagram platform={platform} className="w-full h-auto" />
-      </div>
+      <details className="rounded-lg border border-border-gray bg-white p-5 shadow-sm">
+        <summary className="cursor-pointer text-sm font-semibold text-dark-navy">
+          Advanced: set up a virtual audio cable instead
+        </summary>
+        <div className="mt-4 text-sm text-mid-gray">
+          <p className="mb-5">
+            Only needed if you can&apos;t install the Dhvani desktop app. A
+            free virtual audio cable lets the web app hear your meeting
+            while you still hear it in your speakers. Takes about 5
+            minutes.
+          </p>
 
-      {platform === "mac" ? <MacSteps /> : <WindowsSteps />}
+          <div className="flex gap-2 mb-5">
+            <Tab active={platform === "mac"} onClick={() => setPlatform("mac")}>
+              macOS
+            </Tab>
+            <Tab
+              active={platform === "windows"}
+              onClick={() => setPlatform("windows")}
+            >
+              Windows
+            </Tab>
+          </div>
 
-      <div className="mt-8 p-4 rounded border border-border-gray bg-white text-sm shadow-sm">
-        <strong className="text-itu-blue-dark">Prefer no virtual cable?</strong>{" "}
-        <span className="text-dark-navy">
-          Install the Dhvani Electron app, which captures system audio
-          natively — no extra drivers required.
-        </span>{" "}
-        <Link
-          href="https://github.com/techpolicycomms/dhvani#electron-desktop-app"
-          className="inline-flex items-center gap-1 text-itu-blue-dark hover:text-itu-blue"
-        >
-          Learn more <ExternalLink size={12} />
-        </Link>
-      </div>
+          <div className="rounded-lg border border-border-gray bg-off-white p-5 mb-5">
+            <AudioRoutingDiagram
+              platform={platform}
+              className="w-full h-auto"
+            />
+          </div>
+
+          {platform === "mac" ? <MacSteps /> : <WindowsSteps />}
+        </div>
+      </details>
     </main>
   );
 }

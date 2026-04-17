@@ -6,15 +6,28 @@
 export const WHISPER_PRICE_PER_MINUTE = 0.006;
 
 // Default chunk duration in milliseconds for the MediaRecorder rotation
-// cycle. 3 s keeps perceived latency close to real-time (Fireflies/Otter
-// feel); users can trade up to 15 s via the settings slider if they want
-// better cross-chunk speaker tracking from the diarizer.
-export const DEFAULT_CHUNK_DURATION_MS = 3000;
-export const MIN_CHUNK_DURATION_MS = 3000;
+// cycle. 1.5 s halves perceived latency vs. the original 3 s default;
+// users can trade up to 15 s via the settings slider for better
+// cross-chunk speaker tracking from the diarizer.
+export const DEFAULT_CHUNK_DURATION_MS = 1500;
+export const MIN_CHUNK_DURATION_MS = 1000;
 export const MAX_CHUNK_DURATION_MS = 15000;
 
 // Maximum number of concurrent requests sent to the Whisper API.
-export const MAX_CONCURRENT_TRANSCRIPTIONS = 2;
+// Raised to 4 so 1.5 s chunks never block on queue depth during bursts.
+export const MAX_CONCURRENT_TRANSCRIPTIONS = 4;
+
+// Target MediaRecorder bitrate. Opus is intelligible at 16 kbps; 24 kbps
+// gives headroom for accents, background noise, and multi-speaker audio
+// while keeping ~10 MB/hour of stored audio.
+export const AUDIO_BITS_PER_SECOND = 24000;
+
+// Persist chunks to OPFS so crashes/network drops don't lose audio.
+// Set false to skip all OPFS + IndexedDB work (useful for SSR tests).
+export const AUDIO_PERSISTENCE_ENABLED = true;
+
+// Minimum free storage (bytes) required before we'll start a recording.
+export const MIN_FREE_STORAGE_BYTES = 200 * 1024 * 1024; // 200 MB
 
 // Minimum length of a transcription result before we accept it (silence filter).
 export const MIN_TRANSCRIPT_LENGTH = 3;
@@ -64,9 +77,10 @@ export type CaptureMode = "tab-audio" | "microphone" | "virtual-cable" | "electr
  *
  * NOTE: diarizer speaker ids are scoped to a single audio request. Ids
  * across separate /api/transcribe calls are NOT correlated — same voice
- * may be `speaker_0` in one chunk and `speaker_1` in the next. We bias
- * chunk duration upward (10 s default) to amortise this, but perfect
- * cross-chunk stitching would require a persistent speaker embedding.
+ * may be `speaker_0` in one chunk and `speaker_1` in the next. The 1.5 s
+ * default chunk trades some cross-chunk speaker stability for lower
+ * latency; perfect stitching would require a persistent speaker
+ * embedding we do not yet maintain.
  */
 export type TranscriptEntry = {
   id: string;

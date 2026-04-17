@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { Info } from "lucide-react";
 import type { CaptureMode } from "@/lib/constants";
 
@@ -9,12 +10,14 @@ type Props = {
   onChange: (mode: CaptureMode) => void;
 };
 
-const MODES: Array<{
+type ModeDef = {
   id: CaptureMode;
   label: string;
   desc: string;
   icon: string;
-}> = [
+};
+
+const COMMON_MODES: ModeDef[] = [
   {
     id: "tab-audio",
     label: "Browser Tab",
@@ -27,13 +30,21 @@ const MODES: Array<{
     desc: "Direct mic or phone",
     icon: "🎙",
   },
-  {
-    id: "virtual-cable",
-    label: "Desktop App",
-    desc: "Virtual cable required",
-    icon: "💻",
-  },
 ];
+
+const ELECTRON_MODE: ModeDef = {
+  id: "electron",
+  label: "Desktop App",
+  desc: "Native system audio — no setup",
+  icon: "💻",
+};
+
+const VIRTUAL_CABLE_MODE: ModeDef = {
+  id: "virtual-cable",
+  label: "Desktop App",
+  desc: "Needs Dhvani app or virtual cable",
+  icon: "💻",
+};
 
 /**
  * Big 3-up audio source picker rendered on the home page. More visible
@@ -46,13 +57,26 @@ const MODES: Array<{
  */
 export function AudioModeCards({ value, onChange }: Props) {
   const selected = value || "microphone";
+  const [hasElectron, setHasElectron] = useState(false);
+  useEffect(() => {
+    setHasElectron(
+      typeof window !== "undefined" &&
+        Boolean((window as unknown as { electronAPI?: unknown }).electronAPI)
+    );
+  }, []);
+
+  const modes: ModeDef[] = [
+    ...COMMON_MODES,
+    hasElectron ? ELECTRON_MODE : VIRTUAL_CABLE_MODE,
+  ];
+
   return (
     <div className="space-y-2">
       <div className="text-xs font-semibold text-mid-gray uppercase tracking-wider">
         Audio source
       </div>
       <div className="grid grid-cols-3 gap-2">
-        {MODES.map((mode) => {
+        {modes.map((mode) => {
           const isActive = selected === mode.id;
           return (
             <button
@@ -87,12 +111,26 @@ export function AudioModeCards({ value, onChange }: Props) {
           </span>
         </p>
       )}
+      {selected === "electron" && (
+        <p className="text-[11px] text-itu-blue-dark flex items-start gap-1.5 pt-1">
+          <Info size={12} className="mt-0.5 shrink-0" />
+          <span>
+            Capturing system audio directly — works with Teams, Zoom, Webex,
+            Slack, WhatsApp, and any other desktop app.
+          </span>
+        </p>
+      )}
       {selected === "virtual-cable" && (
         <p className="text-[11px] text-itu-blue-dark pt-1">
-          Need help?{" "}
+          For Teams/Zoom/Slack/WhatsApp desktop apps, the{" "}
+          <Link href="/download" className="underline hover:text-itu-blue">
+            Dhvani desktop app
+          </Link>{" "}
+          captures audio natively with no setup. Or{" "}
           <Link href="/desktop-setup" className="underline hover:text-itu-blue">
-            See the desktop setup guide.
+            use a virtual cable
           </Link>
+          .
         </p>
       )}
     </div>
