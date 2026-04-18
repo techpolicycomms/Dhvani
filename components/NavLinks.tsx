@@ -19,6 +19,8 @@ type Props = {
   isAdmin?: boolean;
   /** Variant: header strip vs vertical (settings drawer). */
   orientation?: "horizontal" | "vertical";
+  /** When true, only show Home + Transcripts. Used in Personal mode. */
+  minimal?: boolean;
 };
 
 /**
@@ -26,7 +28,7 @@ type Props = {
  * and (optionally) Admin. Renders lucide icons + label, with active state
  * coloured ITU Blue.
  */
-export function NavLinks({ isAdmin, orientation = "horizontal" }: Props) {
+export function NavLinks({ isAdmin, orientation = "horizontal", minimal = false }: Props) {
   const pathname = usePathname();
 
   // Demo mode shows Admin to everyone — the /admin pages gate access
@@ -37,19 +39,27 @@ export function NavLinks({ isAdmin, orientation = "horizontal" }: Props) {
     href: string;
     label: string;
     icon: typeof Calendar;
-  }> = [
-    { href: "/", label: "Home", icon: Calendar },
-    { href: "/transcripts", label: "Transcripts", icon: FileText },
-    { href: "/tasks", label: "Tasks", icon: CheckSquare },
-    { href: "/mission", label: "Mission", icon: Rocket },
-    { href: "/upload", label: "Upload", icon: Upload },
-    { href: "/url-transcribe", label: "URL", icon: Link2 },
-    { href: "/desktop-setup", label: "Desktop Setup", icon: Laptop },
-  ];
-  if (isAdmin || demoMode) {
+  }> = minimal
+    ? [
+        // Personal mode — only what a single user needs to find their notes.
+        { href: "/", label: "Home", icon: Calendar },
+        { href: "/transcripts", label: "Notes", icon: FileText },
+      ]
+    : [
+        { href: "/", label: "Home", icon: Calendar },
+        { href: "/transcripts", label: "Transcripts", icon: FileText },
+        { href: "/tasks", label: "Tasks", icon: CheckSquare },
+        { href: "/mission", label: "Mission", icon: Rocket },
+        { href: "/upload", label: "Upload", icon: Upload },
+        { href: "/url-transcribe", label: "URL", icon: Link2 },
+        { href: "/desktop-setup", label: "Desktop Setup", icon: Laptop },
+      ];
+  if (!minimal && (isAdmin || demoMode)) {
     items.push({ href: "/admin", label: "Admin", icon: Shield });
   }
-  items.push({ href: "/download", label: "Download", icon: Download });
+  if (!minimal) {
+    items.push({ href: "/download", label: "Download", icon: Download });
+  }
 
   const containerCls =
     orientation === "horizontal"

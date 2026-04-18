@@ -27,6 +27,7 @@ import { useCalendarPrefs } from "@/hooks/useCalendarPrefs";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useMeetingReminders } from "@/hooks/useMeetingReminders";
 import { useAudioDevices } from "@/hooks/useAudioDevices";
+import { useMode } from "@/hooks/useMode";
 import { useTranscriptionContext } from "@/contexts/TranscriptionContext";
 import { useUserProfile } from "@/contexts/UserProfileContext";
 import type { Meeting } from "@/lib/calendar";
@@ -129,6 +130,21 @@ export default function HomePage() {
 
   // -------- Calendar prefs (drives MeetingList + reminders visibility) --------
   const { prefs: calendarPrefs } = useCalendarPrefs();
+
+  // -------- Personal/Power mode --------
+  // Personal = stripped-down: just record, see your own notes, settings.
+  // Power = full ITU surface (calendar, wellness, tasks, admin nav).
+  const { mode } = useMode();
+  const isPower = mode === "power";
+
+  // In Personal mode the audio-source picker is hidden, so the record
+  // button needs a default. Force microphone if the user hasn't picked
+  // anything yet. Power-mode users still see the full picker.
+  useEffect(() => {
+    if (!isPower && !chosenMode) {
+      setChosenMode("microphone");
+    }
+  }, [isPower, chosenMode, setChosenMode]);
 
   useEffect(() => {
     if (hasSavedSession) setShowResume(true);
@@ -366,7 +382,7 @@ export default function HomePage() {
               aria-label="Connection status"
             />
           </div>
-          <NavLinks isAdmin={isAdmin} />
+          <NavLinks isAdmin={isAdmin} minimal={!isPower} />
         </div>
 
         <div className="flex items-center gap-2">
@@ -385,8 +401,8 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* REMINDER BANNER (sticky) */}
-      {currentReminder && (
+      {/* REMINDER BANNER (sticky) — Power mode only. */}
+      {isPower && currentReminder && (
         <MeetingBanner
           meeting={currentReminder}
           onStart={() => {
@@ -400,8 +416,26 @@ export default function HomePage() {
       {/* ROLE GREETING */}
       {!isCapturing && <RoleGreeting />}
 
-      {/* DASHBOARD — tasks + wellness, visible when idle */}
-      {!isCapturing && (
+      {/* PERSONAL MODE HERO — strips everything down to "tap to record".
+          Shown only in Personal mode while idle. */}
+      {!isPower && !isCapturing && (
+        <section className="px-4 sm:px-6 pt-6 pb-2">
+          <div className="max-w-xl">
+            <h2 className="text-base font-medium text-dark-navy">
+              Tap record to start a private note.
+            </h2>
+            <p className="mt-1 text-sm text-mid-gray">
+              Speak your thoughts or record an in-person conversation. Audio is
+              transcribed on your device&apos;s Azure tenant; nothing leaves
+              your control.
+            </p>
+          </div>
+        </section>
+      )}
+
+      {/* DASHBOARD — tasks + wellness. Power mode only; in Personal we
+          intentionally hide the institutional dashboard for a quieter UI. */}
+      {isPower && !isCapturing && (
         <section className="px-4 sm:px-6 pt-4 grid gap-3 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <TaskChecklist limit={5} hideCompleted />
@@ -412,8 +446,9 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* AUDIO SOURCE — always visible while idle so users pick before hitting Start */}
-      {!isCapturing && (
+      {/* AUDIO SOURCE — picker visible in Power. In Personal we default
+          to microphone so the user just sees the record button. */}
+      {isPower && !isCapturing && (
         <section className="px-4 sm:px-6 pt-4">
           <AudioModeCards
             value={(chosenMode as CaptureMode) || ""}
@@ -422,8 +457,8 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* CALENDAR + QUICK ACTION ROW */}
-      {calendarPrefs.showMeetings && !isCapturing && (
+      {/* CALENDAR + QUICK ACTION ROW — Power only. */}
+      {isPower && calendarPrefs.showMeetings && !isCapturing && (
         <section className="px-4 sm:px-6 pt-4 space-y-4">
           <div className="grid gap-3 lg:grid-cols-3">
             <div className="lg:col-span-2">
