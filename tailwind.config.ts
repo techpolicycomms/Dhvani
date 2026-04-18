@@ -11,34 +11,41 @@ const config: Config = {
     "./components/**/*.{ts,tsx}",
     "./hooks/**/*.{ts,tsx}",
   ],
-  // Dhvani is light-only (ITU brand). Disable dark mode so Tailwind
-  // never applies dark: variants even when the OS is set to dark.
-  darkMode: "class",
+  // Dark mode is driven by `html[data-theme="dark"]` (set by lib/themeMode.ts);
+  // Tailwind's own `dark:` variant is disabled — we re-tint via CSS variables
+  // declared in app/globals.css instead, which means *every* utility that
+  // references one of these tokens flips automatically.
+  darkMode: ["selector", '[data-theme="dark"]'],
   theme: {
     extend: {
       colors: {
+        // Override Tailwind's built-in white so `bg-white` / `text-white`
+        // honor the dark-mode CSS-variable swap. Same for black.
+        white: "var(--white)",
+
         // ITU brand
         "itu-blue": {
-          DEFAULT: "#1DA0DB",
-          dark: "#0B7AB0",
-          light: "#5BBEE8",
-          pale: "#E5F4FB",
+          DEFAULT: "var(--itu-blue)",
+          dark: "var(--itu-blue-dark)",
+          light: "var(--itu-blue-light)",
+          pale: "var(--itu-blue-pale)",
         },
-        "un-blue": "#009EDB",
+        "un-blue": "var(--un-blue)",
 
-        // Neutrals
-        "off-white": "#FAFAFA",
-        "light-gray": "#F3F4F6",
-        "border-gray": "#E5E7EB",
-        "mid-gray": "#6B7280",
-        "dark-gray": "#374151",
-        "dark-navy": "#003366",
+        // Neutrals — all sourced from CSS variables so the dark-mode
+        // override in app/globals.css flips them in one place.
+        "off-white": "var(--off-white)",
+        "light-gray": "var(--light-gray)",
+        "border-gray": "var(--border-gray)",
+        "mid-gray": "var(--mid-gray)",
+        "dark-gray": "var(--dark-gray)",
+        "dark-navy": "var(--dark-navy)",
 
         // Status
-        success: "#059669",
-        warning: "#D97706",
-        error: "#DC2626",
-        "itu-red": "#E4002B",
+        success: "var(--success)",
+        warning: "var(--warning)",
+        error: "var(--error)",
+        "itu-red": "var(--itu-red)",
       },
       fontFamily: {
         sans: [

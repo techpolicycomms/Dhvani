@@ -157,6 +157,7 @@ export function SettingsDrawer(props: Props) {
 
           <ModeField />
           <ThemeField />
+          <StorageField />
 
           <Field
             label="Language"
@@ -328,6 +329,50 @@ function ModeField() {
           ? "Quiet, first-person — your private notes."
           : "Dense, third-person — shareable meeting notes with Bureau tagging."}
       </p>
+    </div>
+  );
+}
+
+function StorageField() {
+  const [info, setInfo] = useState<{
+    backend: "azure-blob" | "local-filesystem";
+    container: string | null;
+  } | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void fetch("/api/storage", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!cancelled && data) setInfo(data);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  if (!info) return null;
+  return (
+    <div>
+      <label className="block text-sm font-medium text-dark-navy mb-1">
+        Where notes are stored
+      </label>
+      {info.backend === "azure-blob" ? (
+        <p className="text-xs text-dark-navy">
+          Azure Blob Storage ·{" "}
+          <code className="font-mono text-mid-gray">{info.container}</code>
+          <span className="block text-mid-gray mt-1">
+            Survives redeploys. Inside your Azure tenant.
+          </span>
+        </p>
+      ) : (
+        <p className="text-xs text-warning">
+          Server local disk · wiped on redeploy.
+          <span className="block text-mid-gray mt-1">
+            Set <code className="font-mono">AZURE_STORAGE_CONNECTION_STRING</code>{" "}
+            in your env to switch to durable Azure Blob storage.
+          </span>
+        </p>
+      )}
     </div>
   );
 }

@@ -26,6 +26,7 @@
     "release": "npm version patch && git push && git push --tags"
   },
   "dependencies": {
+    "@azure/storage-blob": "^12.31.0",
     "docx": "^9.6.1",
     "lucide-react": "^1.8.0",
     "next": "^14.2.35",

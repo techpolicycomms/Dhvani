@@ -28,20 +28,18 @@
   --itu-red: #e4002b;
 }
 
-/* Dark mode tokens — applied when html[data-theme="dark"] OR system
-   prefers-color-scheme: dark with no explicit override. Existing
-   Tailwind utility classes that reference these tokens (bg-white,
-   text-dark-navy, border-border-gray, etc.) automatically pick up
-   the new values; no component refactor needed for the bulk of the
-   surface. */
+/* Dark mode tokens — applied when html[data-theme="dark"]. Tailwind
+   utility classes that reference these tokens via CSS variables
+   (configured in tailwind.config.ts → colors) automatically pick up
+   the new values; no per-component refactor needed. */
 html[data-theme="dark"] {
   color-scheme: dark;
 
-  /* ITU brand — keep accent color readable on dark surfaces. */
+  /* ITU brand — slightly brighter so the accent reads on dark bg. */
   --itu-blue: #4ab3e8;
   --itu-blue-dark: #1da0db;
   --itu-blue-light: #7fcdef;
-  --itu-blue-pale: rgba(74, 179, 232, 0.12);
+  --itu-blue-pale: rgba(74, 179, 232, 0.14);
 
   /* Neutrals (inverted) */
   --white: #0f1620;
@@ -56,6 +54,34 @@ html[data-theme="dark"] {
   --success: #34d399;
   --warning: #fbbf24;
   --error: #f87171;
+}
+
+/* Override the Tailwind `white` token only inside dark-mode contexts
+   where that token is being used as TEXT (typically on a coloured
+   button). Without this, my `--white` swap would make text-white
+   render dark on a still-bright accent button. The surface cases
+   (`bg-white`) still flip to the dark surface via the var(). */
+html[data-theme="dark"] .bg-itu-blue,
+html[data-theme="dark"] .bg-itu-blue-dark,
+html[data-theme="dark"] .bg-error,
+html[data-theme="dark"] .bg-success,
+html[data-theme="dark"] .bg-warning {
+  color-scheme: light;
+}
+html[data-theme="dark"] .bg-itu-blue .text-white,
+html[data-theme="dark"] .bg-itu-blue-dark .text-white,
+html[data-theme="dark"] .bg-error .text-white,
+html[data-theme="dark"] .bg-success .text-white,
+html[data-theme="dark"] .bg-warning .text-white,
+html[data-theme="dark"] .text-white.bg-itu-blue,
+html[data-theme="dark"] .text-white.bg-itu-blue-dark {
+  color: #ffffff;
+}
+
+/* Selection + focus on dark */
+html[data-theme="dark"] ::selection {
+  background-color: var(--itu-blue-pale);
+  color: var(--dark-navy);
 }
 
 html,

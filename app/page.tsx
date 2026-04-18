@@ -692,17 +692,20 @@ export default function HomePage() {
         <ExportMenu transcript={transcript} resolveSpeaker={resolveSpeaker} />
       </div>
 
-      {/* AUDIO SOURCE SELECTOR — always visible, disabled during capture */}
-      <div className="px-3 sm:px-4 pb-2">
-        <AudioModeSelector
-          value={(chosenMode as CaptureMode) || ""}
-          onChange={(next) => setChosenMode(next)}
-          locked={isCapturing}
-          lockReason={
-            isCapturing ? "Stop recording to switch audio source." : undefined
-          }
-        />
-      </div>
+      {/* AUDIO SOURCE SELECTOR — Power mode only. Personal mode is
+          microphone-only by design (no segmented control). */}
+      {isPower && (
+        <div className="px-3 sm:px-4 pb-2">
+          <AudioModeSelector
+            value={(chosenMode as CaptureMode) || ""}
+            onChange={(next) => setChosenMode(next)}
+            locked={isCapturing}
+            lockReason={
+              isCapturing ? "Stop recording to switch audio source." : undefined
+            }
+          />
+        </div>
+      )}
 
       {/* CONTROL BAR */}
       <ControlBar

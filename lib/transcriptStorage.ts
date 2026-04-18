@@ -1,12 +1,24 @@
 /**
  * Server-side persistence for saved transcripts.
  *
- * Layout:
- *   ./data/transcripts/<userId>/<sessionId>.json
+ * Two backends, picked at runtime:
  *
- * NOTE: this writes to the local filesystem of the running instance, so a
- * multi-replica deployment needs a shared volume (Azure Files, NFS, etc.)
- * for the path. The single-instance Web App we ship to today is fine.
+ *   1. **Local filesystem** (default)
+ *      Path: ./data/transcripts/<userId>/<sessionId>.json
+ *      Single-instance Web App, fine for ITU's current Dhvani deploy.
+ *      Wiped on every Web App release / container restart.
+ *
+ *   2. **Azure Blob Storage** (recommended for production)
+ *      Path: transcripts/<userId>/<sessionId>.json inside the configured
+ *      container. Survives redeploys, works across multi-replica
+ *      deployments, ~$0.02/GB/month, all inside the user's tenant.
+ *      Activated when AZURE_STORAGE_CONNECTION_STRING is set (or
+ *      AZURE_STORAGE_ACCOUNT_NAME + AZURE_STORAGE_ACCOUNT_KEY pair).
+ *
+ * The public API in this file is identical regardless of backend —
+ * routes call saveTranscript/listTranscripts/getTranscript/
+ * deleteTranscript without knowing which is in use. See
+ * lib/azureBlobStorage.ts for the Blob implementation.
  *
  * The README (and security model) explicitly used to say "no transcript
  * text is stored server-side". Saving transcripts is now a deliberate
@@ -20,6 +32,13 @@ import path from "node:path";
 import crypto from "node:crypto";
 import type { TranscriptEntry } from "./constants";
 import type { Meeting } from "./calendar";
+import {
+  deleteTranscriptFromBlob,
+  getTranscriptFromBlob,
+  isBlobBackendConfigured,
+  listTranscriptsFromBlob,
+  saveTranscriptToBlob,
+} from "./azureBlobStorage";
 
 const DATA_DIR =
   process.env.DHVANI_DATA_DIR ||
@@ -97,6 +116,9 @@ export async function saveTranscript(
   data: Omit<SavedTranscript, "userId">
 ): Promise<SavedTranscript> {
   const record: SavedTranscript = { ...data, userId };
+  if (isBlobBackendConfigured()) {
+    return saveTranscriptToBlob(record);
+  }
   const dir = userDir(userId);
   await fs.mkdir(dir, { recursive: true });
   const tmp = path.join(dir, `${record.id}.json.tmp`);
@@ -110,6 +132,9 @@ export async function saveTranscript(
 export async function listTranscripts(
   userId: string
 ): Promise<SavedTranscriptMeta[]> {
+  if (isBlobBackendConfigured()) {
+    return listTranscriptsFromBlob(userId);
+  }
   const dir = userDir(userId);
   let entries: string[];
   try {
@@ -145,6 +170,9 @@ export async function getTranscript(
   userId: string,
   id: string
 ): Promise<SavedTranscript | null> {
+  if (isBlobBackendConfigured()) {
+    return getTranscriptFromBlob(userId, id);
+  }
   try {
     const raw = await fs.readFile(fileFor(userId, id), "utf8");
     return JSON.parse(raw) as SavedTranscript;
@@ -158,6 +186,10 @@ export async function deleteTranscript(
   userId: string,
   id: string
 ): Promise<boolean> {
+  if (isBlobBackendConfigured()) {
+    await deleteTranscriptFromBlob(userId, id);
+    return true;
+  }
   try {
     await fs.unlink(fileFor(userId, id));
     return true;
@@ -165,4 +197,13 @@ export async function deleteTranscript(
     if ((err as NodeJS.ErrnoException).code === "ENOENT") return false;
     throw err;
   }
+}
+
+/**
+ * Where transcripts will go on the next save. Surfaced to the
+ * Settings drawer so admins can confirm at a glance which backend
+ * is active.
+ */
+export function activeBackend(): "azure-blob" | "local-filesystem" {
+  return isBlobBackendConfigured() ? "azure-blob" : "local-filesystem";
 }
