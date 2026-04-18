@@ -44,7 +44,7 @@ function splashHtml(message: string): string {
 <html><head><meta charset="utf-8"><title>Dhvani</title></head>
 <body style="font-family:'Noto Sans','Helvetica Neue',sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#fff;color:#003366">
   <div style="text-align:center">
-    <div style="font-size:28px;font-weight:700;color:#1DA0DB;margin-bottom:10px">Dhvani</div>
+    <div style="font-size:28px;font-weight:700;color:#009CD6;margin-bottom:10px">Dhvani</div>
     <div style="font-size:13px;color:#6B7280">${message}</div>
   </div>
 </body></html>`;
@@ -55,10 +55,10 @@ function offlineHtml(targetUrl: string): string {
 <html><head><meta charset="utf-8"><title>Dhvani</title></head>
 <body style="font-family:'Noto Sans','Helvetica Neue',sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#fff;color:#003366">
   <div style="text-align:center;max-width:320px">
-    <div style="font-size:24px;font-weight:700;color:#1DA0DB;margin-bottom:10px">Dhvani</div>
+    <div style="font-size:24px;font-weight:700;color:#009CD6;margin-bottom:10px">Dhvani</div>
     <div style="font-size:14px;color:#6B7280;margin-bottom:14px">Unable to connect to the server.</div>
     <div style="font-size:12px;color:#9CA3AF;margin-bottom:16px">Check your connection, then retry.</div>
-    <button onclick="location.href='${targetUrl}'" style="padding:8px 24px;background:#1DA0DB;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer">Retry</button>
+    <button onclick="location.href='${targetUrl}'" style="padding:8px 24px;background:#009CD6;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer">Retry</button>
   </div>
 </body></html>`;
 }

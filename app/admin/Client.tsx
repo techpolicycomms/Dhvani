@@ -482,7 +482,7 @@ function TeamAnalyticsPanel({ analytics }: { analytics: TeamAnalytics | null }) 
     return <div className="text-sm text-mid-gray py-8 text-center">Loading team analytics...</div>;
   }
   const a = analytics;
-  const WEEKDAY_COLORS = ["#94A3B8", "#1DA0DB", "#1DA0DB", "#1DA0DB", "#1DA0DB", "#1DA0DB", "#94A3B8"];
+  const WEEKDAY_COLORS = ["#94A3B8", "#009CD6", "#009CD6", "#009CD6", "#009CD6", "#009CD6", "#94A3B8"];
   const durationLabels: Record<string, string> = {
     under5: "< 5 min",
     "5to15": "5–15 min",

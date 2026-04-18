@@ -110,7 +110,7 @@
       zIndex: "2147483647",
       padding: "6px 12px",
       borderRadius: "999px",
-      background: "#1DA0DB",
+      background: "#009CD6",
       color: "#ffffff",
       fontFamily: '"Segoe UI", system-ui, sans-serif',
       fontSize: "12px",

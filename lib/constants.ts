@@ -96,7 +96,7 @@ export type TranscriptEntry = {
  * white background.
  */
 export const SPEAKER_COLORS = [
-  "#1DA0DB", // ITU Blue — Speaker 1
+  "#009CD6", // ITU Blue — Speaker 1
   "#7C3AED", // violet — Speaker 2
   "#D97706", // amber — Speaker 3
   "#059669", // emerald — Speaker 4

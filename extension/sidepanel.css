@@ -1,13 +1,13 @@
 /* ------------------------------------------------------------------
    Dhvani Chrome-extension — side-panel styles.
 
-   Mirrors the web app's ITU brand tokens (ITU Blue #1DA0DB, Dark Navy
+   Mirrors the web app's ITU brand tokens (ITU Blue #009CD6, Dark Navy
    #003366, off-white #F8F9FA) so the extension feels like part of the
    same surface.
    ------------------------------------------------------------------ */
 
 :root {
-  --itu-blue: #1da0db;
+  --itu-blue: #009cd6;
   --itu-blue-dark: #0b7bb0;
   --itu-blue-pale: #e8f4fa;
   --dark-navy: #003366;

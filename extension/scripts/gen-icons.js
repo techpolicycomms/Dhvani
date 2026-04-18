@@ -2,7 +2,7 @@
 /**
  * Generate PNG icons for the Dhvani Chrome Extension.
  *
- * Writes extension/icons/icon-{16,48,128}.png as ITU-Blue (#1DA0DB)
+ * Writes extension/icons/icon-{16,48,128}.png as ITU-Blue (#009CD6)
  * rounded squares with a simple stylised waveform in white.
  *
  * Pure Node — no sharp / canvas / ImageMagick dependency, so this runs

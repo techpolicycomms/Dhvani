@@ -26,7 +26,7 @@ export function AudioWaveform({
   bars = 20,
   width = 120,
   height = 32,
-  color = "#1DA0DB",
+  color = "#009CD6",
   className,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);

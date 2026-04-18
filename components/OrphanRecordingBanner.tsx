@@ -22,7 +22,7 @@ import type { CapturedChunk } from "@/hooks/useAudioCapture";
  * recording. Mounted once in the root layout so it works across routes.
  */
 export function OrphanRecordingBanner() {
-  const { capture, tx, setToast } = useTranscriptionContext();
+  const { capture, tx } = useTranscriptionContext();
   const { status } = useSession();
   const [orphans, setOrphans] = useState<OrphanSession[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -41,24 +41,25 @@ export function OrphanRecordingBanner() {
     };
   }, [capture.isCapturing, status]);
 
-  // Week 3 — offline queue completion. When the browser comes back
-  // online, silently auto-resume any pending orphan sessions instead
-  // of waiting for the user to click Recover. The banner still shows
-  // for sessions older than the current navigator-online cycle so the
-  // user has a chance to discard if they don't want them transcribed.
+  // Offline queue completion. When the browser comes back online,
+  // silently auto-resume any pending orphan sessions. We deliberately
+  // do NOT surface a toast counting "pending chunks" — the user's
+  // mental model is "it heard me"; announcing recovery details just
+  // creates anxiety about data loss that isn't real. The background
+  // pipeline is expected to succeed; if it doesn't, the banner still
+  // offers manual Recover.
   useEffect(() => {
     if (status !== "authenticated") return;
     if (typeof window === "undefined") return;
     const onOnline = async () => {
       const pending = await listOrphanSessions();
       if (pending.length === 0) return;
-      const total = pending.reduce((n, p) => n + p.chunkIndexes.length, 0);
-      setToast(
-        `Reconnected — auto-resuming ${total} pending chunk${total === 1 ? "" : "s"} across ${pending.length} session${pending.length === 1 ? "" : "s"}.`
-      );
-      window.setTimeout(() => setToast(null), 5000);
       for (const orphan of pending) {
-        await handleRecoverInternal(orphan);
+        try {
+          await handleRecoverInternal(orphan);
+        } catch (err) {
+          console.warn("[OrphanRecovery] silent auto-resume failed", err);
+        }
       }
     };
     window.addEventListener("online", onOnline);
@@ -67,7 +68,7 @@ export function OrphanRecordingBanner() {
     // because it only reads the closed-over `tx` which is stable for
     // the lifetime of TranscriptionProvider.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, setToast]);
+  }, [status]);
 
   // Internal helper used by both manual click and auto-resume.
   const handleRecoverInternal = useCallback(

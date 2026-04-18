@@ -19,7 +19,6 @@ type Props = {
   error: string | null;
   totalMinutes: number;
   estimatedCost: number;
-  failedChunks: number;
   disabled?: boolean;
 };
 
@@ -53,7 +52,6 @@ export function ControlBar(props: Props) {
     error,
     totalMinutes,
     estimatedCost,
-    failedChunks,
     disabled,
   } = props;
 
@@ -146,10 +144,10 @@ export function ControlBar(props: Props) {
         <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4 text-sm">
           <Stat label="Source" value={modeLabel(captureMode, deviceLabel)} />
           <Stat label="Elapsed" value={formatElapsed(elapsedMs)} mono />
-          <Stat
-            label="Segments"
-            value={`${chunkCount}${failedChunks ? ` (${failedChunks} failed)` : ""}`}
-          />
+          {/* Failed chunks are retried silently in the background via
+              orphan-recovery; exposing a count makes the user anxious
+              about something we've already committed to fixing. */}
+          <Stat label="Segments" value={String(chunkCount)} />
           <Stat
             label="Cost"
             value={`$${estimatedCost.toFixed(3)} (${totalMinutes.toFixed(1)} min)`}

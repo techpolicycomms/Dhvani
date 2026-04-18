@@ -31,7 +31,7 @@ const hintEl = $("hint");
 // surfaces. Speakers are assigned colors by index, stable for the
 // session (stable across chunks is a different problem — see README).
 const SPEAKER_COLORS = [
-  "#1DA0DB", // ITU Blue
+  "#009CD6", // ITU Blue
   "#DC2626", // red
   "#059669", // emerald
   "#D97706", // amber

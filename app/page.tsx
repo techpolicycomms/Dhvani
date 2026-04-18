@@ -109,13 +109,7 @@ export default function HomePage() {
     chunkCount,
     mediaStream,
   } = ctx.capture;
-  const {
-    queueDepth,
-    inFlight,
-    totalMinutes,
-    estimatedCost,
-    failedChunks,
-  } = ctx.tx;
+  const { queueDepth, inFlight, totalMinutes, estimatedCost } = ctx.tx;
 
   // -------- UI-only state (home page only) --------
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -184,6 +178,7 @@ export default function HomePage() {
     user?.email,
     activeMeeting,
     primeSpeakers,
+    setRateLimitMsg,
   ]);
 
   // Week 7 — keyboard shortcuts. Cmd+R toggles record, Cmd+, opens
@@ -277,6 +272,7 @@ export default function HomePage() {
     chunkCount,
     estimatedCost,
     activeMeeting,
+    setToast,
   ]);
 
   // Auto-tag opt-in: when capture stops, if the user enabled auto-tag and we
@@ -722,7 +718,6 @@ export default function HomePage() {
         error={error}
         totalMinutes={totalMinutes}
         estimatedCost={estimatedCost}
-        failedChunks={failedChunks}
       />
 
       {/* RATE LIMIT BANNER (persistent) */}

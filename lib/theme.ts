@@ -10,13 +10,14 @@
  * background.
  */
 export const ITU_COLORS = {
-  // Primary
-  ituBlue: "#1DA0DB",
-  ituBlueDark: "#0B7AB0",
-  ituBlueLight: "#5BBEE8",
+  // Primary — official ITU brand blue (brand.itu.int).
+  ituBlue: "#009CD6",
+  ituBlueDark: "#007AAD",
+  ituBlueLight: "#4FB7E4",
   ituBluePale: "#E5F4FB",
 
-  // UN family (used sparingly for accents, e.g. admin "official" cues)
+  // UN family (used sparingly for accents, e.g. admin "official" cues).
+  // Very close to ITU Blue; kept distinct for historical legibility.
   unBlue: "#009EDB",
 
   // Neutrals

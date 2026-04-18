@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Search, ArrowDown, Star } from "lucide-react";
+import { ArrowDown, MicOff, Search, Star } from "lucide-react";
 import {
   colorForSpeaker,
   type TranscriptEntry,
@@ -187,9 +187,23 @@ export function TranscriptPanel({
                   </span>
                 </>
               ) : transcript.length === 0 ? (
-                <span>Press Start to begin transcribing your meeting.</span>
+                <>
+                  <MicOff
+                    size={28}
+                    className="text-itu-blue/50"
+                    aria-hidden="true"
+                  />
+                  <span>Press Start to begin transcribing your meeting.</span>
+                </>
               ) : (
-                <span>No entries match your search.</span>
+                <>
+                  <Search
+                    size={24}
+                    className="text-itu-blue/40"
+                    aria-hidden="true"
+                  />
+                  <span>No entries match your search.</span>
+                </>
               )}
             </div>
           ) : (

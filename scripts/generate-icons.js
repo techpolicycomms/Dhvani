@@ -2,7 +2,7 @@
 /**
  * Generate PWA icons for Dhvani at all sizes required by manifest.json.
  *
- * Renders an ITU-Blue (#1DA0DB) rounded square with a white 5-bar audio
+ * Renders an ITU-Blue (#009CD6) rounded square with a white 5-bar audio
  * waveform. Pure Node — no sharp / canvas / ImageMagick dependency.
  *
  * Run:

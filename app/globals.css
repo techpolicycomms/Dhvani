@@ -5,10 +5,10 @@
 :root {
   color-scheme: light;
 
-  /* ITU brand */
-  --itu-blue: #1da0db;
-  --itu-blue-dark: #0b7ab0;
-  --itu-blue-light: #5bbee8;
+  /* ITU brand — official (brand.itu.int). */
+  --itu-blue: #009cd6;
+  --itu-blue-dark: #007aad;
+  --itu-blue-light: #4fb7e4;
   --itu-blue-pale: #e5f4fb;
   --un-blue: #009edb;
 
@@ -36,10 +36,10 @@ html[data-theme="dark"] {
   color-scheme: dark;
 
   /* ITU brand — slightly brighter so the accent reads on dark bg. */
-  --itu-blue: #4ab3e8;
-  --itu-blue-dark: #1da0db;
+  --itu-blue: #3fb4e2;
+  --itu-blue-dark: #009cd6;
   --itu-blue-light: #7fcdef;
-  --itu-blue-pale: rgba(74, 179, 232, 0.14);
+  --itu-blue-pale: rgba(63, 180, 226, 0.14);
 
   /* Neutrals (inverted) */
   --white: #0f1620;

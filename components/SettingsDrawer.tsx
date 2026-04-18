@@ -1,7 +1,22 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, ExternalLink, Leaf } from "lucide-react";
+import {
+  Briefcase,
+  Database,
+  ExternalLink,
+  Languages,
+  Leaf,
+  LogOut,
+  Mic,
+  Palette,
+  ShieldCheck,
+  Sliders,
+  Trash2,
+  UserCircle2,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import { DeviceSelector } from "./DeviceSelector";
 import { CalendarToggle } from "./CalendarToggle";
 import VocabularyManager from "./VocabularyManager";
@@ -161,6 +176,7 @@ export function SettingsDrawer(props: Props) {
 
           <Field
             label="Language"
+            icon={Languages}
             hint="Auto-detect works well; choose a specific language to improve accuracy."
           >
             <select
@@ -178,6 +194,7 @@ export function SettingsDrawer(props: Props) {
 
           <Field
             label={`Chunk Duration: ${(chunkDuration / 1000).toFixed(0)}s`}
+            icon={Sliders}
             hint="Shorter = faster appearance. Longer = better speaker tracking."
           >
             <input
@@ -197,6 +214,7 @@ export function SettingsDrawer(props: Props) {
 
           <Field
             label="Audio Input Device"
+            icon={Mic}
             hint="For virtual-cable mode (BlackHole / VB-Cable) or to pick a specific mic."
           >
             <DeviceSelector value={deviceId} onChange={setDeviceId} />
@@ -215,7 +233,8 @@ export function SettingsDrawer(props: Props) {
           </div>
 
           <div className="pt-4 border-t border-border-gray space-y-3">
-            <div className="text-xs font-semibold text-mid-gray uppercase tracking-wider">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-mid-gray uppercase tracking-wider">
+              <ShieldCheck size={12} className="text-itu-blue" />
               Privacy
             </div>
             <OrgInsightsOptIn />
@@ -239,8 +258,9 @@ export function SettingsDrawer(props: Props) {
               <button
                 type="button"
                 onClick={() => setConfirmClear(true)}
-                className="w-full px-3 py-2 text-sm text-error border border-error/40 rounded hover:bg-error/5"
+                className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm text-error border border-error/40 rounded hover:bg-error/5"
               >
+                <Trash2 size={14} aria-hidden="true" />
                 Clear Current Session
               </button>
             ) : (
@@ -273,8 +293,9 @@ export function SettingsDrawer(props: Props) {
             <button
               type="button"
               onClick={onSignOut}
-              className="w-full px-3 py-2 text-sm text-dark-navy border border-border-gray rounded hover:bg-light-gray"
+              className="w-full inline-flex items-center justify-center gap-2 px-3 py-2 text-sm text-dark-navy border border-border-gray rounded hover:bg-light-gray"
             >
+              <LogOut size={14} aria-hidden="true" />
               Sign out
             </button>
 
@@ -297,7 +318,10 @@ function ModeField() {
   const { mode, setMode } = useMode();
   return (
     <div>
-      <label className="block text-sm font-medium text-dark-navy mb-1">Mode</label>
+      <label className="flex items-center gap-1.5 text-sm font-medium text-dark-navy mb-1">
+        <Briefcase size={13} className="text-itu-blue" aria-hidden="true" />
+        Mode
+      </label>
       <div
         role="radiogroup"
         aria-label="Mode"
@@ -353,7 +377,8 @@ function StorageField() {
   if (!info) return null;
   return (
     <div>
-      <label className="block text-sm font-medium text-dark-navy mb-1">
+      <label className="flex items-center gap-1.5 text-sm font-medium text-dark-navy mb-1">
+        <Database size={13} className="text-itu-blue" aria-hidden="true" />
         Where notes are stored
       </label>
       {info.backend === "azure-blob" ? (
@@ -381,7 +406,8 @@ function ThemeField() {
   const { choice, setChoice } = useTheme();
   return (
     <div>
-      <label className="block text-sm font-medium text-dark-navy mb-1">
+      <label className="flex items-center gap-1.5 text-sm font-medium text-dark-navy mb-1">
+        <Palette size={13} className="text-itu-blue" aria-hidden="true" />
         Appearance
       </label>
       <div
@@ -419,16 +445,19 @@ function ThemeField() {
 
 function Field({
   label,
+  icon: Icon,
   hint,
   children,
 }: {
   label: string;
+  icon?: LucideIcon;
   hint?: string;
   children: React.ReactNode;
 }) {
   return (
     <div>
-      <label className="block text-sm font-medium text-dark-navy mb-1">
+      <label className="flex items-center gap-1.5 text-sm font-medium text-dark-navy mb-1">
+        {Icon && <Icon size={13} className="text-itu-blue" aria-hidden="true" />}
         {label}
       </label>
       {children}
@@ -441,7 +470,8 @@ function RoleSection() {
   const { role, resetProfile } = useUserProfile();
   return (
     <div className="space-y-2">
-      <div className="text-xs font-semibold text-mid-gray uppercase tracking-wider">
+      <div className="flex items-center gap-1.5 text-xs font-semibold text-mid-gray uppercase tracking-wider">
+        <UserCircle2 size={12} className="text-itu-blue" aria-hidden="true" />
         Role profile
       </div>
       <div className="rounded-lg border border-border-gray bg-white p-3 text-xs text-dark-gray">

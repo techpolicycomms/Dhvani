@@ -68,7 +68,7 @@ export function OrgIntelligence() {
   return (
     <div className="space-y-6">
       {/* Privacy banner */}
-      <div className="rounded-lg border p-3 flex items-start gap-3" style={{ backgroundColor: "#E8F4FA", borderColor: "#1DA0DB" }}>
+      <div className="rounded-lg border p-3 flex items-start gap-3" style={{ backgroundColor: "#E8F4FA", borderColor: "#009CD6" }}>
         <Shield size={16} className="mt-0.5 text-itu-blue-dark shrink-0" />
         <div className="text-xs text-dark-navy leading-relaxed">
           <div className="font-semibold">All data is anonymised.</div>
@@ -201,7 +201,7 @@ export function OrgIntelligence() {
                   className="h-full"
                   style={{
                     width: `${(d.meetings / maxDeptMeetings) * 100}%`,
-                    backgroundColor: "#1DA0DB",
+                    backgroundColor: "#009CD6",
                   }}
                 />
               </div>
@@ -232,7 +232,7 @@ export function OrgIntelligence() {
                   className="h-full"
                   style={{
                     width: `${l.percent}%`,
-                    backgroundColor: "#1DA0DB",
+                    backgroundColor: "#009CD6",
                   }}
                 />
               </div>

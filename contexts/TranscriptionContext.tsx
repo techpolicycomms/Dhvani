@@ -114,12 +114,20 @@ export function TranscriptionProvider({ children }: { children: ReactNode }) {
     language,
     onEntry: store.addEntry,
     onError: (msg, _idx) => {
-      // D11: interpret raw Azure / network errors as plain language.
-      // The verbose original message is still console.warn'd for debug.
+      // The hook now only fires onError for out-of-band issues (e.g.
+      // session expired). Per-chunk retry failures are silent — OPFS
+      // keeps the chunk and orphan-recovery picks it up on reconnect.
+      // We still surface auth errors because they block every future
+      // chunk until the user re-signs in.
       const smart = interpretError(msg);
-      console.warn("[transcription] chunk error", msg);
-      setToast(smart.title + (smart.hint ? ` — ${smart.hint}` : ""));
-      setTimeout(() => setToast(null), smart.severity === "error" ? 8000 : 4000);
+      console.warn("[transcription] out-of-band error", msg);
+      if (/sign in|401|unauthor/i.test(msg)) {
+        setToast(smart.title + (smart.hint ? ` \u2014 ${smart.hint}` : ""));
+        setTimeout(
+          () => setToast(null),
+          smart.severity === "error" ? 8000 : 4000
+        );
+      }
     },
     onRateLimited: (msg) => {
       const smart = interpretError(msg);

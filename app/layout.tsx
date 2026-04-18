@@ -51,7 +51,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1DA0DB",
+  themeColor: "#009CD6",
   width: "device-width",
   initialScale: 1,
 };
@@ -76,7 +76,7 @@ export default async function RootLayout({
     >
       <head>
         <link rel="manifest" href="/manifest.json" />
-        <meta name="theme-color" content="#1DA0DB" />
+        <meta name="theme-color" content="#009CD6" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Dhvani" />
@@ -94,7 +94,7 @@ export default async function RootLayout({
         className="min-h-screen bg-white text-dark-navy antialiased font-sans"
         style={{ fontFamily: "var(--font-noto-sans), 'Noto Sans', sans-serif" }}
       >
-        <div style={{ height: 3, background: "#1DA0DB", width: "100%" }} />
+        <div style={{ height: 3, background: "#009CD6", width: "100%" }} />
         {isDemoClientMode ? (
           <DemoSessionProvider>
             <UserProfileProvider>

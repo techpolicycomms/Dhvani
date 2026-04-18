@@ -119,7 +119,13 @@ export function useTranscription(
       };
       if (language) headers["x-language"] = language;
 
-      const maxAttempts = 3;
+      // Silent-retry policy:
+      //   5 attempts with exponential backoff (1s, 2s, 4s, 8s, 16s).
+      //   The user never sees per-chunk failure toasts — we keep the
+      //   chunk persisted to OPFS and let the online-event auto-resumer
+      //   (OrphanRecordingBanner) pick it up on reconnect instead. The
+      //   user's mental model is "it heard me, eventually".
+      const maxAttempts = 5;
       let attempt = 0;
       let lastErr: Error | null = null;
       while (attempt < maxAttempts) {
@@ -243,9 +249,15 @@ export function useTranscription(
           }
         }
       }
-      // All retries exhausted — log, bump counter, move on.
+      // All retries exhausted — log quietly and move on. The on-disk
+      // copy stays in OPFS, so OrphanRecordingBanner's online-event
+      // auto-recovery will pick it up on reconnect without ever telling
+      // the user "chunk N was lost" (which is a lie — it hasn't been).
+      console.warn(
+        "[transcription] chunk retry exhausted, keeping for auto-recovery",
+        { chunkIndex: chunk.index, error: lastErr?.message }
+      );
       setFailedChunks((n) => n + 1);
-      onError?.(lastErr?.message || "Transcription failed.", chunk.index);
     },
     [language, onEntry, onError, onRateLimited]
   );

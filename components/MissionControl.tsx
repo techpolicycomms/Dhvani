@@ -76,7 +76,7 @@ export function MissionControl() {
           <div className="h-2 bg-white/15 rounded overflow-hidden">
             <div
               className="h-full rounded"
-              style={{ width: `${pctToNextLevel}%`, background: "linear-gradient(90deg,#1DA0DB,#10B981)" }}
+              style={{ width: `${pctToNextLevel}%`, background: "linear-gradient(90deg,#009CD6,#10B981)" }}
             />
           </div>
         </div>

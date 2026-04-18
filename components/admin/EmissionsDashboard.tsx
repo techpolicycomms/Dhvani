@@ -47,7 +47,7 @@ function Bar({
   label,
   value,
   max,
-  color = "#1DA0DB",
+  color = "#009CD6",
 }: {
   label: string;
   value: number;
@@ -212,7 +212,7 @@ export function EmissionsDashboard() {
             label="Scope 2 — Purchased electricity (inference)"
             value={report.scope2.carbonGrams}
             max={report.totalCarbonGrams}
-            color="#1DA0DB"
+            color="#009CD6"
           />
           <Bar
             label="Scope 3 — Embodied (GPU + data-centre, estimated)"
@@ -289,7 +289,7 @@ export function EmissionsDashboard() {
                     className="flex-1 rounded-t"
                     style={{
                       height: `${s2H}%`,
-                      backgroundColor: "#1DA0DB",
+                      backgroundColor: "#009CD6",
                     }}
                     title={`Scope 2: ${pt.scope2Grams.toFixed(2)} g`}
                   />
@@ -300,7 +300,7 @@ export function EmissionsDashboard() {
           })}
         </div>
         <div className="flex items-center gap-4 mt-2 text-[10px] text-mid-gray">
-          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ backgroundColor: "#1DA0DB" }} /> Scope 2</span>
+          <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ backgroundColor: "#009CD6" }} /> Scope 2</span>
           <span className="flex items-center gap-1"><span className="w-2 h-2 rounded" style={{ backgroundColor: "#7C3AED33" }} /> Total (S2+S3)</span>
         </div>
       </section>
@@ -322,7 +322,7 @@ export function EmissionsDashboard() {
                   className="h-full rounded"
                   style={{
                     width: `${(a.carbonGrams / maxActivity) * 100}%`,
-                    backgroundColor: "#1DA0DB",
+                    backgroundColor: "#009CD6",
                   }}
                 />
               </div>

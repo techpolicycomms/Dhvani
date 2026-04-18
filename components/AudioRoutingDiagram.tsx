@@ -3,7 +3,7 @@ type Props = {
   className?: string;
 };
 
-const ITU_BLUE = "#1DA0DB";
+const ITU_BLUE = "#009CD6";
 const DARK_NAVY = "#003366";
 const MID_GRAY = "#6B7280";
 const BORDER_GRAY = "#E5E7EB";

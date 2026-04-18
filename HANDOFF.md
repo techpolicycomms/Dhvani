@@ -9,8 +9,9 @@ Single-shot context for a new Claude Code session. Paste the whole file (or just
 - **Product**: Dhvani — Next.js 14 PWA + Electron desktop wrapper, ITU's internal meeting transcription tool. Microsoft Entra SSO, server-managed Azure OpenAI keys (NOT BYOK).
 - **Repo**: `techpolicycomms/Dhvani` on GitHub.
 - **Local path**: `/Users/rahuljha/digital-tools/Dhvani`.
-- **Active branch**: `wip/reliability-and-easy-wins` (last commit `06c740c` — "Fix dark mode + Personal mic-only + add Azure Blob storage backend"). Open PR target: `main`.
-- **Sister repo (parked)**: `techpolicycomms/itu-transcribe` — was a ground-up BYOK rebuild attempt (Tauri + Next 15). Deprecated in favor of staying on Dhvani per user decision. Don't touch it unless explicitly asked.
+- **Active branch**: `wip/reliability-and-easy-wins`. Open PR target: `main`.
+- **Last session commit** (before this one): `613e419` — "Add HANDOFF.md". This session's unstaged changes: ITU-brand #009CD6 swap, /download page rewrite, silent chunk retry, lucide icons on Settings + transcript empty state, Azure Blob voice-audio scaffold, handover docs. Nothing has been committed yet — next human session should `git status` + review + commit.
+- **Sister repo (parked)**: `techpolicycomms/itu-transcribe` — BYOK rebuild on Tauri + Next 15. Deprecated in favor of staying on Dhvani. Don't touch.
 
 ---
 
@@ -20,7 +21,7 @@ Single-shot context for a new Claude Code session. Paste the whole file (or just
 cd /Users/rahuljha/digital-tools/Dhvani
 npm run dev                  # http://localhost:3000
 ./node_modules/.bin/tsc --noEmit   # typecheck (currently clean)
-./node_modules/.bin/next lint      # 2 pre-existing useCallback warnings in app/page.tsx, both predate this branch
+./node_modules/.bin/next lint      # 2 pre-existing useCallback warnings; safe
 ```
 
 Sign-in flow: Microsoft Entra (creds in `.env`). Demo mode flag exists (`DEMO_MODE=true`) but user wants Entra always-on.
@@ -55,9 +56,20 @@ Sign-in flow: Microsoft Entra (creds in `.env`). Demo mode flag exists (`DEMO_MO
 | Smart Azure error mapping | `lib/azureErrorMessages.ts` |
 | Exports (txt/srt/json/md) | `lib/exportUtils.ts` + `components/ExportMenu.tsx` |
 | .docx export (Personal/Power) | `lib/docxExport.ts` |
-| Storage backend | `lib/transcriptStorage.ts` (FS) + `lib/azureBlobStorage.ts` (Blob) |
+| Transcript JSON storage | `lib/transcriptStorage.ts` (FS) + `lib/azureBlobStorage.ts` (Blob) |
+| **Voice-audio archival (new, opt-in)** | `lib/azureBlobAudio.ts` + `app/api/audio/upload/route.ts` — see `docs/AZURE_BLOB_AUDIO_SETUP.md` |
 | Recap UI | `components/MeetingSummary.tsx` |
 | Keyboard shortcuts | `hooks/useKeyboardShortcuts.ts` |
+| Brand tokens | `lib/theme.ts` + `app/globals.css` (ITU official blue #009CD6) |
+
+---
+
+## Brand identity (current, as of this session)
+
+- **Primary blue: `#009CD6`** — official ITU brand blue per brand.itu.int. Migrated from `#1DA0DB` across `lib/theme.ts`, `app/globals.css`, `public/manifest.json`, `app/layout.tsx`, `electron/main.ts`, all admin + mission-control + waveform components, extension assets, and icon-generation scripts. The dark-mode tone is `#3FB4E2` (brighter for dark backgrounds).
+- **Typography**: Noto Sans + Noto Sans Mono (matches ITU presentation deck).
+- **Iconography**: lucide-react line icons, 12–28 px, ITU-blue stroke for section/meaning cues, neutral for plain affordances. Used in Settings section headers, MeetingList empty state, MeetingSummary recap header, and the transcript empty state.
+- **PDF template**: the ITU PowerPoint deck the user provided is a stylistic reference for iconography + subtle brand cues, not a binding visual spec. Brand.itu.int is the authority.
 
 ---
 
@@ -71,56 +83,52 @@ type Mode = "personal" | "power";
 COPY[mode] = { disclaimer, recapHeading, followUpsHeading, exportPrefix, bureauVisible, adminVisible, greetingPrefix }
 ```
 
-**Personal mode** intentionally hides:
-- Reminder banner, TaskChecklist, WellnessIndicator, AudioModeCards picker, MeetingList calendar, AudioModeSelector segmented control
-- NavLinks reduced to just Home + Notes
-- Defaults `chosenMode` to `"microphone"` so the record button works without a picker
-- Recap heading becomes "What I heard", filename prefix becomes `recap-…`
+**Personal mode** intentionally hides: reminder banner, TaskChecklist, WellnessIndicator, AudioModeCards picker, MeetingList calendar, AudioModeSelector. NavLinks reduced to Home + Notes. Defaults `chosenMode` to `"microphone"`. Recap heading becomes "What I heard", filename prefix becomes `recap-…`.
 
-**Power mode**: full ITU surface (calendar, dashboard, all nav, Bureau tagging, admin link). Recap heading "Meeting Summary", filename prefix `ITU-Meeting-Notes-…`.
+**Power mode**: full ITU surface (calendar, dashboard, Bureau tagging, admin). Recap heading "Meeting Summary", filename prefix `ITU-Meeting-Notes-…`.
 
-The mode is read via `useMode()` in any client component. Don't add a third mode without checking the spec.
+Read via `useMode()` in any client component.
 
 ---
 
-## Dark mode (just landed, important to understand)
+## Dark mode
 
-`app/globals.css` declares colors as CSS variables under `:root` (light) and `html[data-theme="dark"]` (dark). `tailwind.config.ts` maps every Tailwind color token (`bg-white`, `text-dark-navy`, `border-border-gray`, etc.) to `var(--xxx)`, so Tailwind utilities flip automatically when `data-theme` changes.
+`app/globals.css` declares colors as CSS variables under `:root` (light) and `html[data-theme="dark"]` (dark). `tailwind.config.ts` maps every Tailwind color token to `var(--xxx)`, so utilities flip automatically. A blocking inline script in `app/layout.tsx` `<head>` reads `localStorage.dhvani-theme` and applies `data-theme` before first paint.
 
-A blocking inline script in `app/layout.tsx` `<head>` reads `localStorage.dhvani-theme` and applies `data-theme` BEFORE first paint to avoid flash-of-light-theme.
+**Previously broken, now fixed:** `app/download/page.tsx` was using inline `style={{}}` with hardcoded hex values and broke in dark mode. Rewritten this session with Tailwind utilities; also now handles the "no published artifact" case explicitly instead of silently falling back to the generic releases page.
 
-`hooks/useTheme.ts` exposes `{ choice, resolved, setChoice }` with `light | dark | system` choices. Settings → Appearance picker renders this.
-
-**Known caveats**:
-- A guard rule in globals.css forces `text-white` to stay literal `#ffffff` inside `.bg-itu-blue` / `.bg-error` / `.bg-success` / `.bg-warning` so accent-button text stays readable.
-- `app/download/page.tsx` uses inline `style={}` with hardcoded hex values — bypasses the CSS-variable system and is BROKEN in dark mode (text invisible, buttons unclickable). Fix is straightforward: replace inline styles with Tailwind classes.
+**Guardrail**: anywhere a component uses `style={{ color: "#..." }}` it bypasses the CSS-variable system and will break dark mode. Treat as a regression.
 
 ---
 
 ## Storage backends
 
-`lib/transcriptStorage.ts` is the public API (`saveTranscript`, `listTranscripts`, `getTranscript`, `deleteTranscript`, `activeBackend`). Picks backend at call time based on env:
+### Transcript JSON (shipped, live)
+
+`lib/transcriptStorage.ts` is the public API. Picks backend at call time based on env:
 
 - **Local filesystem** (default) — `./data/transcripts/<userId>/<id>.json`. Wiped on Web App redeploy.
-- **Azure Blob** — picked when `AZURE_STORAGE_CONNECTION_STRING` (or `AZURE_STORAGE_ACCOUNT_NAME` + `AZURE_STORAGE_ACCOUNT_KEY`) are set. Container defaults to `dhvani-transcripts`, auto-created with private access. Path: `transcripts/<userId>/<sessionId>.json`. Survives redeploys.
+- **Azure Blob** — picked when `AZURE_STORAGE_CONNECTION_STRING` (or `AZURE_STORAGE_ACCOUNT_NAME` + `AZURE_STORAGE_ACCOUNT_KEY`) are set. Container `dhvani-transcripts`. Survives redeploys.
 
 Settings drawer surfaces which backend is live via `/api/storage`.
 
-Dependency: `@azure/storage-blob`.
+### Voice audio (scaffolded, OFF by default)
+
+`lib/azureBlobAudio.ts` + `app/api/audio/upload/route.ts`. Opt-in via `DHVANI_AUDIO_STORAGE=blob` in env. Needs legal/privacy review before being wired to `useAudioCapture`. Full setup guide at `docs/AZURE_BLOB_AUDIO_SETUP.md`. Layout: `audio/<userId>/<sessionId>/{manifest.json, chunk_NNNNN.webm}` inside a dedicated `dhvani-audio` container so retention lifecycle rules can be set independent of transcripts.
 
 ---
 
-## Reliability (mobile audio pipeline) — already shipped on this branch
+## Reliability (mobile audio pipeline)
 
-- **Opus 24 kbps** via MediaRecorder; iOS Safari falls back to AAC via the existing `audio/mp4` candidate in `pickSupportedMimeType()`.
-- **Chunk size**: 1500ms default (was 3000ms). Concurrent transcribes: 4 (was 2).
+- **Opus 24 kbps** via MediaRecorder; iOS Safari falls back to AAC via `pickSupportedMimeType()`.
+- **Chunk size**: 1500ms default. Concurrent transcribes: 4.
 - **OPFS atomic writes** — every chunk persisted to `/recordings/<sessionId>/chunk_NNNNN.webm` using tmp+rename.
 - **IndexedDB shadow log** — second source of truth for chunk metadata.
 - **Screen wake lock** acquired on record start, re-acquired on `visibilitychange`.
 - **`navigator.storage.persist()`** requested on first record. **`navigator.storage.estimate()`** gates record start at 200 MB free.
 - **Crash recovery** — `OrphanRecordingBanner` mounted in root layout. Shows "Unfinished recording from HH:MM" with Recover / Discard.
-- **Auto-resume on `online` event** — when the browser comes back online with pending sessions, the banner silently auto-recovers them through the transcription pipeline + surfaces a toast.
-- **Delete-on-success** — chunks are deleted from OPFS as their transcribe call returns 200; failed chunks stay so they surface as recoverable orphans.
+- **Silent auto-retry** — `useTranscription.ts` now does **5** exponential-backoff attempts per chunk (was 3). When a chunk finally fails, no user-facing toast fires; the chunk stays on OPFS and the `online`-event auto-resumer picks it up on reconnect. The "(N failed)" badge on the segments stat has been removed, along with the "Reconnected — auto-resuming N chunks" toast. User's mental model is "it heard me".
+- **Delete-on-success** — chunks are deleted from OPFS as their transcribe call returns 200.
 
 Constants in `lib/constants.ts`: `DEFAULT_CHUNK_DURATION_MS`, `MAX_CONCURRENT_TRANSCRIPTIONS`, `AUDIO_BITS_PER_SECOND`, `MIN_FREE_STORAGE_BYTES`.
 
@@ -133,89 +141,64 @@ Constants in `lib/constants.ts`: `DEFAULT_CHUNK_DURATION_MS`, `MAX_CONCURRENT_TR
 1. `setActiveMeeting(meeting)` — stores the event tag.
 2. Maps `meeting.platform` → audio source: Teams/Meet → `tab-audio`, Electron available → `electron`, Zoom → `virtual-cable`, else `microphone`.
 3. Scrolls to top.
-4. **Does NOT** start capture. The user has to tap Record themselves.
+4. Does NOT start capture. The user has to tap Record.
 5. Idle home shows a blue "Ready for: <subject>" banner with a × dismiss.
-
-`MeetingCard` button label tracks event timing: "Set up" (>5min away), "Start" (within 5min), "Join & record" (in progress). Past events not currently routed (was deferred).
 
 ---
 
 ## Exports
 
-Menu in `components/ExportMenu.tsx`. Options:
-- Copy All (clipboard)
-- Copy as Markdown (D4)
-- Download .docx — forks template on mode (Personal: minimal, "Private notes — Dhvani" footer; Power: ITU-branded "ITU · Internal working notes" footer)
-- Download .md, .txt, .srt, .json
+Menu in `components/ExportMenu.tsx`. Options: Copy All · Copy as Markdown · .docx · .md · .txt · .srt · .json.
 
-Filename uses `buildFilename(ext, { mode, title })` from `lib/exportUtils.ts`. Personal: `recap-<slug>-<date>.<ext>`; Power: `ITU-Meeting-Notes-<slug>-<date>.<ext>`. Backwards-compatible legacy shape `dhvani-transcript-<date>.<ext>` when no mode is supplied.
+Filename uses `buildFilename(ext, { mode, title })` from `lib/exportUtils.ts`. Personal: `recap-<slug>-<date>.<ext>`. Power: `ITU-Meeting-Notes-<slug>-<date>.<ext>`. Legacy shape `dhvani-transcript-<date>.<ext>` when no mode is supplied.
 
 ---
 
-## Smart Azure errors (D11)
+## Handover docs produced this session
 
-`lib/azureErrorMessages.ts` exports `interpretError(raw)` returning `{ title, hint, link?, severity }`. Wired in `contexts/TranscriptionContext.tsx` `onError` and `onRateLimited` callbacks. 401 → "Azure rejected your key", 429 → "rate-limiting", 5xx → "temporarily unavailable", network → "Your connection is slow", etc. Toast duration scales with severity.
-
----
-
-## Keyboard shortcuts (Week 7)
-
-`hooks/useKeyboardShortcuts.ts` — `Cmd+R` toggles record, `Cmd+,` opens Settings, `Esc` closes drawers. Wired in `app/page.tsx` near where `onStart` is defined. Form-field focus is honored (Cmd+, is intentionally global).
-
----
-
-## Recap (mode-aware)
-
-`components/MeetingSummary.tsx` reads `useMode().copy.recapHeading`. Personal: "What I heard" / "Wrap up" CTA / softer helper copy. Power: "Meeting Summary" / "Generate Summary" / standard copy.
-
-Server route: `/api/summarize` — uses Azure OpenAI chat with role-aware system prompts from `lib/roleProfiles.ts`. Emits a `---TASKS---` block parsed by `lib/taskManager.ts` and persisted as auto-extracted action items.
+| File | Use |
+|---|---|
+| `HANDOFF.md` (this file) | Next session's starting context. |
+| `docs/AZURE_BLOB_AUDIO_SETUP.md` | Activating voice-recording archival. |
+| `docs/E2E_TESTING_PROMPT.md` | Paste into Cursor / desktop-GUI agent to run the full QA suite and produce a report. |
+| `docs/CIO_ISD_HANDOVER.md` | Exec brief for CIO + ISD on scaling, production readiness, ownership transfer. |
+| `docs/ROADMAP.md` | 12-month product roadmap once Dhvani graduates from the Innovation Hub. |
+| `docs/STANDALONE_APPS_SPLIT.md` | Mega-prompt for splitting Dhvani into discrete apps if leadership prefers that shape. |
 
 ---
 
-## Open / known issues
+## Open / known issues (updated)
 
-1. **`/download` page is broken in dark mode** — uses inline `style={...}` with hardcoded hex values. Fix: replace inline styles with Tailwind classes (`bg-white`, `text-dark-navy`, `text-itu-blue`). Highest priority known bug.
-2. **Download page resolves installer URLs from GitHub Releases API** — if no `.dmg`/`.exe` artifact is published in the latest release, falls back to the generic releases page silently. Catch block at line ~36 swallows fetch errors with no console.error. User reported "I can't download" — this is the cause.
-3. **Two pre-existing ESLint warnings** in `app/page.tsx` lines ~180 + ~272 (`useCallback` missing-dep warnings for `setRateLimitMsg` and `setToast`). Predate this branch. Safe to leave or fix in a polish pass.
-4. **Brand color** — codebase uses `#1DA0DB`; ITU official spec is `#009CD6`. Both are very close. Switching is a 2-line change in `lib/theme.ts` + `app/globals.css` since Tailwind reads from CSS vars. User may want this.
-5. **Visual gaps** — Settings sections, MeetingList empty state, MissionControl badges, transcript empty state — all could use lucide line icons in ITU blue for scannability. User specifically asked for ITU brand icons.
-6. **Conferencing-app auto-detect** (Electron) — deferred, needs OS-level process polling + permission UX.
-7. **A1 per-phrase live transcript layout** + **B yield-to-user auto-scroll** + **D9 Cmd+F in-transcript search** — deferred (touch the same `TranscriptPanel` component, safer in a focused refactor).
-8. **D5 fuzzy library search** (Fuse.js) — deferred.
-9. **D6 background-recording notification** (mobile/PWA) — deferred.
-10. **D8 transcript section collapse** for long recordings — deferred.
-11. **D12 onboarding example transcript** — deferred.
-12. **D14 drag-to-reorder library tags** — deferred.
-
----
-
-## Recent commits on `wip/reliability-and-easy-wins` (newest first)
-
-```
-06c740c  Fix dark mode + Personal mic-only + add Azure Blob storage backend
-e353a7e  Personal mode actually strips the UI down to "tap to record"
-3050e15  Weeks 5-7: dark mode, mode-aware recap + filenames, keyboard shortcuts
-d540ea7  Weeks 3 + 4: offline auto-resume, .docx export, mode-aware install prompt
-88333b8  Apply UI/UX Addendum v1 to Dhvani: mode, calendar, exports, errors
-96e4970  WIP: offline-first persistence + Electron-aware capture UI
-```
-
-`main` is at the upstream `2a55060` point, untouched by this session.
+1. ✅ **`/download` page dark mode + artifact handling** — FIXED this session.
+2. ✅ **Brand color swap to #009CD6** — DONE.
+3. ✅ **Silent chunk retry** — DONE (5 retries, no user-facing failure toasts).
+4. ✅ **Lucide line icons** — Settings sections, Transcript empty state, (MeetingList + MeetingSummary already had them).
+5. **Two pre-existing ESLint warnings** in `app/page.tsx` lines ~174 + ~266 (`useCallback` missing-dep warnings for `setRateLimitMsg` and `setToast`). Safe to leave or fix in a polish pass.
+6. **Voice-audio Blob upload** — server-side scaffolded but NOT wired into the capture pipeline. Needs privacy review + a consent UI in Settings before flipping on.
+7. **Conferencing-app auto-detect** (Electron) — deferred; needs OS-level process polling + permission UX.
+8. **A1 per-phrase live transcript layout** + **B yield-to-user auto-scroll** + **D9 Cmd+F in-transcript search** — deferred (all touch `TranscriptPanel`; safer in a focused refactor).
+9. **D5 fuzzy library search** (Fuse.js) — deferred.
+10. **D6 background-recording notification** (mobile/PWA) — deferred.
+11. **D8 transcript section collapse** for long recordings — deferred.
+12. **D12 onboarding example transcript** — deferred.
+13. **D14 drag-to-reorder library tags** — deferred.
+14. **Release pipeline for desktop binaries** — the /download page now handles missing assets gracefully, but there is no GitHub Actions workflow yet publishing `.dmg`/`.exe` per tag. See `docs/CIO_ISD_HANDOVER.md` "Production readiness" section.
 
 ---
 
 ## Conventions for the next session
 
 - Don't reintroduce demo mode unless asked — Entra is the auth path.
-- Don't add a backend server beyond Next API routes; everything stays in the existing stack.
+- Don't add a backend server beyond Next API routes.
 - Don't switch to Tauri / monorepo / BYOK — that experiment is parked at `itu-transcribe`.
-- Don't bypass the CSS-variable color system — anywhere a component uses an inline `style={{ color: "#…"  }}` it will break dark mode.
+- Don't bypass the CSS-variable color system — anywhere a component uses an inline `style={{ color: "#…"  }}` it will break dark mode. The `/download` fix above is the pattern to follow.
+- **Don't introduce user-facing "N chunks failed" messaging.** Retry silently; log to `console.warn`; let OrphanRecoveryBanner be the manual-recovery surface.
 - Run `tsc --noEmit` and `next lint` before committing. Two pre-existing useCallback warnings are acceptable; nothing else.
-- Use absolute paths in tool calls when scripting — the parent dir `/Users/rahuljha/digital-tools` is itself a separate (empty) git repo, so `cd Dhvani` matters.
+- Use absolute paths in tool calls — the parent dir `/Users/rahuljha/digital-tools` is itself a separate (empty) git repo.
 - Commit messages: prose, why-over-what, no Co-Authored-By unless asked.
 
 ---
 
 ## Quick orientation prompt for a new session
 
-> I'm continuing work on Dhvani at `/Users/rahuljha/digital-tools/Dhvani`, branch `wip/reliability-and-easy-wins`. Read `HANDOFF.md` at the repo root for full context. The most important known issue is: the `/download` page uses inline hex-color styles that break in dark mode and resolves installer URLs from GitHub Releases API which has no published artifacts (so users can't actually download). Help me fix [SPECIFIC THING].
+> I'm continuing work on Dhvani at `/Users/rahuljha/digital-tools/Dhvani`, branch `wip/reliability-and-easy-wins`. Read `HANDOFF.md` at the repo root for full context. Uncommitted changes from the last session include the ITU #009CD6 color migration, /download page rewrite, silent chunk retry, lucide icons on Settings, the Azure Blob voice-audio scaffold, and the docs under `docs/`. Help me with [SPECIFIC THING].
