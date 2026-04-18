@@ -22,7 +22,7 @@ import type { CapturedChunk } from "@/hooks/useAudioCapture";
  * recording. Mounted once in the root layout so it works across routes.
  */
 export function OrphanRecordingBanner() {
-  const { capture, tx } = useTranscriptionContext();
+  const { capture, tx, setToast } = useTranscriptionContext();
   const { status } = useSession();
   const [orphans, setOrphans] = useState<OrphanSession[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -41,38 +41,68 @@ export function OrphanRecordingBanner() {
     };
   }, [capture.isCapturing, status]);
 
+  // Week 3 — offline queue completion. When the browser comes back
+  // online, silently auto-resume any pending orphan sessions instead
+  // of waiting for the user to click Recover. The banner still shows
+  // for sessions older than the current navigator-online cycle so the
+  // user has a chance to discard if they don't want them transcribed.
+  useEffect(() => {
+    if (status !== "authenticated") return;
+    if (typeof window === "undefined") return;
+    const onOnline = async () => {
+      const pending = await listOrphanSessions();
+      if (pending.length === 0) return;
+      const total = pending.reduce((n, p) => n + p.chunkIndexes.length, 0);
+      setToast(
+        `Reconnected — auto-resuming ${total} pending chunk${total === 1 ? "" : "s"} across ${pending.length} session${pending.length === 1 ? "" : "s"}.`
+      );
+      window.setTimeout(() => setToast(null), 5000);
+      for (const orphan of pending) {
+        await handleRecoverInternal(orphan);
+      }
+    };
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+    // handleRecoverInternal is defined below; eslint will warn — safe
+    // because it only reads the closed-over `tx` which is stable for
+    // the lifetime of TranscriptionProvider.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, setToast]);
+
+  // Internal helper used by both manual click and auto-resume.
+  const handleRecoverInternal = useCallback(
+    async (orphan: OrphanSession) => {
+      const { blobs } = await recoverSession(orphan.meta.id);
+      blobs.forEach((blob, i) => {
+        const capturedAtMs = (orphan.chunkIndexes[i] ?? i) * 1500;
+        const chunk: CapturedChunk = {
+          index: orphan.chunkIndexes[i] ?? i,
+          blob,
+          mimeType: orphan.meta.mimeType || "audio/webm",
+          extension: orphan.meta.extension || "webm",
+          capturedAtMs,
+          durationMs: 1500,
+          sessionId: orphan.meta.id,
+        };
+        tx.transcribeChunk(chunk);
+      });
+      setOrphans((prev) => prev.filter((o) => o.meta.id !== orphan.meta.id));
+    },
+    [tx]
+  );
+
   const handleRecover = useCallback(
     async (orphan: OrphanSession) => {
       setBusyId(orphan.meta.id);
       try {
-        const { blobs } = await recoverSession(orphan.meta.id);
-        let emitted = 0;
-        const start = Date.now();
-        blobs.forEach((blob, i) => {
-          const capturedAtMs = (orphan.chunkIndexes[i] ?? i) * 1500;
-          const chunk: CapturedChunk = {
-            index: orphan.chunkIndexes[i] ?? i,
-            blob,
-            mimeType: orphan.meta.mimeType || "audio/webm",
-            extension: orphan.meta.extension || "webm",
-            capturedAtMs,
-            durationMs: 1500,
-            sessionId: orphan.meta.id,
-          };
-          tx.transcribeChunk(chunk);
-          emitted++;
-        });
-        console.log(
-          `[OrphanRecovery] enqueued ${emitted} chunks from ${orphan.meta.id} (age ${(Date.now() - start) | 0}ms)`
-        );
-        setOrphans((prev) => prev.filter((o) => o.meta.id !== orphan.meta.id));
+        await handleRecoverInternal(orphan);
       } catch (err) {
         console.warn("[OrphanRecovery] recover failed", err);
       } finally {
         setBusyId(null);
       }
     },
-    [tx]
+    [handleRecoverInternal]
   );
 
   const handleDiscard = useCallback(async (orphan: OrphanSession) => {

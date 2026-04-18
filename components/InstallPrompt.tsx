@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Download, Share, X } from "lucide-react";
+import { useMode } from "@/hooks/useMode";
 
 const DISMISSED_KEY = "dhvani-install-dismissed";
 
@@ -14,6 +15,15 @@ export default function InstallPrompt() {
   const [show, setShow] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const deferredPrompt = useRef<BeforeInstallPromptEvent | null>(null);
+  const { mode } = useMode();
+  const headline =
+    mode === "personal"
+      ? "Install Dhvani — your private notes"
+      : "Install Dhvani for quick access";
+  const subtext =
+    mode === "personal"
+      ? "Recordings stay on your device, even offline."
+      : "Open it from your home screen, no browser tab needed.";
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -87,12 +97,9 @@ export default function InstallPrompt() {
           <>
             <Share size={20} className="shrink-0 text-itu-blue" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-dark-navy">
-                Install Dhvani
-              </p>
+              <p className="text-sm font-medium text-dark-navy">{headline}</p>
               <p className="text-xs text-mid-gray leading-snug">
-                Tap{" "}
-                <Share size={12} className="inline -mt-0.5" /> Share, then
+                Tap <Share size={12} className="inline -mt-0.5" /> Share, then
                 &ldquo;Add to Home Screen&rdquo;
               </p>
             </div>
@@ -101,9 +108,8 @@ export default function InstallPrompt() {
           <>
             <Download size={20} className="shrink-0 text-itu-blue" />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-dark-navy">
-                Install Dhvani for quick access
-              </p>
+              <p className="text-sm font-medium text-dark-navy">{headline}</p>
+              <p className="text-xs text-mid-gray leading-snug">{subtext}</p>
             </div>
             <button
               onClick={install}

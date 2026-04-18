@@ -11,22 +11,74 @@ import {
   toTxt,
   type SpeakerResolver,
 } from "@/lib/exportUtils";
+import { exportFilename, generateDocx } from "@/lib/docxExport";
+import { useMode } from "@/hooks/useMode";
 import type { TranscriptEntry } from "@/lib/constants";
 
 type Props = {
   transcript: TranscriptEntry[];
   resolveSpeaker?: SpeakerResolver;
+  /** Optional metadata used by the .docx export. */
+  title?: string;
+  startedAt?: string;
+  durationMin?: number;
+  recapMarkdown?: string;
+  actionItems?: string[];
 };
 
 /**
  * Export menu — copy to clipboard, or download .txt, .srt, .json.
  * Disabled when the transcript is empty.
  */
-export function ExportMenu({ transcript, resolveSpeaker }: Props) {
+export function ExportMenu({
+  transcript,
+  resolveSpeaker,
+  title,
+  startedAt,
+  durationMin,
+  recapMarkdown,
+  actionItems,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const { mode } = useMode();
 
   const disabled = transcript.length === 0;
+
+  const doDownloadDocx = async () => {
+    try {
+      const bytes = await generateDocx(
+        {
+          transcript,
+          resolveSpeaker,
+          title,
+          startedAt,
+          durationMin,
+          recapMarkdown,
+          actionItems,
+        },
+        mode
+      );
+      const blob = new Blob([bytes as BlobPart], {
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = exportFilename(mode, "docx", title);
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setStatus("Downloaded .docx");
+      setTimeout(() => setStatus(null), 1500);
+    } catch (err) {
+      console.warn("[ExportMenu] docx generation failed", err);
+      setStatus("Download failed");
+      setTimeout(() => setStatus(null), 1500);
+    }
+    setOpen(false);
+  };
 
   const doCopy = async () => {
     try {
@@ -75,9 +127,12 @@ export function ExportMenu({ transcript, resolveSpeaker }: Props) {
         <Download size={14} /> Export <ChevronDown size={14} />
       </button>
       {open && !disabled && (
-        <div className="absolute right-0 bottom-full mb-2 w-48 bg-white border border-border-gray rounded-lg shadow-xl overflow-hidden z-10">
+        <div className="absolute right-0 bottom-full mb-2 w-64 bg-white border border-border-gray rounded-lg shadow-xl overflow-hidden z-10">
           <MenuItem onClick={doCopy}>Copy All (clipboard)</MenuItem>
           <MenuItem onClick={doCopyMarkdown}>Copy as Markdown</MenuItem>
+          <MenuItem onClick={doDownloadDocx}>
+            Download .docx ({mode === "power" ? "ITU template" : "personal"})
+          </MenuItem>
           <MenuItem onClick={() => doDownload("md")}>Download .md</MenuItem>
           <MenuItem onClick={() => doDownload("txt")}>Download .txt</MenuItem>
           <MenuItem onClick={() => doDownload("srt")}>Download .srt</MenuItem>
