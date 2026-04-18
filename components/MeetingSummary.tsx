@@ -12,6 +12,7 @@ import {
   ChevronUp,
 } from "lucide-react";
 import ActionItems, { type ActionItem } from "./ActionItems";
+import { useMode } from "@/hooks/useMode";
 import type { TranscriptEntry } from "@/lib/constants";
 
 type Props = {
@@ -35,6 +36,7 @@ export default function MeetingSummary({
   onSummaryGenerated,
   onActionItemsChange,
 }: Props) {
+  const { mode, copy: modeCopy } = useMode();
   const [state, setState] = useState<State>(initialSummary ? "done" : "idle");
   const [summary, setSummary] = useState(initialSummary || "");
   const [actionItems, setActionItems] = useState<ActionItem[]>(
@@ -115,11 +117,12 @@ export default function MeetingSummary({
       <div className="bg-itu-blue-pale/50 border border-itu-blue/20 rounded-xl p-6 text-center">
         <Sparkles className="mx-auto mb-3 text-itu-blue" size={32} />
         <h3 className="text-base font-semibold text-dark-navy mb-1">
-          AI Meeting Summary
+          {modeCopy.recapHeading}
         </h3>
         <p className="text-sm text-mid-gray mb-4">
-          Generate a structured summary with key decisions, action items, and
-          participant contributions.
+          {mode === "personal"
+            ? "Wrap up what you heard with key points and your follow-ups."
+            : "Generate a structured summary with key decisions, action items, and participant contributions."}
         </p>
         <button
           onClick={generate}
@@ -127,7 +130,7 @@ export default function MeetingSummary({
           className="px-5 py-2.5 text-sm font-semibold text-white bg-itu-blue rounded-lg hover:bg-itu-blue-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           <Sparkles size={14} className="inline -mt-0.5 mr-1.5" />
-          Generate Summary
+          {mode === "personal" ? "Wrap up" : "Generate Summary"}
         </button>
       </div>
     );
@@ -176,7 +179,7 @@ export default function MeetingSummary({
           className="flex items-center gap-2 text-sm font-semibold text-dark-navy hover:text-itu-blue transition-colors"
         >
           <Sparkles size={16} className="text-itu-blue" />
-          AI Summary
+          {modeCopy.recapHeading}
           {collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
         </button>
         <div className="flex items-center gap-1.5">

@@ -28,6 +28,36 @@
   --itu-red: #e4002b;
 }
 
+/* Dark mode tokens — applied when html[data-theme="dark"] OR system
+   prefers-color-scheme: dark with no explicit override. Existing
+   Tailwind utility classes that reference these tokens (bg-white,
+   text-dark-navy, border-border-gray, etc.) automatically pick up
+   the new values; no component refactor needed for the bulk of the
+   surface. */
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* ITU brand — keep accent color readable on dark surfaces. */
+  --itu-blue: #4ab3e8;
+  --itu-blue-dark: #1da0db;
+  --itu-blue-light: #7fcdef;
+  --itu-blue-pale: rgba(74, 179, 232, 0.12);
+
+  /* Neutrals (inverted) */
+  --white: #0f1620;
+  --off-white: #131c28;
+  --light-gray: #1a2332;
+  --border-gray: #2a3548;
+  --mid-gray: #93a1b8;
+  --dark-gray: #d8dde6;
+  --dark-navy: #f0f4f9;
+
+  /* Status — slightly desaturated for dark backgrounds */
+  --success: #34d399;
+  --warning: #fbbf24;
+  --error: #f87171;
+}
+
 html,
 body {
   background-color: var(--white);

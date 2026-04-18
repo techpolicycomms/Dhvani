@@ -24,6 +24,7 @@ import { TaskChecklist } from "@/components/TaskChecklist";
 import { TranscriptPanel } from "@/components/TranscriptPanel";
 import { WellnessIndicator } from "@/components/WellnessIndicator";
 import { useCalendarPrefs } from "@/hooks/useCalendarPrefs";
+import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
 import { useMeetingReminders } from "@/hooks/useMeetingReminders";
 import { useAudioDevices } from "@/hooks/useAudioDevices";
 import { useTranscriptionContext } from "@/contexts/TranscriptionContext";
@@ -168,6 +169,20 @@ export default function HomePage() {
     activeMeeting,
     primeSpeakers,
   ]);
+
+  // Week 7 — keyboard shortcuts. Cmd+R toggles record, Cmd+, opens
+  // Settings, Esc closes any open drawer/modal. Memoised handlers
+  // keep the listener stable across renders.
+  useKeyboardShortcuts({
+    onRecord: () => {
+      if (isCapturing) stopCapture();
+      else void onStart();
+    },
+    onSettings: () => setSettingsOpen((s) => !s),
+    onEscape: () => {
+      if (settingsOpen) setSettingsOpen(false);
+    },
+  });
 
   const onStartFromMeeting = useCallback(
     (meeting: Meeting) => {

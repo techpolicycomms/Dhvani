@@ -122,15 +122,32 @@ export function toMarkdown(
 }
 
 /**
- * Build a filename like "dhvani-transcript-2026-04-14.txt".
+ * Build a filename. Mode-aware: Personal mode produces a humble
+ * `recap-2026-04-14.txt`, Power mode the institutional
+ * `ITU-Meeting-Notes-2026-04-14.txt`. Falls back to the legacy
+ * `dhvani-transcript-…` shape when no mode is supplied (backwards
+ * compatibility for callers that haven't been threaded through).
  */
-export function buildFilename(extension: string): string {
+export function buildFilename(
+  extension: string,
+  opts?: { mode?: "personal" | "power"; title?: string }
+): string {
   const d = new Date();
   const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
     2,
     "0"
   )}-${String(d.getDate()).padStart(2, "0")}`;
-  return `dhvani-transcript-${date}.${extension}`;
+  if (!opts?.mode) {
+    return `dhvani-transcript-${date}.${extension}`;
+  }
+  const slug = (opts.title ?? "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+  const prefix = opts.mode === "power" ? "ITU-Meeting-Notes" : "recap";
+  const base = slug ? `${prefix}-${slug}-${date}` : `${prefix}-${date}`;
+  return `${base}.${extension}`;
 }
 
 /**

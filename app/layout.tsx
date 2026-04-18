@@ -82,6 +82,13 @@ export default async function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Dhvani" />
         <link rel="apple-touch-icon" href="/icons/icon-152.png" />
         <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png" />
+        {/* Pre-paint theme: avoids the flash of light theme for users
+            who picked dark or whose system is dark. Mirrors lib/themeMode.ts. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var k=localStorage.getItem('dhvani-theme');var t=k==='dark'||k==='light'?k:(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');document.documentElement.dataset.theme=t;document.documentElement.style.colorScheme=t;}catch(e){}})();`,
+          }}
+        />
       </head>
       <body
         className="min-h-screen bg-white text-dark-navy antialiased font-sans"

@@ -104,10 +104,7 @@ export function ExportMenu({
   };
 
   const doDownload = (kind: "txt" | "srt" | "json" | "md") => {
-    const file = buildFilename(kind === "md" ? "txt" : kind).replace(
-      /\.txt$/,
-      kind === "md" ? ".md" : ".txt"
-    );
+    const file = buildFilename(kind, { mode, title });
     if (kind === "txt") downloadText(toTxt(transcript, resolveSpeaker), file);
     if (kind === "srt") downloadText(toSrt(transcript, resolveSpeaker), file);
     if (kind === "json")

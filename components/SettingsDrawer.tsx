@@ -8,6 +8,7 @@ import VocabularyManager from "./VocabularyManager";
 import { OrgInsightsOptIn } from "./OrgInsightsOptIn";
 import { useUserProfile } from "@/contexts/UserProfileContext";
 import { useMode } from "@/hooks/useMode";
+import { useTheme } from "@/hooks/useTheme";
 import {
   MAX_CHUNK_DURATION_MS,
   MIN_CHUNK_DURATION_MS,
@@ -155,6 +156,7 @@ export function SettingsDrawer(props: Props) {
           )}
 
           <ModeField />
+          <ThemeField />
 
           <Field
             label="Language"
@@ -325,6 +327,46 @@ function ModeField() {
         {mode === "personal"
           ? "Quiet, first-person — your private notes."
           : "Dense, third-person — shareable meeting notes with Bureau tagging."}
+      </p>
+    </div>
+  );
+}
+
+function ThemeField() {
+  const { choice, setChoice } = useTheme();
+  return (
+    <div>
+      <label className="block text-sm font-medium text-dark-navy mb-1">
+        Appearance
+      </label>
+      <div
+        role="radiogroup"
+        aria-label="Appearance"
+        className="inline-flex items-stretch rounded-lg border border-border-gray bg-white overflow-hidden"
+      >
+        {(["light", "system", "dark"] as const).map((t) => {
+          const selected = choice === t;
+          return (
+            <button
+              key={t}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              onClick={() => setChoice(t)}
+              className={[
+                "px-3 h-9 text-sm font-medium capitalize transition-colors",
+                selected
+                  ? "bg-itu-blue text-white"
+                  : "text-dark-navy hover:bg-itu-blue-pale",
+              ].join(" ")}
+            >
+              {t}
+            </button>
+          );
+        })}
+      </div>
+      <p className="mt-1 text-[11px] text-mid-gray">
+        System follows your OS — Dhvani re-tints automatically when it changes.
       </p>
     </div>
   );
