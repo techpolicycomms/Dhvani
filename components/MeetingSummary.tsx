@@ -10,6 +10,7 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
+  ListChecks,
 } from "lucide-react";
 import ActionItems, { type ActionItem } from "./ActionItems";
 import { useMode } from "@/hooks/useMode";
@@ -217,7 +218,8 @@ export default function MeetingSummary({
           {/* Action items */}
           {actionItems.length > 0 && (
             <div className="px-4 py-4">
-              <h4 className="text-xs font-semibold text-mid-gray uppercase tracking-wider mb-3">
+              <h4 className="flex items-center gap-1.5 text-xs font-semibold text-mid-gray uppercase tracking-wider mb-3">
+                <ListChecks size={13} className="text-itu-blue" aria-hidden="true" />
                 Action Items ({actionItems.length})
               </h4>
               <ActionItems

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Bell, X } from "lucide-react";
+import { Bell, Mic, X } from "lucide-react";
 import {
   PLATFORM_BADGE_CLASS,
   PLATFORM_LABELS,
@@ -77,8 +77,9 @@ export function MeetingBanner({ meeting, onStart, onDismiss }: Props) {
             });
             onStart();
           }}
-          className="shrink-0 px-3 py-1.5 rounded text-xs font-semibold bg-itu-blue text-white hover:bg-itu-blue-dark"
+          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 rounded text-xs font-semibold bg-itu-blue text-white hover:bg-itu-blue-dark"
         >
+          <Mic size={12} aria-hidden="true" />
           Start transcription
         </button>
         <button

@@ -1,6 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  Award,
+  BarChart3,
+  CheckCircle2,
+  Clock,
+  Crown,
+  Flame,
+  Mic,
+  type LucideIcon,
+} from "lucide-react";
 import { BADGES, type MissionStats } from "@/lib/gamification";
 import { WellnessIndicator } from "@/components/WellnessIndicator";
 
@@ -48,7 +58,13 @@ export function MissionControl() {
       <div className="rounded-2xl p-5 text-white" style={{ background: "linear-gradient(135deg,#0B1426 0%,#1A2744 100%)" }}>
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-4">
-            <div className="text-4xl">{stats.rank.icon}</div>
+            <div
+              className="w-14 h-14 rounded-xl flex items-center justify-center shrink-0"
+              style={{ backgroundColor: "rgba(0,156,214,0.2)" }}
+              aria-hidden="true"
+            >
+              <Crown size={28} className="text-[#4FB7E4]" />
+            </div>
             <div>
               <div className="text-xs uppercase tracking-wider text-white/60">
                 Rank
@@ -65,7 +81,10 @@ export function MissionControl() {
             <div className="text-xs uppercase tracking-wider text-white/60">
               Streak
             </div>
-            <div className="text-xl font-bold">🔥 {stats.streakDays} day{stats.streakDays === 1 ? "" : "s"}</div>
+            <div className="inline-flex items-center gap-1.5 text-xl font-bold">
+              <Flame size={18} className="text-orange-400" aria-hidden="true" />
+              {stats.streakDays} day{stats.streakDays === 1 ? "" : "s"}
+            </div>
           </div>
         </div>
         <div className="mt-4">
@@ -85,14 +104,14 @@ export function MissionControl() {
       {/* Stats cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <StatCard
-          icon="🛰️"
-          label="Satellites Deployed"
+          icon={Mic}
+          label="Meetings transcribed"
           value={String(stats.totalMeetingsTranscribed)}
           sub={`${stats.currentWeekMeetings} this week`}
         />
         <StatCard
-          icon="📡"
-          label="Frequencies Coordinated"
+          icon={CheckCircle2}
+          label="Action items closed"
           value={`${stats.totalActionItemsCompleted}/${stats.totalActionItemsCreated}`}
           sub={
             stats.totalActionItemsCreated > 0
@@ -101,14 +120,14 @@ export function MissionControl() {
           }
         />
         <StatCard
-          icon="⏱️"
-          label="Mission Time"
+          icon={Clock}
+          label="Recording time"
           value={formatDuration(stats.totalMinutesTranscribed)}
-          sub={`across ${stats.totalMeetingsTranscribed} mission${stats.totalMeetingsTranscribed === 1 ? "" : "s"}`}
+          sub={`across ${stats.totalMeetingsTranscribed} meeting${stats.totalMeetingsTranscribed === 1 ? "" : "s"}`}
         />
         <StatCard
-          icon="📊"
-          label="Debrief Rate"
+          icon={BarChart3}
+          label="Summary rate"
           value={
             stats.totalMeetingsTranscribed > 0
               ? `${Math.round((stats.totalSummariesGenerated / stats.totalMeetingsTranscribed) * 100)}%`
@@ -124,7 +143,10 @@ export function MissionControl() {
       {/* Badges */}
       <section className="rounded-lg border border-border-gray bg-white p-4">
         <div className="flex items-baseline justify-between mb-3">
-          <div className="text-sm font-semibold text-dark-navy">Badges</div>
+          <div className="flex items-center gap-1.5 text-sm font-semibold text-dark-navy">
+            <Award size={15} className="text-itu-blue" aria-hidden="true" />
+            Badges
+          </div>
           <div className="text-[11px] text-mid-gray">
             {stats.earnedBadges.length} of {BADGES.length} earned
           </div>
@@ -160,20 +182,25 @@ export function MissionControl() {
 }
 
 function StatCard({
-  icon,
+  icon: Icon,
   label,
   value,
   sub,
 }: {
-  icon: string;
+  icon: LucideIcon;
   label: string;
   value: string;
   sub?: string;
 }) {
   return (
     <div className="rounded-lg border border-border-gray bg-white p-4">
-      <div className="text-2xl">{icon}</div>
-      <div className="text-[10px] uppercase tracking-wider text-mid-gray mt-1">
+      <div
+        className="w-10 h-10 rounded-lg bg-itu-blue-pale flex items-center justify-center"
+        aria-hidden="true"
+      >
+        <Icon size={18} className="text-itu-blue-dark" />
+      </div>
+      <div className="text-[10px] uppercase tracking-wider text-mid-gray mt-2">
         {label}
       </div>
       <div className="text-2xl font-bold text-dark-navy tabular-nums mt-0.5">

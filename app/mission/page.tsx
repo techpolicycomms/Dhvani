@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Rocket } from "lucide-react";
 import { NavLinks } from "@/components/NavLinks";
 import { MissionControl } from "@/components/MissionControl";
 
@@ -14,12 +15,22 @@ export default function MissionPage() {
         <NavLinks />
       </header>
       <section className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-dark-navy">Mission Control 🛰️</h1>
-          <p className="text-sm text-mid-gray mt-1">
-            Your personal ops room. Every meeting transcribed is a satellite
-            deployed; every action item closed is a frequency coordinated.
-          </p>
+        <div className="mb-6 flex items-start gap-3">
+          <div
+            className="w-12 h-12 rounded-xl bg-itu-blue-pale flex items-center justify-center shrink-0"
+            aria-hidden="true"
+          >
+            <Rocket size={22} className="text-itu-blue-dark" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-dark-navy">
+              Mission Control
+            </h1>
+            <p className="text-sm text-mid-gray mt-1">
+              Your personal dashboard. Every meeting transcribed, every
+              action item closed, every summary generated — tracked.
+            </p>
+          </div>
         </div>
         <MissionControl />
       </section>
