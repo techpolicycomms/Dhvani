@@ -47,6 +47,23 @@ function isIncompatibleResponseFormatError(err: unknown): boolean {
   );
 }
 
+/**
+ * gpt-4o-transcribe-diarize rejects the `prompt` parameter with
+ * "Prompt is not supported for diarization models". Other deployments
+ * (plain gpt-4o-transcribe, Whisper) accept it. Detect and retry
+ * without prompt so a deployment choice doesn't silently break every
+ * chunk when ITU vocabulary priming is enabled.
+ */
+function isPromptNotSupportedError(err: unknown): boolean {
+  const e = err as { status?: number; message?: string };
+  const msg = (e.message || "").toLowerCase();
+  return (
+    e.status === 400 &&
+    msg.includes("prompt") &&
+    (msg.includes("not supported") || msg.includes("unsupported"))
+  );
+}
+
 export class AzureOpenAIProvider implements AIProvider {
   readonly name = "azure-openai";
 
@@ -56,32 +73,54 @@ export class AzureOpenAIProvider implements AIProvider {
   ): Promise<TranscriptionResult> {
     const openai = createOpenAIClient();
     const model = whisperDeployment();
-    const shared = {
-      model,
-      file,
-      ...(options.language ? { language: options.language } : {}),
-      // Prompt priming: biases the model toward domain vocabulary
-      // (ITU acronyms, proper nouns). Harmless when absent.
-      ...(options.prompt ? { prompt: options.prompt } : {}),
-    };
     type CreateParams = Parameters<
       typeof openai.audio.transcriptions.create
     >[0];
 
-    let raw: RawTranscriptionResult;
-    try {
-      raw = (await openai.audio.transcriptions.create({
-        ...shared,
-        response_format: "verbose_json",
-        timestamp_granularities: ["word", "segment"],
-      } as unknown as CreateParams)) as unknown as RawTranscriptionResult;
-    } catch (err) {
-      if (!isIncompatibleResponseFormatError(err)) throw err;
-      raw = (await openai.audio.transcriptions.create({
-        ...shared,
-        response_format: "json",
-      } as unknown as CreateParams)) as unknown as RawTranscriptionResult;
+    // The two axes on which an Azure deployment might reject our params:
+    //   - response_format: some deployments want "json" instead of
+    //     "verbose_json" (isIncompatibleResponseFormatError).
+    //   - prompt: gpt-4o-transcribe-diarize rejects it outright
+    //     (isPromptNotSupportedError).
+    // Loop through the combinations in order of preference, dropping
+    // whichever param the deployment complains about.
+    let useVerbose = true;
+    let usePrompt = !!options.prompt;
+    let raw: RawTranscriptionResult | null = null;
+    let lastErr: unknown = null;
+    // At most 4 iterations: (verbose,prompt) → (verbose,no-prompt) →
+    // (json,no-prompt) → give up. In practice we hit the working
+    // combination in 1-2 attempts.
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const params = {
+        model,
+        file,
+        ...(options.language ? { language: options.language } : {}),
+        ...(usePrompt && options.prompt ? { prompt: options.prompt } : {}),
+        response_format: useVerbose ? "verbose_json" : "json",
+        ...(useVerbose
+          ? { timestamp_granularities: ["word", "segment"] }
+          : {}),
+      };
+      try {
+        raw = (await openai.audio.transcriptions.create(
+          params as unknown as CreateParams
+        )) as unknown as RawTranscriptionResult;
+        break;
+      } catch (err) {
+        lastErr = err;
+        if (isPromptNotSupportedError(err) && usePrompt) {
+          usePrompt = false;
+          continue;
+        }
+        if (isIncompatibleResponseFormatError(err) && useVerbose) {
+          useVerbose = false;
+          continue;
+        }
+        throw err;
+      }
     }
+    if (!raw) throw lastErr ?? new Error("Transcription failed after retries.");
 
     const rawSegments = Array.isArray(raw.segments) ? raw.segments : [];
     const segments: TranscriptionSegment[] = rawSegments
