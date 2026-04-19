@@ -13,6 +13,10 @@ node_modules
 # production
 /build
 /dist
+# ...except the electron-builder resources directory (entitlements +
+# icons). `/build` above would otherwise hide them.
+!/build/
+!/build/**
 
 # misc
 .DS_Store

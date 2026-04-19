@@ -17,9 +17,10 @@
 import {
   app,
   BrowserWindow,
-  ipcMain,
+  desktopCapturer,
   globalShortcut,
   Menu,
+  session,
   Tray,
   nativeImage,
 } from "electron";
@@ -190,13 +191,25 @@ function createWindow() {
   // external site (malicious link in transcript text, phishing tab
   // handoff, etc.) opens in the user's default browser instead of
   // taking over the BrowserWindow.
+  // Entra OAuth hops must stay inside this window so the PKCE cookie
+  // set at sign-in start is visible at callback time. Anything outside
+  // this allowlist and our own origin gets kicked to the system browser.
+  const AUTH_HOST_ALLOWLIST = new Set<string>([
+    "login.microsoftonline.com",
+    "login.microsoft.com",
+    "login.windows.net",
+    "graph.microsoft.com",
+  ]);
   mainWindow.webContents.on("will-navigate", (event, nextUrl) => {
     try {
       const dest = new URL(nextUrl);
       const allowed = new URL(url);
       const isData = dest.protocol === "data:";
       const sameOrigin = dest.origin === allowed.origin;
-      if (!isData && !sameOrigin) {
+      const isAuthHop =
+        (dest.protocol === "https:" || dest.protocol === "http:") &&
+        AUTH_HOST_ALLOWLIST.has(dest.hostname);
+      if (!isData && !sameOrigin && !isAuthHop) {
         event.preventDefault();
         console.warn("[dhvani] blocked will-navigate to", nextUrl);
         // Open externally so users can still follow legitimate links.
@@ -276,6 +289,45 @@ function createTray() {
 }
 
 app.whenReady().then(() => {
+  // System-audio loopback handler. When the renderer calls
+  // navigator.mediaDevices.getDisplayMedia({ audio: true, video: true }),
+  // Electron routes the permission callback here. We return a screen
+  // source (required for API completeness on all platforms) plus
+  // audio: "loopback", which Electron 30+ maps to:
+  //   - macOS 13+  : ScreenCaptureKit system-audio tap (no driver install)
+  //   - Windows 10+: WASAPI loopback
+  //   - macOS <13  : loopback not supported — callback({}) fires, the
+  //                  getDisplayMedia promise rejects in the renderer, and
+  //                  useAudioCapture surfaces a clean error.
+  try {
+    // Note: newer Electron versions accept a second options arg
+    // `{ useSystemPicker: false }`. The installed Electron 30.x typings
+    // don't expose it yet, and the default behaviour (no system picker)
+    // is what we want for a frictionless "start recording" flow anyway.
+    session.defaultSession.setDisplayMediaRequestHandler(
+      (_request, callback) => {
+        desktopCapturer
+          .getSources({ types: ["screen"] })
+          .then((sources) => {
+            if (sources.length === 0) {
+              callback({});
+              return;
+            }
+            callback({ video: sources[0], audio: "loopback" });
+          })
+          .catch((err) => {
+            console.warn("[dhvani] desktopCapturer.getSources failed", err);
+            callback({});
+          });
+      }
+    );
+  } catch (err) {
+    console.warn(
+      "[dhvani] setDisplayMediaRequestHandler unavailable; system-audio capture will not work on this build",
+      err
+    );
+  }
+
   createWindow();
   createTray();
 
@@ -307,16 +359,4 @@ app.on("before-quit", () => {
 
 app.on("will-quit", () => {
   globalShortcut.unregisterAll();
-});
-
-// IPC bridge for native audio-capture mode (demo builds only — the
-// central web app uses browser getDisplayMedia/getUserMedia).
-ipcMain.handle("start-capture", async (_event, opts) => {
-  mainWindow?.webContents.send("electron:start-capture", opts);
-  return { ok: true };
-});
-
-ipcMain.handle("stop-capture", async () => {
-  mainWindow?.webContents.send("electron:stop-capture");
-  return { ok: true };
 });

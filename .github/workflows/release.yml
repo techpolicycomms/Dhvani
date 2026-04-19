@@ -1,66 +1,137 @@
-name: Build & Release Installers
+name: Release Desktop Installers
+
+# Triggered by a version tag (`v*`) or a manual run from the Actions tab.
+# Produces a .dmg (macOS, universal arm64+x64) and an .exe (Windows x64),
+# attaches them to the GitHub Release for the pushed tag, and falls back
+# to unsigned builds when signing secrets are absent so internal testing
+# can proceed today without waiting on cert procurement.
 
 on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
 
 jobs:
-  build-mac:
-    runs-on: macos-latest
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            platform: mac
+            artifact-pattern: dist-electron/*.dmg
+          - os: windows-latest
+            platform: win
+            artifact-pattern: dist-electron/*.exe
+
+    runs-on: ${{ matrix.os }}
+
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm ci
-      - run: npm run build
-      - run: node scripts/copy-electron-standalone-assets.mjs
-      - run: npx tsc -p electron/tsconfig.json
-      - run: CSC_IDENTITY_AUTO_DISCOVERY=false npx electron-builder --mac dmg
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Next.js
+        run: npm run build
+
+      - name: Compile Electron main/preload
+        run: npm run build:electron
+
+      # --- macOS signing detection ------------------------------------
+      - name: Check macOS signing secrets
+        if: matrix.platform == 'mac'
+        id: mac_signing
+        shell: bash
+        run: |
+          if [ -n "${{ secrets.CSC_LINK }}" ] && [ -n "${{ secrets.CSC_KEY_PASSWORD }}" ]; then
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::macOS code-signing secrets present — producing signed build"
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::macOS code-signing secrets missing — producing UNSIGNED build. Users will see Gatekeeper warnings. Set CSC_LINK / CSC_KEY_PASSWORD (and APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID for notarization) in repository secrets to fix."
+          fi
+
+      - name: Package macOS (signed)
+        if: matrix.platform == 'mac' && steps.mac_signing.outputs.signed == 'true'
+        run: npm run package:mac
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package macOS (unsigned)
+        if: matrix.platform == 'mac' && steps.mac_signing.outputs.signed != 'true'
+        run: npm run package:mac
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # --- Windows signing detection ----------------------------------
+      - name: Check Windows signing secrets
+        if: matrix.platform == 'win'
+        id: win_signing
+        shell: bash
+        run: |
+          if [ -n "${{ secrets.WIN_CSC_LINK }}" ] && [ -n "${{ secrets.WIN_CSC_KEY_PASSWORD }}" ]; then
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::Windows code-signing secrets present — producing signed build"
+          else
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Windows code-signing secrets missing — producing UNSIGNED build. SmartScreen will warn users on first run. Set WIN_CSC_LINK / WIN_CSC_KEY_PASSWORD in repository secrets to fix."
+          fi
+
+      - name: Package Windows (signed)
+        if: matrix.platform == 'win' && steps.win_signing.outputs.signed == 'true'
+        run: npm run package:win
+        env:
+          CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Package Windows (unsigned)
+        if: matrix.platform == 'win' && steps.win_signing.outputs.signed != 'true'
+        run: npm run package:win
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/upload-artifact@v4
-        with:
-          name: mac-dmg
-          path: dist-electron/*.dmg
 
-  build-windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
         with:
-          node-version: 20
-      - run: npm ci
-      - run: npm run build
-      - run: node scripts/copy-electron-standalone-assets.mjs
-      - run: npx tsc -p electron/tsconfig.json
-      - run: npx electron-builder --win nsis
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/upload-artifact@v4
-        with:
-          name: windows-exe
-          path: dist-electron/*.exe
+          name: dhvani-${{ matrix.platform }}
+          path: ${{ matrix.artifact-pattern }}
+          if-no-files-found: error
 
-  publish-release:
-    needs: [build-mac, build-windows]
+  publish:
+    # Only publish a GitHub Release when a real tag was pushed. On
+    # workflow_dispatch we still build + upload artifacts (above) so
+    # internal testers can download them from the run page, but we do
+    # not create a dangling Release.
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: mac-dmg
           path: release-assets/
-      - uses: actions/download-artifact@v4
+          merge-multiple: true
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: windows-exe
-          path: release-assets/
-      - uses: softprops/action-gh-release@v2
-        with:
-          files: release-assets/*
+          files: release-assets/**/*
           generate_release_notes: true
+          fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

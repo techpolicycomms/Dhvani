@@ -19,6 +19,10 @@
     "start": "next start",
     "lint": "next lint",
     "electron:dev": "concurrently -k \"npm:dev\" \"wait-on http://localhost:3000 && tsc -p electron/tsconfig.json && electron electron/dist/main.js\"",
+    "build:electron": "tsc -p electron/tsconfig.json",
+    "package:mac": "electron-builder --mac",
+    "package:win": "electron-builder --win",
+    "package:all": "electron-builder -mw",
     "electron:build": "tsc -p electron/tsconfig.json && electron-builder -mw",
     "electron:build:mac": "tsc -p electron/tsconfig.json && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg",
     "electron:build:win": "tsc -p electron/tsconfig.json && electron-builder --win nsis",
@@ -54,11 +58,12 @@
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "org.techpolicycomms.dhvani",
+    "appId": "com.itu.dhvani",
     "productName": "Dhvani",
     "asar": false,
     "directories": {
-      "output": "dist-electron"
+      "output": "dist-electron",
+      "buildResources": "build"
     },
     "files": [
       "electron/dist/**/*",
@@ -69,10 +74,35 @@
     ],
     "mac": {
       "category": "public.app-category.productivity",
-      "target": "dmg"
+      "target": [
+        {
+          "target": "dmg",
+          "arch": ["arm64", "x64"]
+        }
+      ],
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Dhvani needs your microphone to capture your side of the meeting.",
+        "NSCameraUsageDescription": "Dhvani uses ScreenCaptureKit to capture system audio; no video is recorded or saved."
+      }
     },
     "win": {
-      "target": "nsis"
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "dmg": {
+      "writeUpdateInfo": false
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
     }
   }
 }

@@ -1,3 +1,5 @@
+import { promises as fs } from "node:fs";
+import path from "node:path";
 import Link from "next/link";
 import {
   AlertTriangle,
@@ -22,7 +24,47 @@ type InstallerLinks = {
   tag: string | null;
   /** Fallback URL always safe to click — the releases page. */
   releasesUrl: string;
+  /** true when links come from /downloads/ (internal beta path), false when from GitHub. */
+  fromLocalShelf: boolean;
 };
+
+// Don't cache — we want file presence re-checked every request while
+// the internal-beta DMG shelf turns over.
+export const dynamic = "force-dynamic";
+
+/**
+ * Look for DMG/EXE artifacts staged in `public/downloads/`. This is the
+ * internal-beta distribution shelf: drop a build here and the /download
+ * page serves it directly instead of asking GitHub Releases. Files are
+ * gitignored so repo size stays bounded; the staging step lives in
+ * `scripts/stage-local-artifacts.sh` (or any manual `cp` into the dir).
+ *
+ * Returns resolved web paths (served by Next.js from /public/), not FS
+ * paths. Picks the most recent `.dmg`/`.exe` if there are multiples.
+ */
+async function findLocalArtifacts(): Promise<{
+  macArm64?: string;
+  macIntel?: string;
+  win?: string;
+}> {
+  const dir = path.join(process.cwd(), "public", "downloads");
+  try {
+    const entries = await fs.readdir(dir);
+    const dmgs = entries.filter((e) => e.endsWith(".dmg"));
+    const exes = entries.filter((e) => e.endsWith(".exe"));
+    const macArm64 = dmgs.find((n) => /arm64|aarch64/i.test(n));
+    // Any .dmg that isn't arm64 is treated as the Intel build.
+    const macIntel = dmgs.find((n) => n !== macArm64);
+    const win = exes[0];
+    return {
+      macArm64: macArm64 ? `/downloads/${macArm64}` : undefined,
+      macIntel: macIntel ? `/downloads/${macIntel}` : undefined,
+      win: win ? `/downloads/${win}` : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
 
 /**
  * Resolves the latest installer URLs from the GitHub Releases API.
@@ -39,6 +81,22 @@ type InstallerLinks = {
 async function getLatestInstallerLinks(): Promise<InstallerLinks> {
   const releasesUrl =
     "https://github.com/techpolicycomms/Dhvani/releases/latest";
+
+  // Local shelf wins when present — internal beta distribution path.
+  // ARM64 mac takes priority (Apple Silicon majority); we still expose
+  // Intel as a secondary link below the card if both exist.
+  const local = await findLocalArtifacts();
+  if (local.macArm64 || local.macIntel || local.win) {
+    return {
+      macUrl: local.macArm64 || local.macIntel || null,
+      winUrl: local.win ?? null,
+      macMissing: !(local.macArm64 || local.macIntel),
+      winMissing: !local.win,
+      tag: "internal-beta",
+      releasesUrl,
+      fromLocalShelf: true,
+    };
+  }
 
   try {
     const response = await fetch(
@@ -57,6 +115,7 @@ async function getLatestInstallerLinks(): Promise<InstallerLinks> {
         winMissing: false,
         tag: null,
         releasesUrl,
+        fromLocalShelf: false,
       };
     }
 
@@ -79,6 +138,7 @@ async function getLatestInstallerLinks(): Promise<InstallerLinks> {
       winMissing: !win,
       tag: release.tag_name ?? null,
       releasesUrl,
+      fromLocalShelf: false,
     };
   } catch (err) {
     console.warn("[download] GitHub release lookup failed", err);
@@ -89,6 +149,7 @@ async function getLatestInstallerLinks(): Promise<InstallerLinks> {
       winMissing: false,
       tag: null,
       releasesUrl,
+      fromLocalShelf: false,
     };
   }
 }
@@ -110,6 +171,13 @@ export default async function DownloadPage() {
             </span>
           )}
         </p>
+        {links.fromLocalShelf && (
+          <div className="mt-3 rounded-md border border-itu-blue/30 bg-itu-blue-pale px-3 py-2 text-[11px] text-itu-blue-dark">
+            <strong className="font-semibold">Internal beta build</strong> —
+            unsigned. First launch on macOS: right-click the app in Applications
+            → Open → Open. On Windows: keep past the SmartScreen warning once.
+          </div>
+        )}
 
         {bothMissing && (
           <div

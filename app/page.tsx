@@ -132,11 +132,19 @@ export default function HomePage() {
   const isPower = mode === "power";
 
   // In Personal mode the audio-source picker is hidden, so the record
-  // button needs a default. Force microphone if the user hasn't picked
-  // anything yet. Power-mode users still see the full picker.
+  // button needs a default. Defaults differ by environment:
+  //   - Electron desktop: "electron" (system-audio loopback — our
+  //     differentiator; works on macOS 13+ / Win 10+ without any
+  //     driver install via ScreenCaptureKit / WASAPI).
+  //   - Browser: "microphone" (tab-audio would prompt a picker
+  //     every time — wrong default for a Personal-mode flow).
   useEffect(() => {
     if (!isPower && !chosenMode) {
-      setChosenMode("microphone");
+      const isElectron =
+        typeof window !== "undefined" &&
+        !!(window as { electronAPI?: { isElectron?: boolean } }).electronAPI
+          ?.isElectron;
+      setChosenMode(isElectron ? "electron" : "microphone");
     }
   }, [isPower, chosenMode, setChosenMode]);
 

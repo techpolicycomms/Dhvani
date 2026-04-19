@@ -56,14 +56,18 @@ export type UseAudioCaptureReturn = {
   mediaStream: MediaStream | null;
 };
 
-// Detect if we're running inside the Electron wrapper.
+// Detect if we're running inside the Electron wrapper. The preload
+// script sets `isElectron: true` on window.electronAPI; any other value
+// (e.g. window.electronAPI undefined in the browser build) returns false.
 function isElectron(): boolean {
-  return typeof window !== "undefined" && !!(window as any).electronAPI;
+  if (typeof window === "undefined") return false;
+  const api = (window as { electronAPI?: { isElectron?: boolean } }).electronAPI;
+  return !!api?.isElectron;
 }
 
 /**
  * Core audio capture hook. Supports three browser capture modes plus a
- * transparent Electron fallback that uses native desktopCapturer.
+ * transparent Electron fallback that uses native system-audio loopback.
  *
  * - "tab-audio"      : getDisplayMedia, discard video. Best for meetings
  *                      that run in a browser tab (Meet, Zoom web, Teams web).
@@ -71,7 +75,11 @@ function isElectron(): boolean {
  * - "virtual-cable"  : getUserMedia with a specific input device id. Used
  *                      when the user has installed BlackHole (Mac) or
  *                      VB-Cable (Windows) to route system audio in.
- * - "electron"       : handled by window.electronAPI; chunks arrive via IPC.
+ * - "electron"       : getDisplayMedia as above, but the Electron main
+ *                      process substitutes the full system-audio tap
+ *                      (ScreenCaptureKit on macOS 13+, WASAPI loopback on
+ *                      Windows 10+) via setDisplayMediaRequestHandler.
+ *                      No driver install required.
  */
 export function useAudioCapture(
   options: UseAudioCaptureOptions = {}
@@ -91,10 +99,6 @@ export function useAudioCapture(
 
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
-  // For Electron mode we don't have a MediaRecorder; we just keep a
-  // cleanup callback that unsubscribes from IPC events and tells main to
-  // stop native capture.
-  const electronCleanupRef = useRef<(() => void) | null>(null);
   const chunkIndexRef = useRef(0);
   const startedAtRef = useRef<number>(0);
   const lastChunkAtRef = useRef<number>(0);
@@ -123,14 +127,6 @@ export function useAudioCapture(
       cycleTimerRef.current = null;
     }
     cycleStopRef.current = false;
-    if (electronCleanupRef.current) {
-      try {
-        electronCleanupRef.current();
-      } catch {
-        /* ignore */
-      }
-      electronCleanupRef.current = null;
-    }
     if (recorderRef.current && recorderRef.current.state !== "inactive") {
       try {
         recorderRef.current.stop();
@@ -152,18 +148,51 @@ export function useAudioCapture(
 
   const acquireStream = useCallback(
     async (mode: CaptureMode): Promise<MediaStream> => {
-      if (mode === "tab-audio") {
+      if (mode === "tab-audio" || mode === "electron") {
         if (!navigator.mediaDevices?.getDisplayMedia) {
           throw new Error(
-            "Your browser doesn't support tab audio capture. Try Microphone mode instead."
+            mode === "electron"
+              ? "System-audio capture isn't available on this OS version. Try Microphone mode."
+              : "Your browser doesn't support tab audio capture. Try Microphone mode instead."
           );
         }
         // video:true is required by Chrome to expose the "share tab audio"
-        // checkbox. We drop the video tracks immediately.
-        const stream = await navigator.mediaDevices.getDisplayMedia({
-          audio: true,
-          video: true,
-        });
+        // checkbox and by Electron's DisplayMedia handler for
+        // ScreenCaptureKit/WASAPI loopback. We drop the video tracks
+        // immediately — no pixels are ever recorded.
+        let stream: MediaStream;
+        try {
+          stream = await navigator.mediaDevices.getDisplayMedia({
+            audio: true,
+            video: true,
+          });
+        } catch (err) {
+          // Give the user something they can act on, especially on macOS
+          // where denying Screen Recording looks like a silent failure.
+          const e = err as DOMException;
+          if (mode === "electron" && e?.name === "NotAllowedError") {
+            throw new Error(
+              "Dhvani needs Screen Recording permission to capture system audio. " +
+                "Open System Settings → Privacy & Security → Screen Recording, " +
+                "enable Dhvani, then quit and reopen Dhvani. " +
+                "(No video is recorded — macOS's ScreenCaptureKit covers both audio and video under one permission.)"
+            );
+          }
+          if (e?.name === "NotAllowedError") {
+            throw new Error(
+              "Screen sharing was blocked. Click Record again and choose a tab, " +
+                "then check the 'Share audio' box."
+            );
+          }
+          if (e?.name === "NotFoundError" || e?.name === "NotSupportedError") {
+            throw new Error(
+              mode === "electron"
+                ? "System-audio loopback isn't available on this OS. On macOS 12 or earlier, use a virtual cable or Microphone mode."
+                : "Your browser couldn't find a source to share. Try Microphone mode."
+            );
+          }
+          throw err;
+        }
         stream.getVideoTracks().forEach((t) => {
           t.stop();
           stream.removeTrack(t);
@@ -171,7 +200,9 @@ export function useAudioCapture(
         if (stream.getAudioTracks().length === 0) {
           stream.getTracks().forEach((t) => t.stop());
           throw new Error(
-            "No audio detected. Did you check 'Share audio' when selecting the tab?"
+            mode === "electron"
+              ? "No system audio came through. If this is your first record, quit and reopen Dhvani after granting Screen Recording — macOS only activates the permission on app relaunch."
+              : "No audio detected. Did you check 'Share audio' when selecting the tab?"
           );
         }
         return stream;
@@ -327,76 +358,31 @@ export function useAudioCapture(
         await requestPersistentStorage();
 
         // New session id for this recording — all subsequent chunks
-        // (including Electron-sourced ones) attach to it.
+        // attach to it.
         const sessionId = newSessionId();
         sessionIdRef.current = sessionId;
         const { mimeType, extension } = pickSupportedMimeType();
         await startRecordingSession(sessionId, { mimeType, extension });
         await wakeLock.acquire();
 
-        // Electron mode: delegate to the preload bridge.
-        if (mode === "electron" || isElectron()) {
-          const api = (window as any).electronAPI;
-          if (!api?.startCapture) {
-            throw new Error(
-              "Electron bridge is not available. Try another capture mode."
-            );
-          }
-          lastModeRef.current = "electron";
-          setCaptureMode("electron");
-          startedAtRef.current = Date.now();
-          lastChunkAtRef.current = Date.now();
-          chunkIndexRef.current = 0;
-          const unsubscribe = api.onAudioChunk((payload: ArrayBuffer) => {
-            const now = Date.now();
-            const elapsed = now - startedAtRef.current;
-            const duration = now - lastChunkAtRef.current;
-            lastChunkAtRef.current = now;
-            const blob = new Blob([payload], { type: "audio/webm" });
-            const index = chunkIndexRef.current++;
-            if (sessionIdRef.current) {
-              void persistChunk(sessionIdRef.current, index, blob, {
-                capturedAtMs: elapsed,
-                durationMs: duration,
-              });
-            }
-            setAudioChunks((prev) => [
-              ...prev,
-              {
-                index,
-                blob,
-                mimeType: "audio/webm",
-                extension: "webm",
-                capturedAtMs: elapsed,
-                durationMs: duration,
-                sessionId: sessionIdRef.current,
-              },
-            ]);
-          });
-          electronCleanupRef.current = () => {
-            try {
-              unsubscribe?.();
-            } catch {
-              /* ignore */
-            }
-            api.stopCapture?.();
-          };
-          await api.startCapture({ chunkDuration });
-          setIsCapturing(true);
-          isCapturingRef.current = true;
-          tickRef.current = window.setInterval(() => {
-            setElapsedTime(Date.now() - startedAtRef.current);
-          }, 250);
-          return;
-        }
+        // "electron" is a logical mode name that means "system audio"; the
+        // actual capture is standard getDisplayMedia, which Electron's
+        // main-process DisplayMedia request handler transparently maps to
+        // ScreenCaptureKit (macOS 13+) or WASAPI loopback (Windows 10+).
+        // On macOS 12 and earlier, getDisplayMedia will reject and we
+        // surface a clean error below. No IPC-based chunk stream — the
+        // MediaRecorder + OPFS + transcription pipeline is shared with
+        // tab-audio.
+        const effectiveMode: CaptureMode =
+          mode === "electron" && !isElectron() ? "tab-audio" : mode;
 
-        lastModeRef.current = mode;
-        console.log("[useAudioCapture] acquiring stream for mode", mode);
-        const stream = await acquireStream(mode);
+        lastModeRef.current = effectiveMode;
+        console.log("[useAudioCapture] acquiring stream for mode", effectiveMode);
+        const stream = await acquireStream(effectiveMode);
         console.log("[useAudioCapture] stream acquired, starting recorder");
         mediaStreamRef.current = stream;
         setMediaStream(stream);
-        setCaptureMode(mode);
+        setCaptureMode(effectiveMode);
         beginRecording(stream);
         setIsCapturing(true);
         isCapturingRef.current = true;
@@ -431,10 +417,6 @@ export function useAudioCapture(
     });
     isCapturingRef.current = false;
     setIsCapturing(false);
-    if (lastModeRef.current === "electron") {
-      const api = (window as any).electronAPI;
-      api?.stopCapture?.();
-    }
     teardown();
     void wakeLock.release();
     // Mark the session finalized. The transcription pipeline deletes
