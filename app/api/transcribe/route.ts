@@ -9,6 +9,8 @@ import {
 import { costFromSeconds, logUsage } from "@/lib/usageLogger";
 import { getAIProvider } from "@/lib/providers";
 import { events } from "@/lib/events";
+import { buildTranscriptionPrompt } from "@/lib/ituVocabulary";
+import { readUserVocabularyTerms } from "@/lib/vocabularyStorage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -127,7 +129,18 @@ export async function POST(req: NextRequest) {
       userId,
     });
 
-    const result = await ai.transcribe(file, { language: languageHint });
+    // Prime the model with ITU domain vocabulary (acronyms, proper
+    // nouns, Study Groups, Bureaux, Recommendations) plus anything the
+    // user has added to their personal vocabulary. This lifts accuracy
+    // on in-domain terms without fine-tuning — the generic ASR model
+    // otherwise hears "SG-17" as "sergeant 17".
+    const userTerms = await readUserVocabularyTerms(userId).catch(() => []);
+    const prompt = buildTranscriptionPrompt(userTerms);
+
+    const result = await ai.transcribe(file, {
+      language: languageHint,
+      prompt,
+    });
 
     // Provider returns already-normalised segments; keep as a mutable
     // local so the synthetic-segment fallback below can augment it.

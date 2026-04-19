@@ -159,6 +159,30 @@ export default function HomePage() {
     [devices, deviceId]
   );
 
+  // -------- Expected speakers (for one-click assignment) --------
+  // Signed-in user first, then every attendee from the active calendar
+  // meeting. This list feeds the "Who is this?" picker beside each
+  // detected voice cluster so users name a speaker in one click rather
+  // than typing. Does not alter the primed-speaker-map heuristic in
+  // onStart — it's an orthogonal, user-driven path.
+  const currentUserLabel = useMemo(() => {
+    const name = user?.name || user?.email || null;
+    return name ? `${name} (you)` : null;
+  }, [user?.name, user?.email]);
+  const expectedSpeakers = useMemo(() => {
+    const names: string[] = [];
+    const self = user?.name || user?.email;
+    if (self) names.push(self);
+    const attendees = extractAttendeeNames(activeMeeting?.attendees);
+    // De-duplicate (defensive: an attendee list might include the user).
+    for (const a of attendees) {
+      if (!names.some((existing) => existing.toLowerCase() === a.toLowerCase())) {
+        names.push(a);
+      }
+    }
+    return names;
+  }, [user?.name, user?.email, activeMeeting]);
+
   // -------- Handlers --------
   const captureStartedAtRef = useRef<string | null>(null);
 
@@ -557,6 +581,8 @@ export default function HomePage() {
           detectedSpeakers={detectedSpeakers}
           resolveSpeaker={resolveSpeaker}
           renameSpeaker={renameSpeaker}
+          expectedSpeakers={expectedSpeakers}
+          currentUserLabel={currentUserLabel}
           pinnedIds={pinnedIds}
           isProcessing={isCapturing && (inFlight > 0 || queueDepth > 0)}
           onTogglePin={(id) =>

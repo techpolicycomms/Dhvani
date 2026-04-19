@@ -13,6 +13,14 @@ type Props = {
   detectedSpeakers?: string[];
   resolveSpeaker?: (rawSpeaker: string | undefined) => string | undefined;
   renameSpeaker?: (rawSpeaker: string, displayName: string) => void;
+  /**
+   * Names we expect to hear — signed-in user first, then attendees from
+   * the calendar invite. Powers the one-click assign picker so users
+   * can tag a voice cluster with a real name without typing.
+   */
+  expectedSpeakers?: string[];
+  /** Display label for the signed-in user (e.g. "David (you)"). */
+  currentUserLabel?: string | null;
   pinnedIds?: Set<string>;
   onTogglePin?: (entryId: string) => void;
   /** True when a chunk is being transcribed — shows the listening dots. */
@@ -33,6 +41,8 @@ export function TranscriptPanel({
   detectedSpeakers = [],
   resolveSpeaker,
   renameSpeaker,
+  expectedSpeakers = [],
+  currentUserLabel,
   pinnedIds,
   onTogglePin,
   isProcessing,
@@ -280,48 +290,82 @@ export function TranscriptPanel({
         </div>
       </div>
 
-      {hasSpeakers && (
-        <aside className="sm:w-56 shrink-0 bg-white rounded-lg border border-border-gray p-3 text-sm shadow-sm">
+      {(hasSpeakers || expectedSpeakers.length > 0) && (
+        <aside className="sm:w-64 shrink-0 bg-white rounded-lg border border-border-gray p-3 text-sm shadow-sm">
           <div className="text-[10px] uppercase tracking-wider text-mid-gray mb-2">
             Speakers
           </div>
-          <ul className="space-y-1.5">
-            {detectedSpeakers.map((raw) => {
-              const color = colorForSpeaker(raw);
-              const display = resolveSpeaker?.(raw) ?? raw;
-              return (
-                <li key={raw} className="flex items-center gap-2 min-w-0">
-                  <span
-                    className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: color }}
-                  />
-                  {editing === raw && renameSpeaker ? (
-                    <InlineRename
-                      initial={display}
-                      onSubmit={(v) => {
-                        renameSpeaker(raw, v);
-                        setEditing(null);
-                      }}
-                      onCancel={() => setEditing(null)}
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => renameSpeaker && setEditing(raw)}
-                      className="truncate text-left text-dark-navy hover:text-itu-blue-dark hover:underline flex-1 min-w-0"
-                      title={renameSpeaker ? "Click to rename" : undefined}
-                    >
-                      {display}
-                    </button>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-          {renameSpeaker && (
-            <p className="mt-3 text-[10px] text-mid-gray leading-snug">
-              Click a speaker to rename. Names persist in this browser.
-            </p>
+          {hasSpeakers && (
+            <ul className="space-y-1.5">
+              {detectedSpeakers.map((raw) => {
+                const color = colorForSpeaker(raw);
+                const display = resolveSpeaker?.(raw) ?? raw;
+                // A voice cluster is "already named" when the user has
+                // explicitly renamed it, i.e. its display differs from the
+                // default "Speaker N" label. Drives the Change vs Assign
+                // verb on the picker trigger.
+                const named = display && !/^Speaker\s/i.test(display);
+                return (
+                  <li key={raw} className="space-y-1 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ backgroundColor: color }}
+                      />
+                      <span
+                        className="truncate text-dark-navy flex-1 min-w-0"
+                        title={display}
+                      >
+                        {display}
+                      </span>
+                      {renameSpeaker && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEditing((prev) => (prev === raw ? null : raw))
+                          }
+                          className="text-[10px] text-itu-blue-dark hover:text-itu-blue underline underline-offset-2"
+                        >
+                          {named ? "Change" : "Name"}
+                        </button>
+                      )}
+                    </div>
+                    {editing === raw && renameSpeaker && (
+                      <SpeakerAssignPicker
+                        expectedSpeakers={expectedSpeakers}
+                        currentDisplay={display}
+                        onPick={(v) => {
+                          renameSpeaker(raw, v);
+                          setEditing(null);
+                        }}
+                        onCancel={() => setEditing(null)}
+                      />
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          {!hasSpeakers && expectedSpeakers.length > 0 && (
+            <div className="text-[11px] text-mid-gray leading-snug">
+              Dhvani hasn&apos;t heard anyone yet. When voices appear,
+              you&apos;ll be able to tag each one with a name from the
+              invite.
+            </div>
+          )}
+          {expectedSpeakers.length > 0 && (
+            <div className="mt-3 pt-3 border-t border-border-gray">
+              <div className="text-[10px] uppercase tracking-wider text-mid-gray mb-1.5">
+                From this meeting
+              </div>
+              <ul className="space-y-0.5 text-[11px] text-dark-gray">
+                {expectedSpeakers.map((name, i) => (
+                  <li key={`${name}-${i}`} className="truncate" title={name}>
+                    {currentUserLabel && i === 0 ? currentUserLabel : name}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </aside>
       )}
@@ -329,27 +373,115 @@ export function TranscriptPanel({
   );
 }
 
-function InlineRename({
-  initial,
-  onSubmit,
+/**
+ * Speaker assignment picker — replaces the old free-text InlineRename.
+ *
+ * Renders the expected-speakers list (signed-in user + calendar
+ * attendees) as one-click buttons, so the common case — "Speaker 2 is
+ * Alice from the Outlook invite" — takes one click instead of typing.
+ * Falls back to a custom-name input for speakers not on the invite
+ * (guests, unknown voices, renames after the fact).
+ *
+ * Why this UX, not a combobox: at ITU a meeting often has ~5 attendees.
+ * A flat button list is scannable; a combobox is a text-entry toll.
+ */
+function SpeakerAssignPicker({
+  expectedSpeakers,
+  currentDisplay,
+  onPick,
   onCancel,
 }: {
-  initial: string;
-  onSubmit: (v: string) => void;
+  expectedSpeakers: string[];
+  currentDisplay: string;
+  onPick: (name: string) => void;
   onCancel: () => void;
 }) {
-  const [value, setValue] = useState(initial);
+  const [customMode, setCustomMode] = useState(expectedSpeakers.length === 0);
+  const [value, setValue] = useState(
+    // Only seed with the current display if it's already a human name,
+    // not the default "Speaker N" — otherwise custom entry starts empty.
+    /^Speaker\s/i.test(currentDisplay) ? "" : currentDisplay
+  );
+
+  if (customMode) {
+    return (
+      <div className="rounded-md border border-itu-blue bg-itu-blue-pale p-2 space-y-2">
+        <input
+          autoFocus
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && value.trim()) onPick(value.trim());
+            if (e.key === "Escape") onCancel();
+          }}
+          placeholder="Type a name"
+          className="w-full bg-white border border-border-gray rounded px-2 py-1 text-xs text-dark-navy focus:outline-none focus:ring-2 focus:ring-itu-blue/40"
+        />
+        <div className="flex items-center gap-1 text-[10px]">
+          <button
+            type="button"
+            onClick={() => value.trim() && onPick(value.trim())}
+            disabled={!value.trim()}
+            className="px-2 py-1 rounded bg-itu-blue text-white font-semibold disabled:opacity-40"
+          >
+            Save
+          </button>
+          {expectedSpeakers.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setCustomMode(false)}
+              className="px-2 py-1 rounded text-itu-blue-dark hover:bg-white"
+            >
+              Pick from invite
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-2 py-1 rounded text-mid-gray hover:bg-white"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <input
-      autoFocus
-      value={value}
-      onChange={(e) => setValue(e.target.value)}
-      onBlur={() => onSubmit(value)}
-      onKeyDown={(e) => {
-        if (e.key === "Enter") onSubmit(value);
-        if (e.key === "Escape") onCancel();
-      }}
-      className="flex-1 min-w-0 bg-white border border-itu-blue rounded px-2 py-0.5 text-xs text-dark-navy focus:outline-none focus:ring-2 focus:ring-itu-blue/40"
-    />
+    <div className="rounded-md border border-itu-blue bg-itu-blue-pale p-2 space-y-1">
+      <div className="text-[10px] uppercase tracking-wider text-itu-blue-dark mb-1">
+        Who is this?
+      </div>
+      <ul className="space-y-0.5">
+        {expectedSpeakers.map((name, i) => (
+          <li key={`${name}-${i}`}>
+            <button
+              type="button"
+              onClick={() => onPick(name)}
+              className="w-full text-left truncate text-xs text-dark-navy hover:bg-white rounded px-2 py-1"
+              title={name}
+            >
+              {name}
+            </button>
+          </li>
+        ))}
+      </ul>
+      <div className="flex items-center gap-1 pt-1 text-[10px]">
+        <button
+          type="button"
+          onClick={() => setCustomMode(true)}
+          className="flex-1 text-itu-blue-dark hover:bg-white rounded px-2 py-1 text-left"
+        >
+          Someone else…
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="text-mid-gray hover:bg-white rounded px-2 py-1"
+        >
+          Cancel
+        </button>
+      </div>
+    </div>
   );
 }

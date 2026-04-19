@@ -51,6 +51,14 @@ export type ChatResult = {
 export type TranscribeOptions = {
   /** ISO 639-1 hint. Undefined = auto-detect. */
   language?: string;
+  /**
+   * Vocabulary prompt. Short string of domain-specific terms (acronyms,
+   * proper nouns) the model should bias toward. Providers that don't
+   * support priming can ignore this — transcription still works, just
+   * without the accuracy lift on in-domain vocabulary. Expected to stay
+   * under ~1200 chars (≈ 224-token ceiling on gpt-4o-transcribe).
+   */
+  prompt?: string;
 };
 
 export interface AIProvider {

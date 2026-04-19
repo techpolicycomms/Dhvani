@@ -60,6 +60,9 @@ export class AzureOpenAIProvider implements AIProvider {
       model,
       file,
       ...(options.language ? { language: options.language } : {}),
+      // Prompt priming: biases the model toward domain vocabulary
+      // (ITU acronyms, proper nouns). Harmless when absent.
+      ...(options.prompt ? { prompt: options.prompt } : {}),
     };
     type CreateParams = Parameters<
       typeof openai.audio.transcriptions.create
