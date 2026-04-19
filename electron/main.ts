@@ -31,8 +31,42 @@ import { fork, type ChildProcess } from "node:child_process";
 
 const IS_DEV = !app.isPackaged;
 const IS_DEMO_BUILD = process.env.DEMO_BUILD === "true";
-const CENTRAL_SERVER =
-  process.env.DHVANI_SERVER_URL || "https://dhvani.itu.int";
+
+/**
+ * Resolve the URL the Electron window should load. Priority order:
+ *   1. Runtime env `DHVANI_SERVER_URL` — useful for ad-hoc overrides
+ *      (`DHVANI_SERVER_URL=... open -a Dhvani`).
+ *   2. Build-time `build-config.json` bundled into the asar/resources —
+ *      lets an internal-beta DMG point at a staging or localhost URL
+ *      without requiring the user to launch via a wrapper script.
+ *   3. Hard default: the central production server.
+ *
+ * The build config is produced by electron-builder's `files` glob when
+ * present alongside the compiled main.js; absence is fine, we just
+ * fall through. See scripts/write-electron-build-config.mjs.
+ */
+function resolveCentralServer(): string {
+  if (process.env.DHVANI_SERVER_URL) return process.env.DHVANI_SERVER_URL;
+  try {
+    const configPath = path.join(__dirname, "build-config.json");
+    if (fs.existsSync(configPath)) {
+      const raw = fs.readFileSync(configPath, "utf8");
+      const parsed = JSON.parse(raw) as { serverUrl?: string };
+      if (parsed.serverUrl && typeof parsed.serverUrl === "string") {
+        console.log(
+          "[dhvani] using server URL from build-config.json:",
+          parsed.serverUrl
+        );
+        return parsed.serverUrl;
+      }
+    }
+  } catch (err) {
+    console.warn("[dhvani] build-config.json read failed", err);
+  }
+  return "https://dhvani.itu.int";
+}
+
+const CENTRAL_SERVER = resolveCentralServer();
 const DEMO_PORT = 38447;
 const DEMO_HOST = "127.0.0.1";
 
