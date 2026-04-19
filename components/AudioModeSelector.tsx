@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Mic, MonitorPlay, Cable, Laptop } from "lucide-react";
+import { Mic, MonitorPlay, Cable, Users } from "lucide-react";
 import type { CaptureMode } from "@/lib/constants";
 
 type Props = {
@@ -21,30 +21,30 @@ type Option = {
 
 const COMMON_OPTIONS: Option[] = [
   {
-    value: "tab-audio",
-    label: "Browser Tab",
-    hint: "Capture audio from a Chrome/Edge tab (Meet, Teams, Zoom web).",
-    icon: MonitorPlay,
+    value: "microphone",
+    label: "Just me",
+    hint: "Record only your voice.",
+    icon: Mic,
   },
   {
-    value: "microphone",
-    label: "Microphone",
-    hint: "Capture from your computer's microphone.",
-    icon: Mic,
+    value: "tab-audio",
+    label: "Browser tab",
+    hint: "Meet / Teams / Zoom running in a browser tab.",
+    icon: MonitorPlay,
   },
 ];
 
 const ELECTRON_OPTION: Option = {
   value: "electron",
-  label: "Desktop App",
-  hint: "Capture system audio natively — Teams, Zoom, Webex, Slack, WhatsApp.",
-  icon: Laptop,
+  label: "Meeting",
+  hint: "Your microphone + the desktop app's audio, mixed — both sides of a Teams/Zoom/Webex/Slack/WhatsApp call.",
+  icon: Users,
 };
 
 const VIRTUAL_CABLE_OPTION: Option = {
   value: "virtual-cable",
-  label: "System Audio",
-  hint: "Route via BlackHole / VB-Cable (setup required).",
+  label: "Virtual cable",
+  hint: "Advanced: pre-routed BlackHole / VB-Cable device.",
   icon: Cable,
 };
 

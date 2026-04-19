@@ -19,30 +19,30 @@ type ModeDef = {
 
 const COMMON_MODES: ModeDef[] = [
   {
-    id: "tab-audio",
-    label: "Browser Tab",
-    desc: "Zoom / Teams / Meet in Chrome",
-    icon: "🖥",
+    id: "microphone",
+    label: "Just me",
+    desc: "Only your voice",
+    icon: "🎙",
   },
   {
-    id: "microphone",
-    label: "Microphone",
-    desc: "Direct mic or phone",
-    icon: "🎙",
+    id: "tab-audio",
+    label: "Browser tab",
+    desc: "Meet / Teams / Zoom in a tab",
+    icon: "🖥",
   },
 ];
 
 const ELECTRON_MODE: ModeDef = {
   id: "electron",
-  label: "Desktop App",
-  desc: "Native system audio — no setup",
-  icon: "💻",
+  label: "Meeting",
+  desc: "You + everyone else",
+  icon: "💬",
 };
 
 const VIRTUAL_CABLE_MODE: ModeDef = {
   id: "virtual-cable",
-  label: "Desktop App",
-  desc: "Needs Dhvani app or virtual cable",
+  label: "Desktop meeting",
+  desc: "Needs Dhvani desktop app",
   icon: "💻",
 };
 
@@ -115,8 +115,10 @@ export function AudioModeCards({ value, onChange }: Props) {
         <p className="text-[11px] text-itu-blue-dark flex items-start gap-1.5 pt-1">
           <Info size={12} className="mt-0.5 shrink-0" />
           <span>
-            Capturing system audio directly — works with Teams, Zoom, Webex,
-            Slack, WhatsApp, and any other desktop app.
+            Records <strong>your microphone + the desktop app&apos;s audio</strong>{" "}
+            mixed together — so both sides of a Teams, Zoom, Webex, Slack, or
+            WhatsApp meeting land in one transcript. First time on macOS, grant
+            Screen Recording permission, then quit and reopen Dhvani.
           </span>
         </p>
       )}

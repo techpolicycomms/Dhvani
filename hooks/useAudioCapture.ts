@@ -66,20 +66,24 @@ function isElectron(): boolean {
 }
 
 /**
- * Core audio capture hook. Supports three browser capture modes plus a
- * transparent Electron fallback that uses native system-audio loopback.
+ * Core audio capture hook. Each mode maps to what the user wants to record:
  *
- * - "tab-audio"      : getDisplayMedia, discard video. Best for meetings
- *                      that run in a browser tab (Meet, Zoom web, Teams web).
- * - "microphone"     : getUserMedia. Works everywhere including mobile.
- * - "virtual-cable"  : getUserMedia with a specific input device id. Used
- *                      when the user has installed BlackHole (Mac) or
- *                      VB-Cable (Windows) to route system audio in.
- * - "electron"       : getDisplayMedia as above, but the Electron main
- *                      process substitutes the full system-audio tap
- *                      (ScreenCaptureKit on macOS 13+, WASAPI loopback on
- *                      Windows 10+) via setDisplayMediaRequestHandler.
- *                      No driver install required.
+ * - "microphone"     : Just your own voice. Ideal for solo notes or a
+ *                      voice memo. getUserMedia; works everywhere.
+ * - "tab-audio"      : Audio from a browser tab (Meet, Zoom web, Teams web).
+ *                      getDisplayMedia; user picks the tab and must tick
+ *                      "Share audio".
+ * - "electron"       : A meeting in a native desktop app (Teams, Zoom,
+ *                      Webex, Slack…). Captures **your microphone + the
+ *                      full system audio** mixed together via Web Audio
+ *                      API — so both sides of the conversation land in one
+ *                      transcript. System audio comes from
+ *                      ScreenCaptureKit (macOS 13+) / WASAPI (Win 10+) via
+ *                      Electron's setDisplayMediaRequestHandler. No driver
+ *                      install required. Electron-only.
+ * - "virtual-cable"  : Advanced: capture a pre-routed device like BlackHole
+ *                      (Mac) or VB-Cable (Windows). Used when the user has
+ *                      set up system-wide audio routing themselves.
  */
 export function useAudioCapture(
   options: UseAudioCaptureOptions = {}
@@ -98,6 +102,14 @@ export function useAudioCapture(
   const [elapsedTime, setElapsedTime] = useState(0);
 
   const mediaStreamRef = useRef<MediaStream | null>(null);
+  // Source streams that feed the mixer in "electron" (meeting) mode.
+  // Tracked separately so we can stop every track on teardown — the mixed
+  // stream from createMediaStreamDestination is synthetic and stopping
+  // its tracks does NOT stop the upstream mic / system-audio streams.
+  const sourceStreamsRef = useRef<MediaStream[]>([]);
+  // AudioContext lifetime must match the capture session; close it on
+  // teardown so the browser releases the audio worklet thread.
+  const audioContextRef = useRef<AudioContext | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunkIndexRef = useRef(0);
   const startedAtRef = useRef<number>(0);
@@ -139,6 +151,19 @@ export function useAudioCapture(
       mediaStreamRef.current.getTracks().forEach((t) => t.stop());
       mediaStreamRef.current = null;
     }
+    // Stop every upstream source (mic + system-audio in meeting mode)
+    // BEFORE closing the AudioContext — order matters, otherwise Chrome
+    // keeps the mic indicator on in the menu bar.
+    if (sourceStreamsRef.current.length > 0) {
+      for (const s of sourceStreamsRef.current) {
+        s.getTracks().forEach((t) => t.stop());
+      }
+      sourceStreamsRef.current = [];
+    }
+    if (audioContextRef.current) {
+      void audioContextRef.current.close().catch(() => {});
+      audioContextRef.current = null;
+    }
     setMediaStream(null);
   }, []);
 
@@ -148,7 +173,9 @@ export function useAudioCapture(
 
   const acquireStream = useCallback(
     async (mode: CaptureMode): Promise<MediaStream> => {
-      if (mode === "tab-audio" || mode === "electron") {
+      // Shared helper: ask for system / tab audio through getDisplayMedia,
+      // returning an audio-only MediaStream (video tracks stopped).
+      const getSystemOrTabStream = async (): Promise<MediaStream> => {
         if (!navigator.mediaDevices?.getDisplayMedia) {
           throw new Error(
             mode === "electron"
@@ -158,17 +185,15 @@ export function useAudioCapture(
         }
         // video:true is required by Chrome to expose the "share tab audio"
         // checkbox and by Electron's DisplayMedia handler for
-        // ScreenCaptureKit/WASAPI loopback. We drop the video tracks
+        // ScreenCaptureKit / WASAPI loopback. Video tracks are stopped
         // immediately — no pixels are ever recorded.
-        let stream: MediaStream;
+        let s: MediaStream;
         try {
-          stream = await navigator.mediaDevices.getDisplayMedia({
+          s = await navigator.mediaDevices.getDisplayMedia({
             audio: true,
             video: true,
           });
         } catch (err) {
-          // Give the user something they can act on, especially on macOS
-          // where denying Screen Recording looks like a silent failure.
           const e = err as DOMException;
           if (mode === "electron" && e?.name === "NotAllowedError") {
             throw new Error(
@@ -193,19 +218,77 @@ export function useAudioCapture(
           }
           throw err;
         }
-        stream.getVideoTracks().forEach((t) => {
+        s.getVideoTracks().forEach((t) => {
           t.stop();
-          stream.removeTrack(t);
+          s.removeTrack(t);
         });
-        if (stream.getAudioTracks().length === 0) {
-          stream.getTracks().forEach((t) => t.stop());
+        if (s.getAudioTracks().length === 0) {
+          s.getTracks().forEach((t) => t.stop());
           throw new Error(
             mode === "electron"
               ? "No system audio came through. If this is your first record, quit and reopen Dhvani after granting Screen Recording — macOS only activates the permission on app relaunch."
               : "No audio detected. Did you check 'Share audio' when selecting the tab?"
           );
         }
-        return stream;
+        return s;
+      };
+
+      if (mode === "tab-audio") {
+        return getSystemOrTabStream();
+      }
+
+      if (mode === "electron") {
+        // "Meeting" mode: mic + system audio mixed. The reason system-audio-
+        // only fails on a Teams native call is that the user's own mic
+        // input never plays through the speakers (Teams mutes local
+        // playback of your voice), so a loopback tap would miss half the
+        // conversation. Capture both sides via Web Audio API and feed the
+        // mixed stream to MediaRecorder downstream.
+        const micStream = await navigator.mediaDevices
+          .getUserMedia({
+            audio: preferredDeviceId
+              ? { deviceId: { exact: preferredDeviceId } }
+              : true,
+          })
+          .catch((err: DOMException) => {
+            if (err?.name === "NotAllowedError") {
+              throw new Error(
+                "Dhvani needs Microphone permission to capture your voice. " +
+                  "Open System Settings → Privacy & Security → Microphone, " +
+                  "enable Dhvani, then quit and reopen Dhvani."
+              );
+            }
+            throw err;
+          });
+        let systemStream: MediaStream;
+        try {
+          systemStream = await getSystemOrTabStream();
+        } catch (err) {
+          // If system audio fails (older macOS, denied screen recording),
+          // clean up the mic we already acquired so Chrome's menu-bar mic
+          // indicator doesn't linger as a lie.
+          micStream.getTracks().forEach((t) => t.stop());
+          throw err;
+        }
+
+        const AudioContextCtor =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext?: typeof AudioContext })
+            .webkitAudioContext;
+        if (!AudioContextCtor) {
+          micStream.getTracks().forEach((t) => t.stop());
+          systemStream.getTracks().forEach((t) => t.stop());
+          throw new Error(
+            "Your browser doesn't support Web Audio. Switch to Microphone mode."
+          );
+        }
+        const ctx = new AudioContextCtor();
+        audioContextRef.current = ctx;
+        sourceStreamsRef.current = [micStream, systemStream];
+        const dest = ctx.createMediaStreamDestination();
+        ctx.createMediaStreamSource(micStream).connect(dest);
+        ctx.createMediaStreamSource(systemStream).connect(dest);
+        return dest.stream;
       }
       if (mode === "microphone") {
         return navigator.mediaDevices.getUserMedia({ audio: true });

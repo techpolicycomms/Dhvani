@@ -24,11 +24,14 @@ type Props = {
 
 function modeLabel(mode: CaptureMode | null, deviceLabel?: string) {
   if (!mode) return "Not started";
-  if (mode === "tab-audio") return "Tab Audio";
-  if (mode === "microphone") return "Microphone";
-  if (mode === "electron") return "Desktop (native)";
+  if (mode === "tab-audio") return "Browser tab";
+  if (mode === "microphone") return "Just you";
+  // Meeting mode mixes mic + system audio, which is the whole point —
+  // surface it on the Source stat so the user can see both sides are
+  // being captured without having to dig into settings.
+  if (mode === "electron") return "You + system audio";
   if (mode === "virtual-cable")
-    return `Virtual Cable${deviceLabel ? `: ${deviceLabel}` : ""}`;
+    return `Virtual cable${deviceLabel ? `: ${deviceLabel}` : ""}`;
   return mode;
 }
 
