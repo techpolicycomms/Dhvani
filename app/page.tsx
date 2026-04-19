@@ -162,13 +162,23 @@ export default function HomePage() {
   // -------- Handlers --------
   const captureStartedAtRef = useRef<string | null>(null);
 
-  const onStart = useCallback(() => {
+  const onStart = useCallback(async () => {
     console.log("[page] onStart called", {
       chosenMode,
       resolvedMode: (chosenMode as CaptureMode) || "microphone",
       startCaptureType: typeof startCapture,
+      hasPriorTranscript: transcript.length > 0,
     });
     setRateLimitMsg(null);
+    // If a prior transcript is still on screen from a previous Stop,
+    // auto-save it to history and clear the view so this Record is a
+    // clean session. Keeping the pin attached to the active meeting
+    // because the user is almost always still in the same meeting when
+    // they re-Record. Without this, new chunks append to the old
+    // transcript and the recap confuses two recordings as one.
+    if (transcript.length > 0) {
+      await clearSession({ autoSave: true, preserveActiveMeeting: true });
+    }
     captureStartedAtRef.current = new Date().toISOString();
     // Seed the speaker map: the signed-in user is almost always the
     // closest voice to the mic, so they become Speaker 1; further slots
@@ -182,6 +192,8 @@ export default function HomePage() {
   }, [
     chosenMode,
     startCapture,
+    transcript.length,
+    clearSession,
     user?.name,
     user?.email,
     activeMeeting,

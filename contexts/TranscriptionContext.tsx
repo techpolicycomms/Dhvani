@@ -67,8 +67,16 @@ type TranscriptionContextValue = {
    * the transcript. If `autoSave` is true (default) and the current
    * transcript has entries, it's POSTed to /api/transcripts first so
    * the user's work lands in history instead of being lost.
+   *
+   * `preserveActiveMeeting` (default false) keeps the current meeting
+   * pin attached to the NEXT session — useful for the "Stop then
+   * Record again" flow, where the user is usually still in the same
+   * meeting and expects the next transcript to carry the same tag.
    */
-  clearSession: (opts?: { autoSave?: boolean }) => Promise<void>;
+  clearSession: (opts?: {
+    autoSave?: boolean;
+    preserveActiveMeeting?: boolean;
+  }) => Promise<void>;
 };
 
 const Context = createContext<TranscriptionContextValue | null>(null);
@@ -144,7 +152,7 @@ export function TranscriptionProvider({ children }: { children: ReactNode }) {
   const clearSession = useCallback<
     TranscriptionContextValue["clearSession"]
   >(
-    async ({ autoSave = true } = {}) => {
+    async ({ autoSave = true, preserveActiveMeeting = false } = {}) => {
       if (autoSave && store.transcript.length > 0) {
         try {
           const startedAt =
@@ -182,7 +190,9 @@ export function TranscriptionProvider({ children }: { children: ReactNode }) {
       tx.abort();
       capture.stopCapture();
       store.clearTranscript();
-      store.setActiveMeeting(null);
+      if (!preserveActiveMeeting) {
+        store.setActiveMeeting(null);
+      }
     },
     [store, tx, capture]
   );
