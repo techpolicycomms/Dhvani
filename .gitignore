@@ -72,3 +72,4 @@ __pycache__/
 *$py.class
 companion/venv/
 companion/.venv/
+graphify-out/
