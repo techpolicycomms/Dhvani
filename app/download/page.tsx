@@ -172,10 +172,25 @@ export default async function DownloadPage() {
           )}
         </p>
         {links.fromLocalShelf && (
-          <div className="mt-3 rounded-md border border-itu-blue/30 bg-itu-blue-pale px-3 py-2 text-[11px] text-itu-blue-dark">
-            <strong className="font-semibold">Internal beta build</strong> —
-            unsigned. First launch on macOS: right-click the app in Applications
-            → Open → Open. On Windows: keep past the SmartScreen warning once.
+          <div className="mt-3 rounded-md border border-itu-blue/30 bg-itu-blue-pale px-3 py-2 text-[11px] text-itu-blue-dark space-y-1">
+            <p>
+              <strong className="font-semibold">Internal beta build</strong> —
+              unsigned. Signing certificates are in procurement; for now you
+              need to bypass macOS Gatekeeper on first install.
+            </p>
+            <p>
+              <strong>macOS:</strong> if Finder says the DMG is
+              &quot;damaged,&quot; run{" "}
+              <code className="font-mono bg-white/70 px-1 rounded">
+                xattr -cr ~/Downloads/Dhvani-0.1.0-arm64.dmg
+              </code>{" "}
+              in Terminal, then open it. After dragging to Applications,
+              first launch uses right-click → Open → Open.
+            </p>
+            <p>
+              <strong>Windows:</strong> keep past the SmartScreen warning once
+              (More info → Run anyway).
+            </p>
           </div>
         )}
 
