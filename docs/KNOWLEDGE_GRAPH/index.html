@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dhvani — Knowledge Graph</title>
+<script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<style>
+  :root {
+    --bg: #0F1620;
+    --panel: #1A2332;
+    --panel-alt: #223149;
+    --border: #2B3A52;
+    --text: #E6EDF5;
+    --text-dim: #9CA8B9;
+    --itu-blue: #009CD6;
+    --itu-blue-dark: #003366;
+    --itu-blue-light: #4FB7E4;
+    --accent-gray: #6B7280;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+    font-size: 14px;
+  }
+  .app {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    height: 100vh;
+  }
+  aside {
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    padding: 16px 18px;
+    overflow-y: auto;
+  }
+  h1 {
+    font-size: 16px;
+    margin: 0 0 4px;
+    color: var(--itu-blue-light);
+    letter-spacing: 0.02em;
+  }
+  .sub {
+    color: var(--text-dim);
+    font-size: 12px;
+    margin-bottom: 16px;
+  }
+  .search {
+    width: 100%;
+    padding: 8px 10px;
+    background: var(--panel-alt);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .search:focus {
+    outline: none;
+    border-color: var(--itu-blue);
+  }
+  h2 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-dim);
+    margin: 16px 0 8px;
+    font-weight: 600;
+  }
+  .filter-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    cursor: pointer;
+    user-select: none;
+  }
+  .filter-row input {
+    accent-color: var(--itu-blue);
+  }
+  .swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+  }
+  .filter-label {
+    flex: 1;
+    font-size: 13px;
+  }
+  .filter-count {
+    font-size: 11px;
+    color: var(--text-dim);
+  }
+  .panel-section {
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .node-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--itu-blue-light);
+    margin: 0 0 4px;
+    word-break: break-word;
+  }
+  .node-type-badge {
+    display: inline-block;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--panel-alt);
+    color: var(--text-dim);
+    margin-bottom: 8px;
+  }
+  .node-file {
+    font-family: "Noto Sans Mono", Menlo, Consolas, monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    background: var(--panel-alt);
+    padding: 4px 8px;
+    border-radius: 4px;
+    word-break: break-all;
+    margin-bottom: 8px;
+  }
+  .node-summary {
+    font-size: 13px;
+    color: var(--text);
+    line-height: 1.5;
+    margin-bottom: 12px;
+  }
+  .edge-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 12px;
+  }
+  .edge-list li {
+    padding: 4px 0;
+    font-size: 12px;
+    color: var(--text-dim);
+    border-bottom: 1px dashed var(--border);
+    cursor: pointer;
+  }
+  .edge-list li:hover { color: var(--itu-blue-light); }
+  .edge-type {
+    display: inline-block;
+    font-size: 10px;
+    color: var(--itu-blue);
+    margin-right: 6px;
+    font-family: "Noto Sans Mono", Menlo, monospace;
+  }
+  .main {
+    position: relative;
+  }
+  #graph { height: 100%; width: 100%; }
+  .legend-note {
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    font-size: 11px;
+    color: var(--text-dim);
+    background: rgba(15, 22, 32, 0.75);
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+  .empty-hint {
+    color: var(--text-dim);
+    font-size: 12px;
+    font-style: italic;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside>
+    <h1>Dhvani — Knowledge Graph</h1>
+    <div class="sub">ITU meeting transcription · Next 14 + Electron</div>
+
+    <input type="search" class="search" id="search" placeholder="Search by label…" />
+
+    <h2>Filter by type</h2>
+    <div id="filters"></div>
+
+    <div class="panel-section" id="details">
+      <div class="empty-hint">Click a node to see details.</div>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="legend-note">Scroll to zoom · Drag to pan · Click a node for details</div>
+    <div id="graph"></div>
+  </div>
+</div>
+
+<script>
+(async function () {
+  const TYPE_COLORS = {
+    "page":              "#009CD6", // ITU primary
+    "component":         "#4FB7E4", // ITU light
+    "hook":              "#8BDAF3",
+    "context":           "#F5A623",
+    "lib":               "#6B7280", // gray accent
+    "api-route":         "#003366", // ITU dark
+    "external-service":  "#E04F5F",
+    "storage-backend":   "#9B59B6",
+    "config":            "#4B9E6A",
+    "docs":              "#B28F4E",
+  };
+  const TYPE_LABELS = {
+    "page": "Pages",
+    "component": "Components",
+    "hook": "Hooks",
+    "context": "Contexts",
+    "lib": "Libraries / helpers",
+    "api-route": "API routes",
+    "external-service": "External services",
+    "storage-backend": "Storage backends",
+    "config": "Config / middleware",
+    "docs": "Docs",
+  };
+
+  const res = await fetch("./graph.json");
+  const data = await res.json();
+
+  // Build counts per type.
+  const counts = {};
+  data.nodes.forEach(n => { counts[n.type] = (counts[n.type] || 0) + 1; });
+
+  // Filter UI
+  const filterContainer = document.getElementById("filters");
+  const activeTypes = new Set(Object.keys(TYPE_COLORS));
+  Object.keys(TYPE_COLORS).forEach(type => {
+    if (!counts[type]) return;
+    const row = document.createElement("label");
+    row.className = "filter-row";
+    row.innerHTML = `
+      <input type="checkbox" checked data-type="${type}" />
+      <span class="swatch" style="background:${TYPE_COLORS[type]}"></span>
+      <span class="filter-label">${TYPE_LABELS[type]}</span>
+      <span class="filter-count">${counts[type]}</span>
+    `;
+    filterContainer.appendChild(row);
+  });
+
+  // Build vis-network DataSets.
+  const visNodes = data.nodes.map(n => ({
+    id: n.id,
+    label: n.label,
+    title: `${n.label}\n${n.summary || ""}`,
+    color: {
+      background: TYPE_COLORS[n.type] || "#888",
+      border: "#0F1620",
+      highlight: { background: "#FFFFFF", border: TYPE_COLORS[n.type] || "#888" },
+    },
+    font: { color: "#E6EDF5", size: 12, face: "Noto Sans, sans-serif" },
+    shape: n.type === "external-service" ? "diamond"
+         : n.type === "storage-backend" ? "database"
+         : n.type === "api-route" ? "box"
+         : n.type === "docs" ? "text"
+         : "dot",
+    size: n.type === "page" ? 20 : n.type === "external-service" ? 18 : 12,
+    _type: n.type,
+    _file: n.file,
+    _summary: n.summary,
+  }));
+
+  const EDGE_STYLE = {
+    "imports":             { color: "#4B5B72", dashes: false },
+    "calls-api":           { color: "#009CD6", dashes: false, width: 2 },
+    "reads-storage":       { color: "#9B59B6", dashes: [4, 4] },
+    "writes-storage":      { color: "#9B59B6", dashes: false },
+    "uses-context":        { color: "#F5A623", dashes: false, width: 2 },
+    "navigates-to":        { color: "#4FB7E4", dashes: [2, 4], width: 2 },
+    "depends-on-service":  { color: "#E04F5F", dashes: false, width: 2 },
+  };
+  const visEdges = data.edges.map((e, i) => {
+    const style = EDGE_STYLE[e.type] || { color: "#444" };
+    return {
+      id: "e" + i,
+      from: e.source,
+      to: e.target,
+      color: { color: style.color, highlight: "#FFFFFF" },
+      dashes: style.dashes || false,
+      width: style.width || 1,
+      arrows: { to: { enabled: true, scaleFactor: 0.5 } },
+      _type: e.type,
+      smooth: { type: "continuous", roundness: 0.2 },
+    };
+  });
+
+  const nodesDS = new vis.DataSet(visNodes);
+  const edgesDS = new vis.DataSet(visEdges);
+
+  const network = new vis.Network(
+    document.getElementById("graph"),
+    { nodes: nodesDS, edges: edgesDS },
+    {
+      physics: {
+        solver: "forceAtlas2Based",
+        forceAtlas2Based: { gravitationalConstant: -60, springLength: 110, springConstant: 0.08 },
+        stabilization: { iterations: 400 },
+      },
+      interaction: { hover: true, tooltipDelay: 200, navigationButtons: false },
+      nodes: { borderWidth: 2 },
+      edges: { selectionWidth: 2 },
+    }
+  );
+
+  // Search filter
+  const searchInput = document.getElementById("search");
+  function applyFilter() {
+    const q = searchInput.value.trim().toLowerCase();
+    const visibleIds = new Set();
+    data.nodes.forEach(n => {
+      const typeOk = activeTypes.has(n.type);
+      const textOk = !q || n.label.toLowerCase().includes(q) || (n.summary || "").toLowerCase().includes(q);
+      if (typeOk && textOk) visibleIds.add(n.id);
+    });
+    nodesDS.forEach(n => {
+      nodesDS.update({ id: n.id, hidden: !visibleIds.has(n.id) });
+    });
+    edgesDS.forEach(e => {
+      edgesDS.update({ id: e.id, hidden: !(visibleIds.has(e.from) && visibleIds.has(e.to)) });
+    });
+  }
+  searchInput.addEventListener("input", applyFilter);
+  filterContainer.addEventListener("change", (ev) => {
+    const cb = ev.target.closest("input[type=checkbox]");
+    if (!cb) return;
+    const type = cb.dataset.type;
+    if (cb.checked) activeTypes.add(type); else activeTypes.delete(type);
+    applyFilter();
+  });
+
+  // Click → details
+  const detailsBox = document.getElementById("details");
+  function renderDetails(nodeId) {
+    const node = data.nodes.find(n => n.id === nodeId);
+    if (!node) {
+      detailsBox.innerHTML = `<div class="empty-hint">Node not found.</div>`;
+      return;
+    }
+    const incoming = data.edges.filter(e => e.target === nodeId);
+    const outgoing = data.edges.filter(e => e.source === nodeId);
+    function li(e, side) {
+      const otherId = side === "incoming" ? e.source : e.target;
+      const other = data.nodes.find(n => n.id === otherId);
+      if (!other) return "";
+      return `<li data-id="${otherId}"><span class="edge-type">${e.type}</span>${other.label}</li>`;
+    }
+    detailsBox.innerHTML = `
+      <div class="node-title">${node.label}</div>
+      <div class="node-type-badge" style="background:${TYPE_COLORS[node.type]}20;color:${TYPE_COLORS[node.type]}">${node.type}</div>
+      ${node.file ? `<div class="node-file">${node.file}</div>` : ""}
+      <div class="node-summary">${node.summary || "<em>No summary.</em>"}</div>
+
+      <h2>Incoming (${incoming.length})</h2>
+      <ul class="edge-list">
+        ${incoming.length ? incoming.map(e => li(e, "incoming")).join("") : `<li class="empty-hint">None</li>`}
+      </ul>
+
+      <h2>Outgoing (${outgoing.length})</h2>
+      <ul class="edge-list">
+        ${outgoing.length ? outgoing.map(e => li(e, "outgoing")).join("") : `<li class="empty-hint">None</li>`}
+      </ul>
+    `;
+    detailsBox.querySelectorAll("li[data-id]").forEach(el => {
+      el.addEventListener("click", () => {
+        const targetId = el.getAttribute("data-id");
+        network.selectNodes([targetId]);
+        network.focus(targetId, { scale: 1.0, animation: { duration: 300 } });
+        renderDetails(targetId);
+      });
+    });
+  }
+  network.on("click", (params) => {
+    if (params.nodes && params.nodes.length) {
+      renderDetails(params.nodes[0]);
+    }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,3098 @@
+{
+  "nodes": [
+    {
+      "id": "app_page_tsx",
+      "label": "home (/)",
+      "type": "page",
+      "file": "app/page.tsx",
+      "summary": "Home page (~800 lines) \u2014 hub of the app: calendar, recording UI, live transcript, recap."
+    },
+    {
+      "id": "app_admin_page_tsx",
+      "label": "admin",
+      "type": "page",
+      "file": "app/admin/page.tsx",
+      "summary": "Admin dashboard server page \u2014 gates by ADMIN_EMAILS, fetches usage stats server-side, hands them to the client component."
+    },
+    {
+      "id": "app_admin_Client_tsx",
+      "label": "admin/Client",
+      "type": "page",
+      "file": "app/admin/Client.tsx",
+      "summary": "Admin dashboard client UI \u2014 tabs for usage, emissions (Green ICT), and org intelligence, with recharts visualisations."
+    },
+    {
+      "id": "app_auth_signin_page_tsx",
+      "label": "auth/signin",
+      "type": "page",
+      "file": "app/auth/signin/page.tsx",
+      "summary": "Branded sign-in landing that kicks off the Microsoft Entra OAuth flow via a server action."
+    },
+    {
+      "id": "app_desktop-setup_page_tsx",
+      "label": "desktop-setup",
+      "type": "page",
+      "file": "app/desktop-setup/page.tsx",
+      "summary": "Guide for capturing desktop meeting apps \u2014 leads with the Dhvani desktop app and shows a virtual-cable fallback."
+    },
+    {
+      "id": "app_download_page_tsx",
+      "label": "download",
+      "type": "page",
+      "file": "app/download/page.tsx",
+      "summary": "Download landing that resolves the latest mac/win installer URLs from the GitHub Releases API with graceful fallbacks."
+    },
+    {
+      "id": "app_mission_page_tsx",
+      "label": "mission",
+      "type": "page",
+      "file": "app/mission/page.tsx",
+      "summary": "Mission Control page \u2014 space-themed personal stats dashboard for the signed-in user."
+    },
+    {
+      "id": "app_offline_page_tsx",
+      "label": "offline",
+      "type": "page",
+      "file": "app/offline/page.tsx",
+      "summary": "Offline fallback screen shown by the service worker when the network is unavailable."
+    },
+    {
+      "id": "app_tasks_page_tsx",
+      "label": "tasks",
+      "type": "page",
+      "file": "app/tasks/page.tsx",
+      "summary": "Tasks page \u2014 full-surface view of the auto-extracted and manual task checklist."
+    },
+    {
+      "id": "app_transcripts_page_tsx",
+      "label": "transcripts",
+      "type": "page",
+      "file": "app/transcripts/page.tsx",
+      "summary": "Transcripts library \u2014 search, filter, open, delete, share saved transcripts."
+    },
+    {
+      "id": "app_upload_page_tsx",
+      "label": "upload",
+      "type": "page",
+      "file": "app/upload/page.tsx",
+      "summary": "File-upload transcription page for pre-recorded audio/video files."
+    },
+    {
+      "id": "app_url-transcribe_page_tsx",
+      "label": "url-transcribe",
+      "type": "page",
+      "file": "app/url-transcribe/page.tsx",
+      "summary": "URL-transcription page \u2014 paste a direct audio/video URL and transcribe it server-side."
+    },
+    {
+      "id": "app_shared_token_page_tsx",
+      "label": "shared/[token]",
+      "type": "page",
+      "file": "app/shared/[token]/page.tsx",
+      "summary": "Public shared-transcript server page \u2014 resolves a share token to a read-only transcript view."
+    },
+    {
+      "id": "app_shared_token_SharedTranscriptView_tsx",
+      "label": "shared/[token]/SharedTranscriptView",
+      "type": "page",
+      "file": "app/shared/[token]/SharedTranscriptView.tsx",
+      "summary": "Read-only client view of a shared transcript with copy/download/preview controls."
+    },
+    {
+      "id": "app_layout_tsx",
+      "label": "root layout",
+      "type": "page",
+      "file": "app/layout.tsx",
+      "summary": "Root layout: mounts Noto Sans, SessionProvider, TranscriptionProvider, UserProfileProvider, InstallPrompt, OrphanRecordingBanner."
+    },
+    {
+      "id": "app_api_admin_analytics_route_ts",
+      "label": "/api/admin/analytics",
+      "type": "api-route",
+      "file": "app/api/admin/analytics/route.ts",
+      "summary": "GET admin cross-user analytics \u2014 reads raw transcript files and computes team-level usage summary."
+    },
+    {
+      "id": "app_api_admin_config_route_ts",
+      "label": "/api/admin/config",
+      "type": "api-route",
+      "file": "app/api/admin/config/route.ts",
+      "summary": "GET/PUT admin service config \u2014 rate limits, monthly budget, service enabled flag, admin emails."
+    },
+    {
+      "id": "app_api_admin_emissions_route_ts",
+      "label": "/api/admin/emissions",
+      "type": "api-route",
+      "file": "app/api/admin/emissions/route.ts",
+      "summary": "GET admin Green ICT emissions report \u2014 IPSASB SRS-1 aligned carbon disclosure per period."
+    },
+    {
+      "id": "app_api_admin_org-intelligence_route_ts",
+      "label": "/api/admin/org-intelligence",
+      "type": "api-route",
+      "file": "app/api/admin/org-intelligence/route.ts",
+      "summary": "GET/POST admin anonymised organisational-intelligence insights (k-anon enforced)."
+    },
+    {
+      "id": "app_api_admin_usage_route_ts",
+      "label": "/api/admin/usage",
+      "type": "api-route",
+      "file": "app/api/admin/usage/route.ts",
+      "summary": "GET admin aggregated usage stats (JSON or CSV) for the usage dashboard."
+    },
+    {
+      "id": "app_api_ask_route_ts",
+      "label": "/api/ask",
+      "type": "api-route",
+      "file": "app/api/ask/route.ts",
+      "summary": "POST chat-over-transcripts \u2014 Ask Dhvani Q&A with citations against the user's saved transcripts."
+    },
+    {
+      "id": "app_api_audio_upload_route_ts",
+      "label": "/api/audio/upload",
+      "type": "api-route",
+      "file": "app/api/audio/upload/route.ts",
+      "summary": "POST raw voice-audio chunk upload \u2014 opt-in Azure Blob archival endpoint (off by default)."
+    },
+    {
+      "id": "app_api_auth____nextauth_route_ts",
+      "label": "/api/auth/[...nextauth]",
+      "type": "api-route",
+      "file": "app/api/auth/[...nextauth]/route.ts",
+      "summary": "NextAuth v5 OAuth handlers \u2014 mounts GET and POST for sign-in, callback, signout, CSRF."
+    },
+    {
+      "id": "app_api_calendar_today_route_ts",
+      "label": "/api/calendar/today",
+      "type": "api-route",
+      "file": "app/api/calendar/today/route.ts",
+      "summary": "GET today's online meetings from Microsoft Graph /me/calendarView, cached 5 min in-process."
+    },
+    {
+      "id": "app_api_calendar_upcoming_route_ts",
+      "label": "/api/calendar/upcoming",
+      "type": "api-route",
+      "file": "app/api/calendar/upcoming/route.ts",
+      "summary": "GET upcoming meetings in the next N hours (for the reminder banner), 1-min cache."
+    },
+    {
+      "id": "app_api_export_pdf_route_ts",
+      "label": "/api/export/pdf",
+      "type": "api-route",
+      "file": "app/api/export/pdf/route.ts",
+      "summary": "POST transcript id \u2192 returns a printable HTML page the browser can save as PDF."
+    },
+    {
+      "id": "app_api_followup_route_ts",
+      "label": "/api/followup",
+      "type": "api-route",
+      "file": "app/api/followup/route.ts",
+      "summary": "POST generate a plain-text follow-up email from a transcript summary and action items."
+    },
+    {
+      "id": "app_api_health_route_ts",
+      "label": "/api/health",
+      "type": "api-route",
+      "file": "app/api/health/route.ts",
+      "summary": "GET public health probe \u2014 verifies the Azure OpenAI resource is reachable."
+    },
+    {
+      "id": "app_api_me_emissions_route_ts",
+      "label": "/api/me/emissions",
+      "type": "api-route",
+      "file": "app/api/me/emissions/route.ts",
+      "summary": "GET personal 30-day carbon footprint card for the Settings drawer."
+    },
+    {
+      "id": "app_api_me_usage_route_ts",
+      "label": "/api/me/usage",
+      "type": "api-route",
+      "file": "app/api/me/usage/route.ts",
+      "summary": "GET personal usage + remaining quota for the in-app indicator."
+    },
+    {
+      "id": "app_api_search_route_ts",
+      "label": "/api/search",
+      "type": "api-route",
+      "file": "app/api/search/route.ts",
+      "summary": "GET full-text search across the signed-in user's saved transcripts, with context snippets."
+    },
+    {
+      "id": "app_api_storage_route_ts",
+      "label": "/api/storage",
+      "type": "api-route",
+      "file": "app/api/storage/route.ts",
+      "summary": "GET which transcript storage backend is live (filesystem or Azure Blob) for the Settings drawer."
+    },
+    {
+      "id": "app_api_summarize_route_ts",
+      "label": "/api/summarize",
+      "type": "api-route",
+      "file": "app/api/summarize/route.ts",
+      "summary": "POST transcript \u2192 LLM-generated recap with action items, sentiment, keywords, task extraction."
+    },
+    {
+      "id": "app_api_tasks_route_ts",
+      "label": "/api/tasks",
+      "type": "api-route",
+      "file": "app/api/tasks/route.ts",
+      "summary": "GET/POST/DELETE task CRUD against the per-user JSONL task log."
+    },
+    {
+      "id": "app_api_transcribe_route_ts",
+      "label": "/api/transcribe",
+      "type": "api-route",
+      "file": "app/api/transcribe/route.ts",
+      "summary": "POST audio chunk \u2192 Azure OpenAI transcription with rate limiting and usage logging."
+    },
+    {
+      "id": "app_api_transcripts_id_route_ts",
+      "label": "/api/transcripts/[id]",
+      "type": "api-route",
+      "file": "app/api/transcripts/[id]/route.ts",
+      "summary": "GET/DELETE a single saved transcript belonging to the signed-in user."
+    },
+    {
+      "id": "app_api_transcripts_id_share_route_ts",
+      "label": "/api/transcripts/[id]/share",
+      "type": "api-route",
+      "file": "app/api/transcripts/[id]/share/route.ts",
+      "summary": "POST/DELETE to create or revoke a public share link for a transcript."
+    },
+    {
+      "id": "app_api_transcripts_route_ts",
+      "label": "/api/transcripts",
+      "type": "api-route",
+      "file": "app/api/transcripts/route.ts",
+      "summary": "GET list + POST save transcripts (anti-abuse caps on entries, text length, daily saves)."
+    },
+    {
+      "id": "app_api_url-transcribe_route_ts",
+      "label": "/api/url-transcribe",
+      "type": "api-route",
+      "file": "app/api/url-transcribe/route.ts",
+      "summary": "POST remote audio/video URL \u2192 SSRF-safe fetch + transcribe + diarise."
+    },
+    {
+      "id": "app_api_user_profile_route_ts",
+      "label": "/api/user/profile",
+      "type": "api-route",
+      "file": "app/api/user/profile/route.ts",
+      "summary": "GET/POST user profile (role id + language/feature prefs) from onboarding."
+    },
+    {
+      "id": "app_api_user_stats_route_ts",
+      "label": "/api/user/stats",
+      "type": "api-route",
+      "file": "app/api/user/stats/route.ts",
+      "summary": "GET personal mission-control stats \u2014 rank, XP, badges, wellness, weekly trend."
+    },
+    {
+      "id": "app_api_user_wellness_route_ts",
+      "label": "/api/user/wellness",
+      "type": "api-route",
+      "file": "app/api/user/wellness/route.ts",
+      "summary": "GET per-user meeting wellness signal (burnout bands) for the wellness tile."
+    },
+    {
+      "id": "app_api_vocabulary_route_ts",
+      "label": "/api/vocabulary",
+      "type": "api-route",
+      "file": "app/api/vocabulary/route.ts",
+      "summary": "GET/POST/DELETE user's custom-vocabulary entries that prime Whisper's prompt."
+    },
+    {
+      "id": "components_ActionItems_tsx",
+      "label": "ActionItems",
+      "type": "component",
+      "file": "components/ActionItems.tsx",
+      "summary": "Interactive action-item checklist rendered under the AI-generated meeting summary."
+    },
+    {
+      "id": "components_AskDhvani_tsx",
+      "label": "AskDhvani",
+      "type": "component",
+      "file": "components/AskDhvani.tsx",
+      "summary": "Chat-over-transcripts drawer \u2014 talks to /api/ask with citation rendering."
+    },
+    {
+      "id": "components_AudioModeCards_tsx",
+      "label": "AudioModeCards",
+      "type": "component",
+      "file": "components/AudioModeCards.tsx",
+      "summary": "Large card picker for the capture mode (microphone, tab-audio, etc.) shown on the home page."
+    },
+    {
+      "id": "components_AudioModeSelector_tsx",
+      "label": "AudioModeSelector",
+      "type": "component",
+      "file": "components/AudioModeSelector.tsx",
+      "summary": "Compact radio-group capture-mode selector for the settings drawer and inline surfaces."
+    },
+    {
+      "id": "components_AudioRoutingDiagram_tsx",
+      "label": "AudioRoutingDiagram",
+      "type": "component",
+      "file": "components/AudioRoutingDiagram.tsx",
+      "summary": "Inline SVG diagram showing audio flow through a virtual-cable on the desktop-setup page."
+    },
+    {
+      "id": "components_AudioWaveform_tsx",
+      "label": "AudioWaveform",
+      "type": "component",
+      "file": "components/AudioWaveform.tsx",
+      "summary": "Live waveform meter \u2014 AnalyserNode-driven vertical bars keyed off frequency data."
+    },
+    {
+      "id": "components_CalendarToggle_tsx",
+      "label": "CalendarToggle",
+      "type": "component",
+      "file": "components/CalendarToggle.tsx",
+      "summary": "Calendar-preferences block (enable, reminders, lead time, auto-tag) inside Settings."
+    },
+    {
+      "id": "components_ControlBar_tsx",
+      "label": "ControlBar",
+      "type": "component",
+      "file": "components/ControlBar.tsx",
+      "summary": "Record / stop / reconnect controls plus elapsed time, chunk count, in-flight counter."
+    },
+    {
+      "id": "components_DemoBanner_tsx",
+      "label": "DemoBanner",
+      "type": "component",
+      "file": "components/DemoBanner.tsx",
+      "summary": "Top-of-page banner shown in demo mode to warn reviewers they are not signed in to Entra."
+    },
+    {
+      "id": "components_DemoSessionProvider_tsx",
+      "label": "DemoSessionProvider",
+      "type": "component",
+      "file": "components/DemoSessionProvider.tsx",
+      "summary": "Injects a fake NextAuth session so demo-mode pages render as if signed in."
+    },
+    {
+      "id": "components_DeviceSelector_tsx",
+      "label": "DeviceSelector",
+      "type": "component",
+      "file": "components/DeviceSelector.tsx",
+      "summary": "Microphone / virtual-cable device dropdown wired to useAudioDevices()."
+    },
+    {
+      "id": "components_ExportMenu_tsx",
+      "label": "ExportMenu",
+      "type": "component",
+      "file": "components/ExportMenu.tsx",
+      "summary": "Export dropdown: Copy, Markdown, .docx, .md, .txt, .srt, .json \u2014 uses mode-aware filenames."
+    },
+    {
+      "id": "components_FollowUpEmail_tsx",
+      "label": "FollowUpEmail",
+      "type": "component",
+      "file": "components/FollowUpEmail.tsx",
+      "summary": "Follow-up email drafter \u2014 POSTs to /api/followup and lets the user copy the result."
+    },
+    {
+      "id": "components_InstallPrompt_tsx",
+      "label": "InstallPrompt",
+      "type": "component",
+      "file": "components/InstallPrompt.tsx",
+      "summary": "PWA install-prompt card shown on mobile and iOS with platform-specific instructions."
+    },
+    {
+      "id": "components_MeetingBanner_tsx",
+      "label": "MeetingBanner",
+      "type": "component",
+      "file": "components/MeetingBanner.tsx",
+      "summary": "Sticky reminder banner for an impending calendar meeting with Start-transcription CTA."
+    },
+    {
+      "id": "components_MeetingKeywords_tsx",
+      "label": "MeetingKeywords",
+      "type": "component",
+      "file": "components/MeetingKeywords.tsx",
+      "summary": "Pill-row of keywords extracted from a meeting summary; clicking one searches transcripts."
+    },
+    {
+      "id": "components_MeetingList_tsx",
+      "label": "MeetingList",
+      "type": "component",
+      "file": "components/MeetingList.tsx",
+      "summary": "Today's online meetings fetched from /api/calendar/today with one-tap Transcribe action."
+    },
+    {
+      "id": "components_MeetingSummary_tsx",
+      "label": "MeetingSummary",
+      "type": "component",
+      "file": "components/MeetingSummary.tsx",
+      "summary": "Recap card \u2014 calls /api/summarize, renders Markdown summary, action items, citations."
+    },
+    {
+      "id": "components_MissionControl_tsx",
+      "label": "MissionControl",
+      "type": "component",
+      "file": "components/MissionControl.tsx",
+      "summary": "Gamified stats dashboard \u2014 rank, XP bar, badges, wellness indicator."
+    },
+    {
+      "id": "components_NavLinks_tsx",
+      "label": "NavLinks",
+      "type": "component",
+      "file": "components/NavLinks.tsx",
+      "summary": "Primary navigation links (Home, Notes, Tasks, Mission, Admin) shared across page headers."
+    },
+    {
+      "id": "components_OnboardingGate_tsx",
+      "label": "OnboardingGate",
+      "type": "component",
+      "file": "components/OnboardingGate.tsx",
+      "summary": "Renders the OnboardingWizard on first sign-in when the user has no saved profile."
+    },
+    {
+      "id": "components_OnboardingWizard_tsx",
+      "label": "OnboardingWizard",
+      "type": "component",
+      "file": "components/OnboardingWizard.tsx",
+      "summary": "Multi-step modal for picking role / sector / preferred languages during onboarding."
+    },
+    {
+      "id": "components_OrgInsightsOptIn_tsx",
+      "label": "OrgInsightsOptIn",
+      "type": "component",
+      "file": "components/OrgInsightsOptIn.tsx",
+      "summary": "Localstorage-backed opt-in toggle for contributing anonymised org insights."
+    },
+    {
+      "id": "components_OrphanRecordingBanner_tsx",
+      "label": "OrphanRecordingBanner",
+      "type": "component",
+      "file": "components/OrphanRecordingBanner.tsx",
+      "summary": "Crash-recovery banner \u2014 surfaces OPFS sessions still marked recording and offers Recover/Discard."
+    },
+    {
+      "id": "components_RecordingBadge_tsx",
+      "label": "RecordingBadge",
+      "type": "component",
+      "file": "components/RecordingBadge.tsx",
+      "summary": "Fixed-position recording-in-progress pill shown on every page while capture is active."
+    },
+    {
+      "id": "components_SentimentBadge_tsx",
+      "label": "SentimentBadge",
+      "type": "component",
+      "file": "components/SentimentBadge.tsx",
+      "summary": "Coloured pill showing overall meeting sentiment from the LLM summary."
+    },
+    {
+      "id": "components_SettingsDrawer_tsx",
+      "label": "SettingsDrawer",
+      "type": "component",
+      "file": "components/SettingsDrawer.tsx",
+      "summary": "Slide-out settings panel \u2014 mic, language, mode, theme, calendar, storage, carbon."
+    },
+    {
+      "id": "components_ShareModal_tsx",
+      "label": "ShareModal",
+      "type": "component",
+      "file": "components/ShareModal.tsx",
+      "summary": "Modal to create or revoke a public-share link for a transcript with TTL choice."
+    },
+    {
+      "id": "components_SpeakerStats_tsx",
+      "label": "SpeakerStats",
+      "type": "component",
+      "file": "components/SpeakerStats.tsx",
+      "summary": "Per-speaker talk-time breakdown bar chart below the transcript."
+    },
+    {
+      "id": "components_Switch_tsx",
+      "label": "Switch",
+      "type": "component",
+      "file": "components/Switch.tsx",
+      "summary": "Reusable ITU-branded two-state toggle switch used across settings surfaces."
+    },
+    {
+      "id": "components_TaskChecklist_tsx",
+      "label": "TaskChecklist",
+      "type": "component",
+      "file": "components/TaskChecklist.tsx",
+      "summary": "Task checklist component \u2014 list, mark-done, priority colour coding, manual add."
+    },
+    {
+      "id": "components_TestAudio_tsx",
+      "label": "TestAudio",
+      "type": "component",
+      "file": "components/TestAudio.tsx",
+      "summary": "Short-capture test button to verify a chosen mic/mode round-trips through the transcriber."
+    },
+    {
+      "id": "components_TranscriptPanel_tsx",
+      "label": "TranscriptPanel",
+      "type": "component",
+      "file": "components/TranscriptPanel.tsx",
+      "summary": "Live transcript panel \u2014 renders entries, auto-scroll, in-transcript search, speaker rename, pinning."
+    },
+    {
+      "id": "components_TranscriptSearch_tsx",
+      "label": "TranscriptSearch",
+      "type": "component",
+      "file": "components/TranscriptSearch.tsx",
+      "summary": "Library-wide search box that queries /api/search and renders hit cards with context."
+    },
+    {
+      "id": "components_VocabularyManager_tsx",
+      "label": "VocabularyManager",
+      "type": "component",
+      "file": "components/VocabularyManager.tsx",
+      "summary": "Custom-vocabulary CRUD UI \u2014 terms and definitions that prime the transcriber's prompt."
+    },
+    {
+      "id": "components_WellnessIndicator_tsx",
+      "label": "WellnessIndicator",
+      "type": "component",
+      "file": "components/WellnessIndicator.tsx",
+      "summary": "Compact meeting-wellness tile (signal strength) shown on home and /mission."
+    },
+    {
+      "id": "components_admin_EmissionsDashboard_tsx",
+      "label": "EmissionsDashboard",
+      "type": "component",
+      "file": "components/admin/EmissionsDashboard.tsx",
+      "summary": "Admin Green ICT dashboard \u2014 IPSASB SRS-1 aligned carbon report with charts."
+    },
+    {
+      "id": "components_admin_OrgIntelligence_tsx",
+      "label": "OrgIntelligence",
+      "type": "component",
+      "file": "components/admin/OrgIntelligence.tsx",
+      "summary": "Admin anonymised organisational-intelligence insights dashboard."
+    },
+    {
+      "id": "hooks_useAudioCapture_ts",
+      "label": "useAudioCapture",
+      "type": "hook",
+      "file": "hooks/useAudioCapture.ts",
+      "summary": "Cross-mode audio capture \u2014 MediaRecorder rotation, OPFS persistence, wake lock, mic/tab/virtual-cable/electron."
+    },
+    {
+      "id": "hooks_useAudioDevices_ts",
+      "label": "useAudioDevices",
+      "type": "hook",
+      "file": "hooks/useAudioDevices.ts",
+      "summary": "Enumerate audio input devices (after priming mic permission via getUserMedia)."
+    },
+    {
+      "id": "hooks_useCalendarPrefs_ts",
+      "label": "useCalendarPrefs",
+      "type": "hook",
+      "file": "hooks/useCalendarPrefs.ts",
+      "summary": "Localstorage-backed calendar preferences (show meetings, reminders, lead time, auto-tag)."
+    },
+    {
+      "id": "hooks_useKeyboardShortcuts_ts",
+      "label": "useKeyboardShortcuts",
+      "type": "hook",
+      "file": "hooks/useKeyboardShortcuts.ts",
+      "summary": "Global keyboard shortcuts \u2014 Cmd+R record, Cmd+E export, Cmd+, settings, Cmd+/ search."
+    },
+    {
+      "id": "hooks_useMeetingReminders_ts",
+      "label": "useMeetingReminders",
+      "type": "hook",
+      "file": "hooks/useMeetingReminders.ts",
+      "summary": "Polls /api/calendar/upcoming and fires in-app reminder banners with dismissal memory."
+    },
+    {
+      "id": "hooks_useMode_ts",
+      "label": "useMode",
+      "type": "hook",
+      "file": "hooks/useMode.ts",
+      "summary": "React subscription to the Personal/Power mode primitive with a cross-component change event."
+    },
+    {
+      "id": "hooks_useTheme_ts",
+      "label": "useTheme",
+      "type": "hook",
+      "file": "hooks/useTheme.ts",
+      "summary": "React subscription to the light/dark/system theme choice with cross-tab sync."
+    },
+    {
+      "id": "hooks_useTranscriptStore_ts",
+      "label": "useTranscriptStore",
+      "type": "hook",
+      "file": "hooks/useTranscriptStore.ts",
+      "summary": "Client-side transcript state \u2014 entries, auto-save every 30s, resume, cross-slot localStorage sharding."
+    },
+    {
+      "id": "hooks_useTranscription_ts",
+      "label": "useTranscription",
+      "type": "hook",
+      "file": "hooks/useTranscription.ts",
+      "summary": "Transcription pipeline \u2014 chunk queue, concurrency, exponential-backoff silent retries, delete-on-success."
+    },
+    {
+      "id": "hooks_useWakeLock_ts",
+      "label": "useWakeLock",
+      "type": "hook",
+      "file": "hooks/useWakeLock.ts",
+      "summary": "Acquire/release a screen wake-lock with visibility-change re-acquisition."
+    },
+    {
+      "id": "contexts_TranscriptionContext_tsx",
+      "label": "TranscriptionContext",
+      "type": "context",
+      "file": "contexts/TranscriptionContext.tsx",
+      "summary": "Global transcription context \u2014 audio capture, transcript store, pipeline shared across pages."
+    },
+    {
+      "id": "contexts_UserProfileContext_tsx",
+      "label": "UserProfileContext",
+      "type": "context",
+      "file": "contexts/UserProfileContext.tsx",
+      "summary": "Global user-profile context \u2014 needsOnboarding flag, role, language/feature prefs."
+    },
+    {
+      "id": "lib_audioPersistence_ts",
+      "label": "audioPersistence",
+      "type": "lib",
+      "file": "lib/audioPersistence.ts",
+      "summary": "OPFS-backed chunk persistence with IndexedDB shadow log and orphan-session recovery API."
+    },
+    {
+      "id": "lib_audioUtils_ts",
+      "label": "audioUtils",
+      "type": "lib",
+      "file": "lib/audioUtils.ts",
+      "summary": "Audio helpers \u2014 elapsed formatter, SRT timestamp, pickSupportedMimeType, blobToFile."
+    },
+    {
+      "id": "lib_auth_ts",
+      "label": "auth",
+      "type": "lib",
+      "file": "lib/auth.ts",
+      "summary": "NextAuth v5 config for Microsoft Entra \u2014 JWT with refresh, Graph token capture, server helpers."
+    },
+    {
+      "id": "lib_azureBlobAudio_ts",
+      "label": "azureBlobAudio",
+      "type": "lib",
+      "file": "lib/azureBlobAudio.ts",
+      "summary": "Azure Blob client for voice-audio archival (manifest + webm chunks) \u2014 opt-in server-side."
+    },
+    {
+      "id": "lib_azureBlobStorage_ts",
+      "label": "azureBlobStorage",
+      "type": "lib",
+      "file": "lib/azureBlobStorage.ts",
+      "summary": "Azure Blob client for transcript JSON \u2014 saveTranscript, listTranscripts, getTranscript, deleteTranscript."
+    },
+    {
+      "id": "lib_azureErrorMessages_ts",
+      "label": "azureErrorMessages",
+      "type": "lib",
+      "file": "lib/azureErrorMessages.ts",
+      "summary": "Maps raw Azure / network errors to user-friendly titles, hints, and action links."
+    },
+    {
+      "id": "lib_calendar_ts",
+      "label": "calendar",
+      "type": "lib",
+      "file": "lib/calendar.ts",
+      "summary": "Microsoft Graph calendar types + helpers \u2014 Meeting shape, fromGraphEvent, cache, error handler."
+    },
+    {
+      "id": "lib_config_ts",
+      "label": "config",
+      "type": "lib",
+      "file": "lib/config.ts",
+      "summary": "Centralised runtime config derived from env vars \u2014 AI provider, storage, calendar, feature flags."
+    },
+    {
+      "id": "lib_constants_ts",
+      "label": "constants",
+      "type": "lib",
+      "file": "lib/constants.ts",
+      "summary": "Shared constants \u2014 chunk duration, concurrency, bitrate, pricing, TranscriptEntry type, speaker colors."
+    },
+    {
+      "id": "lib_demoMode_ts",
+      "label": "demoMode",
+      "type": "lib",
+      "file": "lib/demoMode.ts",
+      "summary": "Demo-mode flag + fixture data (demo user, demo meetings) for env review without SSO."
+    },
+    {
+      "id": "lib_docxExport_ts",
+      "label": "docxExport",
+      "type": "lib",
+      "file": "lib/docxExport.ts",
+      "summary": "Mode-aware .docx exporter \u2014 Personal minimal template, Power ITU-branded template."
+    },
+    {
+      "id": "lib_events_ts",
+      "label": "events",
+      "type": "lib",
+      "file": "lib/events.ts",
+      "summary": "In-process event bus for Dhvani signals (transcription events, notifications webhook hook)."
+    },
+    {
+      "id": "lib_exportUtils_ts",
+      "label": "exportUtils",
+      "type": "lib",
+      "file": "lib/exportUtils.ts",
+      "summary": "Transcript renderers \u2014 toTxt, toMarkdown, toSrt, toJson, buildFilename, downloadText."
+    },
+    {
+      "id": "lib_gamification_ts",
+      "label": "gamification",
+      "type": "lib",
+      "file": "lib/gamification.ts",
+      "summary": "Gamification engine \u2014 ranks, XP, badges, mission-stats computed from usage + tasks."
+    },
+    {
+      "id": "lib_greenIct_ts",
+      "label": "greenIct",
+      "type": "lib",
+      "file": "lib/greenIct.ts",
+      "summary": "Green-ICT carbon accounting \u2014 One-Token Model + IPSASB SRS-1 emissions report builder."
+    },
+    {
+      "id": "lib_meetingWellness_ts",
+      "label": "meetingWellness",
+      "type": "lib",
+      "file": "lib/meetingWellness.ts",
+      "summary": "Meeting wellness monitor \u2014 flags weeks approaching burnout thresholds."
+    },
+    {
+      "id": "lib_mode_ts",
+      "label": "mode",
+      "type": "lib",
+      "file": "lib/mode.ts",
+      "summary": "Personal / Power mode primitive \u2014 localStorage-backed with COPY map and change-event emitter."
+    },
+    {
+      "id": "lib_openai_ts",
+      "label": "openai",
+      "type": "lib",
+      "file": "lib/openai.ts",
+      "summary": "Azure OpenAI client factories \u2014 createOpenAIClient (whisper) + createChatOpenAIClient (gpt-4.1-mini)."
+    },
+    {
+      "id": "lib_orgIntelligence_ts",
+      "label": "orgIntelligence",
+      "type": "lib",
+      "file": "lib/orgIntelligence.ts",
+      "summary": "Anonymised org-intelligence log \u2014 k-anonymity, opt-in, day-rounded timestamps, redacted records."
+    },
+    {
+      "id": "lib_rateLimiter_ts",
+      "label": "rateLimiter",
+      "type": "lib",
+      "file": "lib/rateLimiter.ts",
+      "summary": "Per-user hour/day caps + org-wide monthly budget cap; service-enabled master switch."
+    },
+    {
+      "id": "lib_roleProfiles_ts",
+      "label": "roleProfiles",
+      "type": "lib",
+      "file": "lib/roleProfiles.ts",
+      "summary": "ITU role profiles \u2014 sector, department, vocabulary, system-prompt instruction block per role."
+    },
+    {
+      "id": "lib_security_ts",
+      "label": "security",
+      "type": "lib",
+      "file": "lib/security.ts",
+      "summary": "Security helpers \u2014 sanitisePathSegment, ensureWithinDir, logSecurityEvent, safe regex escaping."
+    },
+    {
+      "id": "lib_shareStorage_ts",
+      "label": "shareStorage",
+      "type": "lib",
+      "file": "lib/shareStorage.ts",
+      "summary": "Transcript-share-link store \u2014 create, get, delete tokens with optional TTL and auth gate."
+    },
+    {
+      "id": "lib_taskManager_ts",
+      "label": "taskManager",
+      "type": "lib",
+      "file": "lib/taskManager.ts",
+      "summary": "Per-user JSONL task log \u2014 CRUD, priority/status enums, LLM task extraction helper."
+    },
+    {
+      "id": "lib_theme_ts",
+      "label": "theme",
+      "type": "lib",
+      "file": "lib/theme.ts",
+      "summary": "ITU brand palette + supporting color tokens (mirrors tailwind.config.ts for JS consumers)."
+    },
+    {
+      "id": "lib_themeMode_ts",
+      "label": "themeMode",
+      "type": "lib",
+      "file": "lib/themeMode.ts",
+      "summary": "Light/dark/system theme primitive \u2014 stored + applied via html[data-theme] attribute."
+    },
+    {
+      "id": "lib_transcriptStorage_ts",
+      "label": "transcriptStorage",
+      "type": "lib",
+      "file": "lib/transcriptStorage.ts",
+      "summary": "Transcript persistence facade \u2014 picks filesystem or Azure Blob backend based on env."
+    },
+    {
+      "id": "lib_urlFetch_ts",
+      "label": "urlFetch",
+      "type": "lib",
+      "file": "lib/urlFetch.ts",
+      "summary": "SSRF-safe remote-media fetcher \u2014 classify URL, validate host, stream into bounded buffer."
+    },
+    {
+      "id": "lib_usageAggregates_ts",
+      "label": "usageAggregates",
+      "type": "lib",
+      "file": "lib/usageAggregates.ts",
+      "summary": "Pure aggregator over the usage log \u2014 UsageStats shape for admin dashboard + CSV export."
+    },
+    {
+      "id": "lib_usageLogger_ts",
+      "label": "usageLogger",
+      "type": "lib",
+      "file": "lib/usageLogger.ts",
+      "summary": "Append-only JSONL usage log \u2014 logUsage, readAllUsage, costFromSeconds."
+    },
+    {
+      "id": "lib_userProfileStorage_ts",
+      "label": "userProfileStorage",
+      "type": "lib",
+      "file": "lib/userProfileStorage.ts",
+      "summary": "Per-user JSON profile store \u2014 readUserProfile, writeUserProfile."
+    },
+    {
+      "id": "lib_providers_ai_ts",
+      "label": "providers/ai",
+      "type": "lib",
+      "file": "lib/providers/ai.ts",
+      "summary": "AIProvider contract \u2014 TranscriptionResult, ChatResult shapes shared by implementations."
+    },
+    {
+      "id": "lib_providers_azure-openai_ts",
+      "label": "providers/azure-openai",
+      "type": "lib",
+      "file": "lib/providers/azure-openai.ts",
+      "summary": "Azure OpenAI implementation of AIProvider \u2014 wraps createOpenAIClient with verbose_json fallback."
+    },
+    {
+      "id": "lib_providers_index_ts",
+      "label": "providers/index",
+      "type": "lib",
+      "file": "lib/providers/index.ts",
+      "summary": "Provider factory \u2014 getAIProvider() switches on AI_PROVIDER env."
+    },
+    {
+      "id": "electron_main_ts",
+      "label": "electron/main",
+      "type": "lib",
+      "file": "electron/main.ts",
+      "summary": "Electron main process \u2014 creates BrowserWindow, system tray, shortcuts, optional demo Next.js fork."
+    },
+    {
+      "id": "electron_preload_ts",
+      "label": "electron/preload",
+      "type": "lib",
+      "file": "electron/preload.ts",
+      "summary": "Electron preload \u2014 narrow contextBridge API (window.electronAPI) for start/stop and chunk listeners."
+    },
+    {
+      "id": "middleware_ts",
+      "label": "middleware",
+      "type": "config",
+      "file": "middleware.ts",
+      "summary": "Route middleware \u2014 enforces NextAuth session on every page except an allow-list of public prefixes."
+    },
+    {
+      "id": "docs_ARCHITECTURE_md",
+      "label": "ARCHITECTURE.md",
+      "type": "docs",
+      "file": "docs/ARCHITECTURE.md",
+      "summary": "Architecture overview of Dhvani \u2014 pipelines, data flows, design choices."
+    },
+    {
+      "id": "docs_AZURE_BLOB_AUDIO_SETUP_md",
+      "label": "AZURE_BLOB_AUDIO_SETUP.md",
+      "type": "docs",
+      "file": "docs/AZURE_BLOB_AUDIO_SETUP.md",
+      "summary": "Setup guide for enabling opt-in Azure Blob voice-audio archival."
+    },
+    {
+      "id": "docs_CIO_ISD_HANDOVER_md",
+      "label": "CIO_ISD_HANDOVER.md",
+      "type": "docs",
+      "file": "docs/CIO_ISD_HANDOVER.md",
+      "summary": "CIO/ISD handover brief covering scaling, production readiness, ownership transfer."
+    },
+    {
+      "id": "docs_DEPLOY_md",
+      "label": "DEPLOY.md",
+      "type": "docs",
+      "file": "docs/DEPLOY.md",
+      "summary": "Deployment instructions for Dhvani on Azure Web App and the desktop build."
+    },
+    {
+      "id": "docs_E2E_TESTING_PROMPT_md",
+      "label": "E2E_TESTING_PROMPT.md",
+      "type": "docs",
+      "file": "docs/E2E_TESTING_PROMPT.md",
+      "summary": "Full end-to-end QA script for a desktop GUI agent to exercise the product."
+    },
+    {
+      "id": "docs_ENTRA_SETUP_md",
+      "label": "ENTRA_SETUP.md",
+      "type": "docs",
+      "file": "docs/ENTRA_SETUP.md",
+      "summary": "Microsoft Entra (Azure AD) tenant + app-registration setup walkthrough."
+    },
+    {
+      "id": "docs_ROADMAP_md",
+      "label": "ROADMAP.md",
+      "type": "docs",
+      "file": "docs/ROADMAP.md",
+      "summary": "12-month product roadmap once Dhvani graduates from the Innovation Hub."
+    },
+    {
+      "id": "docs_SECURITY_md",
+      "label": "SECURITY.md",
+      "type": "docs",
+      "file": "docs/SECURITY.md",
+      "summary": "Security posture \u2014 auth, rate limiting, SSRF, storage isolation, threat model notes."
+    },
+    {
+      "id": "docs_STANDALONE_APPS_SPLIT_md",
+      "label": "STANDALONE_APPS_SPLIT.md",
+      "type": "docs",
+      "file": "docs/STANDALONE_APPS_SPLIT.md",
+      "summary": "Mega-prompt for splitting Dhvani into discrete apps if leadership chooses that shape."
+    },
+    {
+      "id": "docs_STRATEGIC_PLAN_md",
+      "label": "STRATEGIC_PLAN.md",
+      "type": "docs",
+      "file": "docs/STRATEGIC_PLAN.md",
+      "summary": "Strategic plan document for Dhvani's positioning inside ITU."
+    },
+    {
+      "id": "docs_deployment_md",
+      "label": "deployment.md",
+      "type": "docs",
+      "file": "docs/deployment.md",
+      "summary": "Legacy deployment notes (superseded by DEPLOY.md)."
+    },
+    {
+      "id": "HANDOFF_md",
+      "label": "HANDOFF.md",
+      "type": "docs",
+      "file": "HANDOFF.md",
+      "summary": "Single-shot session handoff doc \u2014 paste at the start of a new chat for full context."
+    },
+    {
+      "id": "README_md",
+      "label": "README.md",
+      "type": "docs",
+      "file": "README.md",
+      "summary": "Project README \u2014 overview, run/verify, features, status."
+    },
+    {
+      "id": "CONTRIBUTING_md",
+      "label": "CONTRIBUTING.md",
+      "type": "docs",
+      "file": "CONTRIBUTING.md",
+      "summary": "Contributing guide \u2014 coding conventions, PR expectations, setup."
+    },
+    {
+      "id": "LICENSE",
+      "label": "LICENSE",
+      "type": "docs",
+      "file": "LICENSE",
+      "summary": "MIT (or equivalent) license text."
+    },
+    {
+      "id": "ext_azure_openai_transcribe",
+      "label": "Azure OpenAI \u2014 gpt-4o-transcribe-diarize",
+      "type": "external-service",
+      "file": null,
+      "summary": "Azure OpenAI diarisation deployment (SWC region) used for audio transcription."
+    },
+    {
+      "id": "ext_azure_openai_chat",
+      "label": "Azure OpenAI \u2014 gpt-4.1-mini",
+      "type": "external-service",
+      "file": null,
+      "summary": "Azure OpenAI chat deployment (EUW region) used for summary, ask, follow-up, tasks."
+    },
+    {
+      "id": "ext_azure_blob",
+      "label": "Azure Blob Storage",
+      "type": "external-service",
+      "file": null,
+      "summary": "Azure Blob Storage \u2014 transcripts and (opt-in) raw voice audio containers."
+    },
+    {
+      "id": "ext_entra",
+      "label": "Microsoft Entra ID",
+      "type": "external-service",
+      "file": null,
+      "summary": "Microsoft Entra (Azure AD) \u2014 OAuth / OIDC identity provider for SSO."
+    },
+    {
+      "id": "ext_graph",
+      "label": "Microsoft Graph (Calendar)",
+      "type": "external-service",
+      "file": null,
+      "summary": "Microsoft Graph /me/calendarView \u2014 pulls the user's online meetings."
+    },
+    {
+      "id": "ext_github_releases",
+      "label": "GitHub Releases API",
+      "type": "external-service",
+      "file": null,
+      "summary": "api.github.com Releases endpoint \u2014 resolves latest desktop installer URLs."
+    },
+    {
+      "id": "ext_lucide",
+      "label": "lucide-react",
+      "type": "external-service",
+      "file": null,
+      "summary": "lucide-react icon set \u2014 line icons used across the UI."
+    },
+    {
+      "id": "storage_opfs",
+      "label": "OPFS (browser)",
+      "type": "storage-backend",
+      "file": null,
+      "summary": "Origin Private File System \u2014 crash-safe chunk blobs under /recordings/<sessionId>/."
+    },
+    {
+      "id": "storage_idb",
+      "label": "IndexedDB (browser)",
+      "type": "storage-backend",
+      "file": null,
+      "summary": "IndexedDB shadow log of chunk metadata \u2014 second source of truth for crash recovery."
+    },
+    {
+      "id": "storage_localstorage",
+      "label": "localStorage (browser)",
+      "type": "storage-backend",
+      "file": null,
+      "summary": "Browser localStorage \u2014 user preferences (mode, theme, calendar, dismissed reminders)."
+    },
+    {
+      "id": "storage_fs_transcripts",
+      "label": "Local filesystem \u2014 ./data/transcripts",
+      "type": "storage-backend",
+      "file": null,
+      "summary": "Default transcript store under ./data/transcripts/<userId>/<id>.json (wiped on redeploy)."
+    },
+    {
+      "id": "storage_fs_usage",
+      "label": "Local filesystem \u2014 usage log",
+      "type": "storage-backend",
+      "file": null,
+      "summary": "Append-only JSONL usage log at ./data/usage-log.jsonl."
+    },
+    {
+      "id": "storage_fs_tasks",
+      "label": "Local filesystem \u2014 tasks + shares + vocab",
+      "type": "storage-backend",
+      "file": null,
+      "summary": "Per-user JSONL/JSON files for tasks, shares, custom vocabulary under ./data."
+    },
+    {
+      "id": "storage_fs_orginsights",
+      "label": "Local filesystem \u2014 org-insights log",
+      "type": "storage-backend",
+      "file": null,
+      "summary": "Anonymised org-insights JSONL log (opt-in) at ./data/org-insights.jsonl."
+    },
+    {
+      "id": "storage_fs_profiles",
+      "label": "Local filesystem \u2014 user profiles",
+      "type": "storage-backend",
+      "file": null,
+      "summary": "Per-user JSON profile store under ./data/users/."
+    },
+    {
+      "id": "public_sw",
+      "label": "service worker (sw.js)",
+      "type": "config",
+      "file": "public/sw.js",
+      "summary": "Service worker \u2014 offline cache + install banner bootstrap."
+    }
+  ],
+  "edges": [
+    {
+      "source": "app_page_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "components_MeetingSummary_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "components_ActionItems_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "components_AskDhvani_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "components_SpeakerStats_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "components_MeetingKeywords_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "components_SentimentBadge_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "components_FollowUpEmail_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "components_AudioModeCards_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "components_AudioModeSelector_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "components_AudioWaveform_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "components_ControlBar_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "components_ExportMenu_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "components_MeetingBanner_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "components_MeetingList_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "components_NavLinks_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "components_SettingsDrawer_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "components_TaskChecklist_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "components_TranscriptPanel_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "components_WellnessIndicator_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "hooks_useCalendarPrefs_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "hooks_useKeyboardShortcuts_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "hooks_useMeetingReminders_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "hooks_useAudioDevices_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "hooks_useMode_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "contexts_TranscriptionContext_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "contexts_UserProfileContext_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "lib_calendar_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "app_api_admin_config_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "app_api_transcripts_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "app_page_tsx",
+      "target": "contexts_TranscriptionContext_tsx",
+      "type": "uses-context"
+    },
+    {
+      "source": "app_admin_page_tsx",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_admin_page_tsx",
+      "target": "lib_demoMode_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_admin_page_tsx",
+      "target": "lib_usageAggregates_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_admin_page_tsx",
+      "target": "app_admin_Client_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_admin_Client_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "app_admin_Client_tsx",
+      "target": "components_admin_EmissionsDashboard_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_admin_Client_tsx",
+      "target": "components_admin_OrgIntelligence_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_admin_Client_tsx",
+      "target": "lib_theme_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_admin_Client_tsx",
+      "target": "lib_usageAggregates_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_admin_Client_tsx",
+      "target": "app_api_admin_analytics_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "app_admin_Client_tsx",
+      "target": "app_api_admin_usage_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "app_admin_Client_tsx",
+      "target": "app_api_admin_config_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "app_admin_Client_tsx",
+      "target": "app_page_tsx",
+      "type": "navigates-to"
+    },
+    {
+      "source": "app_auth_signin_page_tsx",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_auth_signin_page_tsx",
+      "target": "lib_demoMode_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_desktop-setup_page_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "app_desktop-setup_page_tsx",
+      "target": "components_AudioRoutingDiagram_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_desktop-setup_page_tsx",
+      "target": "app_page_tsx",
+      "type": "navigates-to"
+    },
+    {
+      "source": "app_desktop-setup_page_tsx",
+      "target": "app_download_page_tsx",
+      "type": "navigates-to"
+    },
+    {
+      "source": "app_download_page_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "app_download_page_tsx",
+      "target": "app_page_tsx",
+      "type": "navigates-to"
+    },
+    {
+      "source": "app_mission_page_tsx",
+      "target": "components_NavLinks_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_mission_page_tsx",
+      "target": "components_MissionControl_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_mission_page_tsx",
+      "target": "app_page_tsx",
+      "type": "navigates-to"
+    },
+    {
+      "source": "app_offline_page_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "app_tasks_page_tsx",
+      "target": "components_NavLinks_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_tasks_page_tsx",
+      "target": "components_TaskChecklist_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_tasks_page_tsx",
+      "target": "app_page_tsx",
+      "type": "navigates-to"
+    },
+    {
+      "source": "app_transcripts_page_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "app_transcripts_page_tsx",
+      "target": "components_NavLinks_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_transcripts_page_tsx",
+      "target": "components_TranscriptSearch_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_transcripts_page_tsx",
+      "target": "components_ShareModal_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_transcripts_page_tsx",
+      "target": "components_AskDhvani_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_transcripts_page_tsx",
+      "target": "lib_calendar_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_transcripts_page_tsx",
+      "target": "app_api_admin_config_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "app_transcripts_page_tsx",
+      "target": "app_api_transcripts_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "app_transcripts_page_tsx",
+      "target": "app_api_transcripts_id_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "app_transcripts_page_tsx",
+      "target": "app_page_tsx",
+      "type": "navigates-to"
+    },
+    {
+      "source": "app_upload_page_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "app_upload_page_tsx",
+      "target": "components_NavLinks_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_upload_page_tsx",
+      "target": "components_TranscriptPanel_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_upload_page_tsx",
+      "target": "lib_audioUtils_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_upload_page_tsx",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_upload_page_tsx",
+      "target": "app_api_transcribe_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "app_upload_page_tsx",
+      "target": "app_page_tsx",
+      "type": "navigates-to"
+    },
+    {
+      "source": "app_url-transcribe_page_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "app_url-transcribe_page_tsx",
+      "target": "components_NavLinks_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_url-transcribe_page_tsx",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_url-transcribe_page_tsx",
+      "target": "app_api_url-transcribe_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "app_url-transcribe_page_tsx",
+      "target": "app_page_tsx",
+      "type": "navigates-to"
+    },
+    {
+      "source": "app_shared_token_page_tsx",
+      "target": "lib_shareStorage_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_shared_token_page_tsx",
+      "target": "lib_transcriptStorage_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_shared_token_page_tsx",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_shared_token_page_tsx",
+      "target": "app_shared_token_SharedTranscriptView_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_shared_token_SharedTranscriptView_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "app_shared_token_SharedTranscriptView_tsx",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_shared_token_SharedTranscriptView_tsx",
+      "target": "components_ActionItems_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_layout_tsx",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_layout_tsx",
+      "target": "components_InstallPrompt_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_layout_tsx",
+      "target": "components_DemoSessionProvider_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_layout_tsx",
+      "target": "components_DemoBanner_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_layout_tsx",
+      "target": "components_RecordingBadge_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_layout_tsx",
+      "target": "contexts_TranscriptionContext_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_layout_tsx",
+      "target": "contexts_UserProfileContext_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_layout_tsx",
+      "target": "components_OnboardingGate_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_layout_tsx",
+      "target": "components_OrphanRecordingBanner_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_admin_analytics_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_admin_analytics_route_ts",
+      "target": "lib_demoMode_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_admin_config_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_admin_config_route_ts",
+      "target": "lib_demoMode_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_admin_config_route_ts",
+      "target": "lib_rateLimiter_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_admin_emissions_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_admin_emissions_route_ts",
+      "target": "lib_demoMode_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_admin_emissions_route_ts",
+      "target": "lib_greenIct_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_admin_org-intelligence_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_admin_org-intelligence_route_ts",
+      "target": "lib_demoMode_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_admin_org-intelligence_route_ts",
+      "target": "lib_orgIntelligence_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_admin_usage_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_admin_usage_route_ts",
+      "target": "lib_demoMode_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_admin_usage_route_ts",
+      "target": "lib_usageLogger_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_admin_usage_route_ts",
+      "target": "lib_usageAggregates_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_ask_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_ask_route_ts",
+      "target": "lib_openai_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_ask_route_ts",
+      "target": "lib_transcriptStorage_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_ask_route_ts",
+      "target": "lib_rateLimiter_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_ask_route_ts",
+      "target": "lib_security_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_audio_upload_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_audio_upload_route_ts",
+      "target": "lib_azureBlobAudio_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_auth____nextauth_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_calendar_today_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_calendar_today_route_ts",
+      "target": "lib_demoMode_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_calendar_today_route_ts",
+      "target": "lib_calendar_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_calendar_upcoming_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_calendar_upcoming_route_ts",
+      "target": "lib_demoMode_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_calendar_upcoming_route_ts",
+      "target": "lib_calendar_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_export_pdf_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_export_pdf_route_ts",
+      "target": "lib_transcriptStorage_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_followup_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_followup_route_ts",
+      "target": "lib_openai_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_followup_route_ts",
+      "target": "lib_rateLimiter_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_followup_route_ts",
+      "target": "lib_security_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_followup_route_ts",
+      "target": "lib_roleProfiles_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_followup_route_ts",
+      "target": "lib_userProfileStorage_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_health_route_ts",
+      "target": "lib_openai_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_me_emissions_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_me_emissions_route_ts",
+      "target": "lib_greenIct_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_me_usage_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_me_usage_route_ts",
+      "target": "lib_rateLimiter_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_me_usage_route_ts",
+      "target": "lib_usageLogger_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_search_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_search_route_ts",
+      "target": "lib_transcriptStorage_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_storage_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_storage_route_ts",
+      "target": "lib_transcriptStorage_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_summarize_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_summarize_route_ts",
+      "target": "lib_openai_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_summarize_route_ts",
+      "target": "lib_providers_index_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_summarize_route_ts",
+      "target": "lib_events_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_summarize_route_ts",
+      "target": "lib_greenIct_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_summarize_route_ts",
+      "target": "lib_orgIntelligence_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_summarize_route_ts",
+      "target": "lib_rateLimiter_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_summarize_route_ts",
+      "target": "lib_security_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_summarize_route_ts",
+      "target": "lib_taskManager_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_summarize_route_ts",
+      "target": "lib_roleProfiles_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_summarize_route_ts",
+      "target": "lib_userProfileStorage_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_summarize_route_ts",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_tasks_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_tasks_route_ts",
+      "target": "lib_taskManager_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_transcribe_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_transcribe_route_ts",
+      "target": "lib_openai_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_transcribe_route_ts",
+      "target": "lib_rateLimiter_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_transcribe_route_ts",
+      "target": "lib_usageLogger_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_transcribe_route_ts",
+      "target": "lib_providers_index_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_transcribe_route_ts",
+      "target": "lib_events_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_transcripts_id_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_transcripts_id_route_ts",
+      "target": "lib_transcriptStorage_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_transcripts_id_share_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_transcripts_id_share_route_ts",
+      "target": "lib_transcriptStorage_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_transcripts_id_share_route_ts",
+      "target": "lib_shareStorage_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_transcripts_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_transcripts_route_ts",
+      "target": "lib_transcriptStorage_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_transcripts_route_ts",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_url-transcribe_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_url-transcribe_route_ts",
+      "target": "lib_providers_index_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_url-transcribe_route_ts",
+      "target": "lib_rateLimiter_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_url-transcribe_route_ts",
+      "target": "lib_security_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_url-transcribe_route_ts",
+      "target": "lib_urlFetch_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_user_profile_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_user_profile_route_ts",
+      "target": "lib_userProfileStorage_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_user_profile_route_ts",
+      "target": "lib_roleProfiles_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_user_stats_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_user_stats_route_ts",
+      "target": "lib_usageLogger_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_user_stats_route_ts",
+      "target": "lib_taskManager_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_user_stats_route_ts",
+      "target": "lib_gamification_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_user_stats_route_ts",
+      "target": "lib_greenIct_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_user_wellness_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_user_wellness_route_ts",
+      "target": "lib_usageLogger_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_user_wellness_route_ts",
+      "target": "lib_meetingWellness_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_vocabulary_route_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "app_api_vocabulary_route_ts",
+      "target": "lib_security_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_RecordingBadge_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_RecordingBadge_tsx",
+      "target": "contexts_TranscriptionContext_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "components_RecordingBadge_tsx",
+      "target": "lib_audioUtils_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_RecordingBadge_tsx",
+      "target": "contexts_TranscriptionContext_tsx",
+      "type": "uses-context"
+    },
+    {
+      "source": "components_MissionControl_tsx",
+      "target": "lib_gamification_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_MissionControl_tsx",
+      "target": "components_WellnessIndicator_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "components_MissionControl_tsx",
+      "target": "app_api_user_stats_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "components_VocabularyManager_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_VocabularyManager_tsx",
+      "target": "app_api_vocabulary_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "components_CalendarToggle_tsx",
+      "target": "hooks_useCalendarPrefs_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_CalendarToggle_tsx",
+      "target": "components_Switch_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "components_MeetingKeywords_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_NavLinks_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_OnboardingGate_tsx",
+      "target": "components_OnboardingWizard_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "components_OnboardingGate_tsx",
+      "target": "contexts_UserProfileContext_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "components_ActionItems_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_ActionItems_tsx",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_AskDhvani_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_AskDhvani_tsx",
+      "target": "app_api_ask_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "components_ControlBar_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_ControlBar_tsx",
+      "target": "lib_audioUtils_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_ControlBar_tsx",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_TaskChecklist_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_TaskChecklist_tsx",
+      "target": "lib_taskManager_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_TaskChecklist_tsx",
+      "target": "app_api_tasks_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "components_AudioModeCards_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_AudioModeCards_tsx",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_InstallPrompt_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_InstallPrompt_tsx",
+      "target": "hooks_useMode_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_OrphanRecordingBanner_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_OrphanRecordingBanner_tsx",
+      "target": "lib_audioPersistence_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_OrphanRecordingBanner_tsx",
+      "target": "contexts_TranscriptionContext_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "components_OrphanRecordingBanner_tsx",
+      "target": "hooks_useAudioCapture_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_OrphanRecordingBanner_tsx",
+      "target": "contexts_TranscriptionContext_tsx",
+      "type": "uses-context"
+    },
+    {
+      "source": "components_TranscriptPanel_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_TranscriptPanel_tsx",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_MeetingBanner_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_MeetingBanner_tsx",
+      "target": "lib_calendar_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_TestAudio_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_TestAudio_tsx",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_TestAudio_tsx",
+      "target": "lib_audioUtils_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_TestAudio_tsx",
+      "target": "app_api_transcribe_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "components_SettingsDrawer_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_SettingsDrawer_tsx",
+      "target": "components_DeviceSelector_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "components_SettingsDrawer_tsx",
+      "target": "components_CalendarToggle_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "components_SettingsDrawer_tsx",
+      "target": "components_VocabularyManager_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "components_SettingsDrawer_tsx",
+      "target": "components_OrgInsightsOptIn_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "components_SettingsDrawer_tsx",
+      "target": "contexts_UserProfileContext_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "components_SettingsDrawer_tsx",
+      "target": "hooks_useMode_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_SettingsDrawer_tsx",
+      "target": "hooks_useTheme_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_SettingsDrawer_tsx",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_SettingsDrawer_tsx",
+      "target": "app_api_me_usage_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "components_SettingsDrawer_tsx",
+      "target": "app_api_storage_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "components_SettingsDrawer_tsx",
+      "target": "app_api_me_emissions_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "components_OnboardingWizard_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_OnboardingWizard_tsx",
+      "target": "lib_roleProfiles_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_OnboardingWizard_tsx",
+      "target": "contexts_UserProfileContext_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "components_SpeakerStats_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_SpeakerStats_tsx",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_DeviceSelector_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_DeviceSelector_tsx",
+      "target": "hooks_useAudioDevices_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_AudioModeSelector_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_AudioModeSelector_tsx",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_ExportMenu_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_ExportMenu_tsx",
+      "target": "lib_exportUtils_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_ExportMenu_tsx",
+      "target": "lib_docxExport_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_ExportMenu_tsx",
+      "target": "hooks_useMode_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_ExportMenu_tsx",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_OrgInsightsOptIn_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_MeetingSummary_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_MeetingSummary_tsx",
+      "target": "components_ActionItems_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "components_MeetingSummary_tsx",
+      "target": "hooks_useMode_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_MeetingSummary_tsx",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_MeetingSummary_tsx",
+      "target": "app_api_summarize_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "components_MeetingList_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_MeetingList_tsx",
+      "target": "lib_calendar_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_MeetingList_tsx",
+      "target": "app_api_calendar_today_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "components_FollowUpEmail_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_FollowUpEmail_tsx",
+      "target": "components_ActionItems_tsx",
+      "type": "imports"
+    },
+    {
+      "source": "components_FollowUpEmail_tsx",
+      "target": "app_api_followup_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "components_WellnessIndicator_tsx",
+      "target": "lib_meetingWellness_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_WellnessIndicator_tsx",
+      "target": "app_api_user_wellness_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "components_TranscriptSearch_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_TranscriptSearch_tsx",
+      "target": "app_api_search_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "components_ShareModal_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_ShareModal_tsx",
+      "target": "app_api_transcripts_id_share_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "components_admin_OrgIntelligence_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_admin_OrgIntelligence_tsx",
+      "target": "lib_orgIntelligence_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_admin_OrgIntelligence_tsx",
+      "target": "app_api_admin_org-intelligence_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "components_admin_EmissionsDashboard_tsx",
+      "target": "ext_lucide",
+      "type": "imports"
+    },
+    {
+      "source": "components_admin_EmissionsDashboard_tsx",
+      "target": "lib_greenIct_ts",
+      "type": "imports"
+    },
+    {
+      "source": "components_admin_EmissionsDashboard_tsx",
+      "target": "app_api_admin_emissions_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "hooks_useMode_ts",
+      "target": "lib_mode_ts",
+      "type": "imports"
+    },
+    {
+      "source": "hooks_useAudioCapture_ts",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "hooks_useAudioCapture_ts",
+      "target": "lib_audioUtils_ts",
+      "type": "imports"
+    },
+    {
+      "source": "hooks_useAudioCapture_ts",
+      "target": "lib_audioPersistence_ts",
+      "type": "imports"
+    },
+    {
+      "source": "hooks_useAudioCapture_ts",
+      "target": "hooks_useWakeLock_ts",
+      "type": "imports"
+    },
+    {
+      "source": "hooks_useTranscriptStore_ts",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "hooks_useTranscriptStore_ts",
+      "target": "lib_calendar_ts",
+      "type": "imports"
+    },
+    {
+      "source": "hooks_useTranscription_ts",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "hooks_useTranscription_ts",
+      "target": "lib_audioUtils_ts",
+      "type": "imports"
+    },
+    {
+      "source": "hooks_useTranscription_ts",
+      "target": "lib_audioPersistence_ts",
+      "type": "imports"
+    },
+    {
+      "source": "hooks_useTranscription_ts",
+      "target": "hooks_useAudioCapture_ts",
+      "type": "imports"
+    },
+    {
+      "source": "hooks_useTranscription_ts",
+      "target": "app_api_transcribe_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "hooks_useTheme_ts",
+      "target": "lib_themeMode_ts",
+      "type": "imports"
+    },
+    {
+      "source": "hooks_useMeetingReminders_ts",
+      "target": "lib_calendar_ts",
+      "type": "imports"
+    },
+    {
+      "source": "hooks_useMeetingReminders_ts",
+      "target": "hooks_useCalendarPrefs_ts",
+      "type": "imports"
+    },
+    {
+      "source": "hooks_useMeetingReminders_ts",
+      "target": "app_api_calendar_upcoming_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "contexts_TranscriptionContext_tsx",
+      "target": "hooks_useAudioCapture_ts",
+      "type": "imports"
+    },
+    {
+      "source": "contexts_TranscriptionContext_tsx",
+      "target": "lib_azureErrorMessages_ts",
+      "type": "imports"
+    },
+    {
+      "source": "contexts_TranscriptionContext_tsx",
+      "target": "hooks_useTranscription_ts",
+      "type": "imports"
+    },
+    {
+      "source": "contexts_TranscriptionContext_tsx",
+      "target": "hooks_useTranscriptStore_ts",
+      "type": "imports"
+    },
+    {
+      "source": "contexts_TranscriptionContext_tsx",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "contexts_TranscriptionContext_tsx",
+      "target": "app_api_transcripts_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "contexts_UserProfileContext_tsx",
+      "target": "lib_roleProfiles_ts",
+      "type": "imports"
+    },
+    {
+      "source": "contexts_UserProfileContext_tsx",
+      "target": "app_api_user_profile_route_ts",
+      "type": "calls-api"
+    },
+    {
+      "source": "lib_usageLogger_ts",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "lib_userProfileStorage_ts",
+      "target": "lib_security_ts",
+      "type": "imports"
+    },
+    {
+      "source": "lib_rateLimiter_ts",
+      "target": "lib_usageLogger_ts",
+      "type": "imports"
+    },
+    {
+      "source": "lib_usageAggregates_ts",
+      "target": "lib_usageLogger_ts",
+      "type": "imports"
+    },
+    {
+      "source": "lib_exportUtils_ts",
+      "target": "lib_audioUtils_ts",
+      "type": "imports"
+    },
+    {
+      "source": "lib_exportUtils_ts",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "lib_greenIct_ts",
+      "target": "lib_usageLogger_ts",
+      "type": "imports"
+    },
+    {
+      "source": "lib_taskManager_ts",
+      "target": "lib_security_ts",
+      "type": "imports"
+    },
+    {
+      "source": "lib_docxExport_ts",
+      "target": "lib_mode_ts",
+      "type": "imports"
+    },
+    {
+      "source": "lib_docxExport_ts",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "lib_docxExport_ts",
+      "target": "lib_exportUtils_ts",
+      "type": "imports"
+    },
+    {
+      "source": "lib_transcriptStorage_ts",
+      "target": "lib_constants_ts",
+      "type": "imports"
+    },
+    {
+      "source": "lib_transcriptStorage_ts",
+      "target": "lib_calendar_ts",
+      "type": "imports"
+    },
+    {
+      "source": "lib_transcriptStorage_ts",
+      "target": "lib_azureBlobStorage_ts",
+      "type": "imports"
+    },
+    {
+      "source": "lib_auth_ts",
+      "target": "lib_demoMode_ts",
+      "type": "imports"
+    },
+    {
+      "source": "lib_azureBlobStorage_ts",
+      "target": "lib_transcriptStorage_ts",
+      "type": "imports"
+    },
+    {
+      "source": "lib_providers_azure-openai_ts",
+      "target": "lib_openai_ts",
+      "type": "imports"
+    },
+    {
+      "source": "lib_providers_azure-openai_ts",
+      "target": "lib_providers_ai_ts",
+      "type": "imports"
+    },
+    {
+      "source": "lib_providers_index_ts",
+      "target": "lib_config_ts",
+      "type": "imports"
+    },
+    {
+      "source": "lib_providers_index_ts",
+      "target": "lib_providers_ai_ts",
+      "type": "imports"
+    },
+    {
+      "source": "lib_providers_index_ts",
+      "target": "lib_providers_azure-openai_ts",
+      "type": "imports"
+    },
+    {
+      "source": "middleware_ts",
+      "target": "lib_auth_ts",
+      "type": "imports"
+    },
+    {
+      "source": "middleware_ts",
+      "target": "lib_demoMode_ts",
+      "type": "imports"
+    },
+    {
+      "source": "lib_transcriptStorage_ts",
+      "target": "storage_fs_transcripts",
+      "type": "writes-storage"
+    },
+    {
+      "source": "lib_transcriptStorage_ts",
+      "target": "storage_fs_transcripts",
+      "type": "reads-storage"
+    },
+    {
+      "source": "lib_azureBlobStorage_ts",
+      "target": "ext_azure_blob",
+      "type": "depends-on-service"
+    },
+    {
+      "source": "lib_azureBlobStorage_ts",
+      "target": "ext_azure_blob",
+      "type": "writes-storage"
+    },
+    {
+      "source": "lib_azureBlobStorage_ts",
+      "target": "ext_azure_blob",
+      "type": "reads-storage"
+    },
+    {
+      "source": "lib_azureBlobAudio_ts",
+      "target": "ext_azure_blob",
+      "type": "depends-on-service"
+    },
+    {
+      "source": "lib_azureBlobAudio_ts",
+      "target": "ext_azure_blob",
+      "type": "writes-storage"
+    },
+    {
+      "source": "lib_azureBlobAudio_ts",
+      "target": "ext_azure_blob",
+      "type": "reads-storage"
+    },
+    {
+      "source": "lib_audioPersistence_ts",
+      "target": "storage_opfs",
+      "type": "writes-storage"
+    },
+    {
+      "source": "lib_audioPersistence_ts",
+      "target": "storage_opfs",
+      "type": "reads-storage"
+    },
+    {
+      "source": "lib_audioPersistence_ts",
+      "target": "storage_idb",
+      "type": "writes-storage"
+    },
+    {
+      "source": "lib_audioPersistence_ts",
+      "target": "storage_idb",
+      "type": "reads-storage"
+    },
+    {
+      "source": "lib_shareStorage_ts",
+      "target": "storage_fs_tasks",
+      "type": "writes-storage"
+    },
+    {
+      "source": "lib_shareStorage_ts",
+      "target": "storage_fs_tasks",
+      "type": "reads-storage"
+    },
+    {
+      "source": "lib_taskManager_ts",
+      "target": "storage_fs_tasks",
+      "type": "writes-storage"
+    },
+    {
+      "source": "lib_taskManager_ts",
+      "target": "storage_fs_tasks",
+      "type": "reads-storage"
+    },
+    {
+      "source": "lib_usageLogger_ts",
+      "target": "storage_fs_usage",
+      "type": "writes-storage"
+    },
+    {
+      "source": "lib_usageLogger_ts",
+      "target": "storage_fs_usage",
+      "type": "reads-storage"
+    },
+    {
+      "source": "lib_usageAggregates_ts",
+      "target": "storage_fs_usage",
+      "type": "reads-storage"
+    },
+    {
+      "source": "lib_greenIct_ts",
+      "target": "storage_fs_usage",
+      "type": "reads-storage"
+    },
+    {
+      "source": "lib_gamification_ts",
+      "target": "storage_fs_usage",
+      "type": "reads-storage"
+    },
+    {
+      "source": "lib_meetingWellness_ts",
+      "target": "storage_fs_usage",
+      "type": "reads-storage"
+    },
+    {
+      "source": "lib_orgIntelligence_ts",
+      "target": "storage_fs_orginsights",
+      "type": "writes-storage"
+    },
+    {
+      "source": "lib_orgIntelligence_ts",
+      "target": "storage_fs_orginsights",
+      "type": "reads-storage"
+    },
+    {
+      "source": "lib_userProfileStorage_ts",
+      "target": "storage_fs_profiles",
+      "type": "writes-storage"
+    },
+    {
+      "source": "lib_userProfileStorage_ts",
+      "target": "storage_fs_profiles",
+      "type": "reads-storage"
+    },
+    {
+      "source": "app_api_vocabulary_route_ts",
+      "target": "storage_fs_tasks",
+      "type": "writes-storage"
+    },
+    {
+      "source": "app_api_vocabulary_route_ts",
+      "target": "storage_fs_tasks",
+      "type": "reads-storage"
+    },
+    {
+      "source": "app_api_admin_analytics_route_ts",
+      "target": "storage_fs_transcripts",
+      "type": "reads-storage"
+    },
+    {
+      "source": "app_api_admin_org-intelligence_route_ts",
+      "target": "storage_fs_orginsights",
+      "type": "reads-storage"
+    },
+    {
+      "source": "lib_openai_ts",
+      "target": "ext_azure_openai_transcribe",
+      "type": "depends-on-service"
+    },
+    {
+      "source": "lib_openai_ts",
+      "target": "ext_azure_openai_chat",
+      "type": "depends-on-service"
+    },
+    {
+      "source": "lib_providers_azure-openai_ts",
+      "target": "ext_azure_openai_transcribe",
+      "type": "depends-on-service"
+    },
+    {
+      "source": "lib_providers_azure-openai_ts",
+      "target": "ext_azure_openai_chat",
+      "type": "depends-on-service"
+    },
+    {
+      "source": "lib_auth_ts",
+      "target": "ext_entra",
+      "type": "depends-on-service"
+    },
+    {
+      "source": "lib_calendar_ts",
+      "target": "ext_graph",
+      "type": "depends-on-service"
+    },
+    {
+      "source": "app_api_calendar_today_route_ts",
+      "target": "ext_graph",
+      "type": "depends-on-service"
+    },
+    {
+      "source": "app_api_calendar_upcoming_route_ts",
+      "target": "ext_graph",
+      "type": "depends-on-service"
+    },
+    {
+      "source": "app_download_page_tsx",
+      "target": "ext_github_releases",
+      "type": "depends-on-service"
+    },
+    {
+      "source": "app_api_transcribe_route_ts",
+      "target": "ext_azure_openai_transcribe",
+      "type": "depends-on-service"
+    },
+    {
+      "source": "app_api_summarize_route_ts",
+      "target": "ext_azure_openai_chat",
+      "type": "depends-on-service"
+    },
+    {
+      "source": "app_api_ask_route_ts",
+      "target": "ext_azure_openai_chat",
+      "type": "depends-on-service"
+    },
+    {
+      "source": "app_api_followup_route_ts",
+      "target": "ext_azure_openai_chat",
+      "type": "depends-on-service"
+    },
+    {
+      "source": "app_api_url-transcribe_route_ts",
+      "target": "ext_azure_openai_transcribe",
+      "type": "depends-on-service"
+    },
+    {
+      "source": "hooks_useMode_ts",
+      "target": "storage_localstorage",
+      "type": "reads-storage"
+    },
+    {
+      "source": "hooks_useMode_ts",
+      "target": "storage_localstorage",
+      "type": "writes-storage"
+    },
+    {
+      "source": "hooks_useTheme_ts",
+      "target": "storage_localstorage",
+      "type": "reads-storage"
+    },
+    {
+      "source": "hooks_useTheme_ts",
+      "target": "storage_localstorage",
+      "type": "writes-storage"
+    },
+    {
+      "source": "hooks_useCalendarPrefs_ts",
+      "target": "storage_localstorage",
+      "type": "reads-storage"
+    },
+    {
+      "source": "hooks_useCalendarPrefs_ts",
+      "target": "storage_localstorage",
+      "type": "writes-storage"
+    },
+    {
+      "source": "hooks_useMeetingReminders_ts",
+      "target": "storage_localstorage",
+      "type": "reads-storage"
+    },
+    {
+      "source": "hooks_useMeetingReminders_ts",
+      "target": "storage_localstorage",
+      "type": "writes-storage"
+    },
+    {
+      "source": "hooks_useTranscriptStore_ts",
+      "target": "storage_localstorage",
+      "type": "reads-storage"
+    },
+    {
+      "source": "hooks_useTranscriptStore_ts",
+      "target": "storage_localstorage",
+      "type": "writes-storage"
+    },
+    {
+      "source": "lib_mode_ts",
+      "target": "storage_localstorage",
+      "type": "reads-storage"
+    },
+    {
+      "source": "lib_mode_ts",
+      "target": "storage_localstorage",
+      "type": "writes-storage"
+    },
+    {
+      "source": "lib_themeMode_ts",
+      "target": "storage_localstorage",
+      "type": "reads-storage"
+    },
+    {
+      "source": "lib_themeMode_ts",
+      "target": "storage_localstorage",
+      "type": "writes-storage"
+    },
+    {
+      "source": "components_OrgInsightsOptIn_tsx",
+      "target": "storage_localstorage",
+      "type": "reads-storage"
+    },
+    {
+      "source": "components_OrgInsightsOptIn_tsx",
+      "target": "storage_localstorage",
+      "type": "writes-storage"
+    },
+    {
+      "source": "components_InstallPrompt_tsx",
+      "target": "storage_localstorage",
+      "type": "reads-storage"
+    },
+    {
+      "source": "components_InstallPrompt_tsx",
+      "target": "storage_localstorage",
+      "type": "writes-storage"
+    },
+    {
+      "source": "app_layout_tsx",
+      "target": "public_sw",
+      "type": "depends-on-service"
+    }
+  ]
+}
