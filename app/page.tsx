@@ -93,7 +93,7 @@ export default function HomePage() {
     detectedSpeakers,
     resolveSpeaker,
     renameSpeaker,
-    primeSpeakers,
+    updateEntryText,
     activeMeeting,
     setActiveMeeting,
     speakerNames,
@@ -204,13 +204,14 @@ export default function HomePage() {
       await clearSession({ autoSave: true, preserveActiveMeeting: true });
     }
     captureStartedAtRef.current = new Date().toISOString();
-    // Seed the speaker map: the signed-in user is almost always the
-    // closest voice to the mic, so they become Speaker 1; further slots
-    // come from the active meeting's attendee list, if any. Manual renames
-    // are preserved by primeSpeakers.
-    const userName = user?.name || user?.email || null;
-    const attendeeNames = extractAttendeeNames(activeMeeting?.attendees);
-    primeSpeakers(userName, attendeeNames);
+    // Speaker seeding removed: Azure gpt-4o-transcribe-diarize returns
+    // `speaker_0`/`speaker_1` per chunk with no cross-chunk identity, so
+    // pre-mapping `speaker_0` → the signed-in user meant whoever the
+    // diarizer labelled `speaker_0` in *any* chunk got renamed to the
+    // user — everyone in the meeting ended up as "rahul jha". The
+    // correct default is generic "Speaker 1/2/…" labels that the user
+    // renames once they hear who's who. Re-introduce priming only when
+    // we have persistent speaker embeddings.
     const mode = (chosenMode as CaptureMode) || "microphone";
     void startCapture(mode);
   }, [
@@ -218,10 +219,6 @@ export default function HomePage() {
     startCapture,
     transcript.length,
     clearSession,
-    user?.name,
-    user?.email,
-    activeMeeting,
-    primeSpeakers,
     setRateLimitMsg,
   ]);
 
@@ -241,28 +238,35 @@ export default function HomePage() {
 
   const onStartFromMeeting = useCallback(
     (meeting: Meeting) => {
-      // Per UX Addendum C2: never auto-start. Just pre-fill state so the
-      // user lands on the idle home with title + source + a "Ready for…"
-      // banner, then taps Record themselves.
+      // The old flow was pre-fill-only (UX Addendum C2 "never auto-start"),
+      // but live testing showed users clicked "Join & record" and saw
+      // nothing happen — the pre-filled banner wasn't discoverable enough
+      // to read as "your next action is to tap Record." We now auto-start
+      // capture on join, because "Join & record" is explicit opt-in; if
+      // the user wanted to only pre-fill they wouldn't click that button.
       setActiveMeeting(meeting);
       // Map detected platform → preferred capture mode. Browser-based
       // meeting clients work great with tab audio; native desktop apps
       // need either Electron (preferred) or virtual-cable.
+      let mode: CaptureMode;
       if (meeting.platform === "meet" || meeting.platform === "teams") {
-        setChosenMode("tab-audio");
+        mode = "tab-audio";
       } else if (typeof window !== "undefined" && (window as any).electronAPI) {
-        setChosenMode("electron");
+        mode = "electron";
       } else if (meeting.platform === "zoom") {
-        setChosenMode("virtual-cable");
+        mode = "virtual-cable";
       } else {
-        setChosenMode("microphone");
+        mode = "microphone";
       }
-      // Scroll to the title input so the user sees the pre-fill landed.
+      setChosenMode(mode);
       if (typeof window !== "undefined") {
         window.scrollTo({ top: 0, behavior: "smooth" });
       }
+      // Kick off capture immediately. Passing `mode` explicitly rather
+      // than relying on chosenMode state (which hasn't committed yet).
+      void startCapture(mode);
     },
-    [setActiveMeeting, setChosenMode]
+    [setActiveMeeting, setChosenMode, startCapture]
   );
 
   // -------- Save transcript to server --------
@@ -319,20 +323,20 @@ export default function HomePage() {
     setToast,
   ]);
 
-  // Auto-tag opt-in: when capture stops, if the user enabled auto-tag and we
-  // have an active meeting + non-empty transcript, save automatically.
-  // Also prompt for AI summary if 5+ minutes of content.
+  // Save on Stop (unconditional) + prompt for summary if session ≥ 5 min.
+  //   Previously this was gated on `calendarPrefs.autoTag && activeMeeting`,
+  //   which meant users who just recorded a free-form note had to
+  //   remember to click Save before closing the tab — and we heard from
+  //   users who didn't, then had no idea whether their session survived.
+  //   Policy now: every non-empty transcript goes to the server when
+  //   capture stops. The free-form cases already have OPFS + localStorage
+  //   as belt-and-braces, but the server save is the canonical record.
   const wasCapturingRef = useRef(false);
   useEffect(() => {
     if (wasCapturingRef.current && !isCapturing) {
-      if (
-        calendarPrefs.autoTag &&
-        activeMeeting &&
-        transcript.length > 0
-      ) {
+      if (transcript.length > 0) {
         void saveTranscriptToServer();
       }
-      // Prompt for AI summary after 5+ minutes of recording.
       if (transcript.length > 0 && totalMinutes >= 5) {
         setShowSummaryPrompt(true);
       }
@@ -340,11 +344,67 @@ export default function HomePage() {
     wasCapturingRef.current = isCapturing;
   }, [
     isCapturing,
-    calendarPrefs.autoTag,
-    activeMeeting,
     transcript.length,
     saveTranscriptToServer,
     totalMinutes,
+  ]);
+
+  // Periodic auto-save every 2 minutes during active capture. Belt-and-
+  // braces: if the tab is force-closed mid-session before the
+  // pagehide path runs, the latest committed snapshot is never more
+  // than ~2 min stale. No-ops when capture isn't running (we save on
+  // Stop from the effect above) or when the transcript is empty.
+  useEffect(() => {
+    if (!isCapturing) return;
+    const id = window.setInterval(() => {
+      if (transcript.length > 0 && saveState !== "saving") {
+        void saveTranscriptToServer();
+      }
+    }, 120_000);
+    return () => window.clearInterval(id);
+  }, [isCapturing, transcript.length, saveState, saveTranscriptToServer]);
+
+  // Save on tab close. We only listen to `pagehide` (fires once per
+  // page lifetime when the tab is being discarded) rather than
+  // `visibilitychange` (fires on every tab switch, which would create
+  // a new saved transcript every time the user Alt-Tabs away).
+  // sendBeacon is used so the request survives the unload — a normal
+  // fetch would be cancelled. The server POST handler already ignores
+  // duplicate id attempts and will cap at the daily save quota, so
+  // this is safe to fire on every close.
+  useEffect(() => {
+    const flush = () => {
+      if (transcript.length === 0) return;
+      try {
+        const payload = JSON.stringify({
+          entries: transcript,
+          speakerNames,
+          startedAt:
+            captureStartedAtRef.current ||
+            transcript[0]?.timestamp ||
+            new Date().toISOString(),
+          endedAt: new Date().toISOString(),
+          durationMinutes: totalMinutes,
+          chunkCount,
+          estimatedCost,
+          title: activeMeeting?.subject,
+          autoSavedOnUnload: true,
+        });
+        const blob = new Blob([payload], { type: "application/json" });
+        navigator.sendBeacon?.("/api/transcripts", blob);
+      } catch {
+        /* best-effort; OPFS + localStorage remain as fallbacks */
+      }
+    };
+    window.addEventListener("pagehide", flush);
+    return () => window.removeEventListener("pagehide", flush);
+  }, [
+    transcript,
+    speakerNames,
+    totalMinutes,
+    chunkCount,
+    estimatedCost,
+    activeMeeting,
   ]);
 
   // -------- Reminders (browser notifications + sticky banner) --------
@@ -584,6 +644,8 @@ export default function HomePage() {
           expectedSpeakers={expectedSpeakers}
           currentUserLabel={currentUserLabel}
           pinnedIds={pinnedIds}
+          onEditEntry={updateEntryText}
+          backpressure={inFlight + queueDepth}
           isProcessing={isCapturing && (inFlight > 0 || queueDepth > 0)}
           onTogglePin={(id) =>
             setPinnedIds((prev) => {

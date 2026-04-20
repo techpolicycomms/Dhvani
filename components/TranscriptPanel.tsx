@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, MicOff, Search, Star } from "lucide-react";
 import {
+  QUEUE_BACKPRESSURE_THRESHOLD,
   colorForSpeaker,
   type TranscriptEntry,
 } from "@/lib/constants";
@@ -23,8 +24,21 @@ type Props = {
   currentUserLabel?: string | null;
   pinnedIds?: Set<string>;
   onTogglePin?: (entryId: string) => void;
+  /**
+   * Correct a single entry's text (double-click the entry to edit).
+   * Empty string cancels — the callback handles its own no-op for
+   * whitespace-only input.
+   */
+  onEditEntry?: (entryId: string, newText: string) => void;
   /** True when a chunk is being transcribed — shows the listening dots. */
   isProcessing?: boolean;
+  /**
+   * Combined in-flight + queued chunk count. When it crosses
+   * QUEUE_BACKPRESSURE_THRESHOLD we surface a non-blocking hint that
+   * transcription is catching up, so users don't read "silence" as a
+   * bug.
+   */
+  backpressure?: number;
 };
 
 /**
@@ -45,11 +59,15 @@ export function TranscriptPanel({
   currentUserLabel,
   pinnedIds,
   onTogglePin,
+  onEditEntry,
   isProcessing,
+  backpressure = 0,
 }: Props) {
   const [search, setSearch] = useState("");
   const [autoScroll, setAutoScroll] = useState(true);
   const [editing, setEditing] = useState<string | null>(null);
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
+  const [editingDraft, setEditingDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const entryRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -252,9 +270,47 @@ export function TranscriptPanel({
                         {display}:
                       </button>
                     )}
-                    <span className="text-dark-gray break-words">
-                      {highlight(entry.text)}
-                    </span>
+                    {onEditEntry && editingEntryId === entry.id ? (
+                      <textarea
+                        autoFocus
+                        value={editingDraft}
+                        onChange={(e) => setEditingDraft(e.target.value)}
+                        onBlur={() => {
+                          if (editingDraft.trim() && editingDraft !== entry.text) {
+                            onEditEntry(entry.id, editingDraft);
+                          }
+                          setEditingEntryId(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Escape") {
+                            e.preventDefault();
+                            setEditingEntryId(null);
+                          } else if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            if (editingDraft.trim() && editingDraft !== entry.text) {
+                              onEditEntry(entry.id, editingDraft);
+                            }
+                            setEditingEntryId(null);
+                          }
+                        }}
+                        className="w-full text-dark-gray break-words bg-white border border-itu-blue rounded px-1.5 py-0.5 resize-y min-h-[1.5rem] focus:outline-none focus:ring-2 focus:ring-itu-blue/40"
+                        rows={Math.max(1, Math.ceil(editingDraft.length / 70))}
+                      />
+                    ) : (
+                      <span
+                        className={`text-dark-gray break-words ${
+                          onEditEntry ? "cursor-text hover:bg-off-white/60 rounded px-0.5 -mx-0.5" : ""
+                        }`}
+                        title={onEditEntry ? "Double-click to fix a typo" : undefined}
+                        onDoubleClick={() => {
+                          if (!onEditEntry) return;
+                          setEditingEntryId(entry.id);
+                          setEditingDraft(entry.text);
+                        }}
+                      >
+                        {highlight(entry.text)}
+                      </span>
+                    )}
                   </div>
                   {onTogglePin && (
                     <button
@@ -285,6 +341,11 @@ export function TranscriptPanel({
                 <span />
                 <span />
               </span>
+              {backpressure >= QUEUE_BACKPRESSURE_THRESHOLD && (
+                <span className="text-warning">
+                  Transcription is {backpressure} chunks behind — catching up
+                </span>
+              )}
             </div>
           )}
         </div>

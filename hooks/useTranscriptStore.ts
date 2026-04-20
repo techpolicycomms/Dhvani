@@ -20,6 +20,13 @@ const SPEAKER_NAMES_KEY = "dhvani-speaker-names";
 export type UseTranscriptStoreReturn = {
   transcript: TranscriptEntry[];
   addEntry: (entry: TranscriptEntry) => void;
+  /**
+   * Overwrite the `text` field of a single entry. Used by the inline
+   * typo-fix UI in TranscriptPanel — lets the user correct transcription
+   * mistakes without re-recording. Triggers the same autosave path as
+   * addEntry.
+   */
+  updateEntryText: (entryId: string, newText: string) => void;
   clearTranscript: () => void;
   hasSavedSession: boolean;
   resumeSession: () => void;
@@ -168,6 +175,14 @@ export function useTranscriptStore(): UseTranscriptStoreReturn {
     setTranscript((prev) => [...prev, entry]);
   }, []);
 
+  const updateEntryText = useCallback((entryId: string, newText: string) => {
+    const trimmed = newText.trim();
+    if (!trimmed) return;
+    setTranscript((prev) =>
+      prev.map((e) => (e.id === entryId ? { ...e, text: trimmed } : e))
+    );
+  }, []);
+
   const clearTranscript = useCallback(() => {
     setTranscript([]);
     clearSavedSession();
@@ -254,6 +269,7 @@ export function useTranscriptStore(): UseTranscriptStoreReturn {
   return {
     transcript,
     addEntry,
+    updateEntryText,
     clearTranscript,
     hasSavedSession,
     resumeSession,

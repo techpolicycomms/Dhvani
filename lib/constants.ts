@@ -6,23 +6,37 @@
 export const WHISPER_PRICE_PER_MINUTE = 0.006;
 
 // Default chunk duration in milliseconds for the MediaRecorder rotation
-// cycle. 1 s gives near-real-time appearance (first transcript entry
-// typically lands within 2 s of first speech, accounting for the Azure
-// OpenAI round-trip). The diarizer still has enough acoustic context
-// at 1 s to hold speaker identity; shorter than that starts degrading
-// speaker labels without meaningfully improving latency.
-// Users can trade up to 15 s via the Settings slider when they care
-// more about denser speaker tracking than latency.
-export const DEFAULT_CHUNK_DURATION_MS = 1000;
-export const MIN_CHUNK_DURATION_MS = 500;
+// cycle. 2 s is the sweet spot for accuracy + acceptable latency:
+//   - Live testing on a Teams meeting showed 1 s chunks starve the
+//     diarizer of acoustic context (every chunk collapses to
+//     `speaker_0`, so every voice got mapped to the signed-in user)
+//     AND flood the network with 60 requests/minute — queue lag
+//     compounds on flaky links.
+//   - 2 s doubles the context window, halves the request rate, and
+//     still surfaces the first transcript entry within ~3 s of first
+//     speech (2 s capture + ~1 s Azure round-trip). That's a tiny
+//     perceived-latency hit for a large accuracy + stability gain.
+// Users can still pull as low as 1 s (Settings slider) when they
+// truly prefer latency over accuracy, or push to 15 s for dense
+// multi-speaker meetings where diarization matters most.
+export const DEFAULT_CHUNK_DURATION_MS = 2000;
+export const MIN_CHUNK_DURATION_MS = 1000;
 export const MAX_CHUNK_DURATION_MS = 15000;
 
-// Maximum number of concurrent requests sent to the Whisper API.
-// Raised to 6 so 1 s chunks never block on queue depth — a typical
-// meeting generates chunks at a rate the transcribe API fully
-// absorbs at this concurrency, and Azure OpenAI deployments handle
-// 6 concurrent with headroom below the default per-user quota.
-export const MAX_CONCURRENT_TRANSCRIPTIONS = 6;
+// Maximum concurrent requests sent to the transcribe API. At 2 s
+// chunks a typical meeting emits ~30 requests/min — 4 concurrent
+// drains that with headroom to spare. 6 was the old 1 s-chunk
+// number; we tightened it because over-concurrency burns request
+// quota on retries during flaky links without shrinking latency.
+export const MAX_CONCURRENT_TRANSCRIPTIONS = 4;
+
+// If the in-flight + queued chunk count crosses this threshold, the
+// UI surfaces a "transcription is catching up" hint. Below this, the
+// queue is not user-visible; above, we signal backpressure honestly
+// so the user understands why the latest speech hasn't landed yet.
+// Tuned from live Teams testing where queue depth of ~8 correlated
+// with a perceptible "frozen transcript" feeling.
+export const QUEUE_BACKPRESSURE_THRESHOLD = 8;
 
 // Target MediaRecorder bitrate. Opus is intelligible at 16 kbps; 24 kbps
 // gives headroom for accents, background noise, and multi-speaker audio
@@ -84,10 +98,11 @@ export type CaptureMode = "tab-audio" | "microphone" | "virtual-cable" | "electr
  *
  * NOTE: diarizer speaker ids are scoped to a single audio request. Ids
  * across separate /api/transcribe calls are NOT correlated — same voice
- * may be `speaker_0` in one chunk and `speaker_1` in the next. The 1.5 s
- * default chunk trades some cross-chunk speaker stability for lower
- * latency; perfect stitching would require a persistent speaker
- * embedding we do not yet maintain.
+ * may be `speaker_0` in one chunk and `speaker_1` in the next. That's
+ * why we no longer pre-map `speaker_0` to the signed-in user — it made
+ * everyone's voice collapse to one name. Default labels stay generic
+ * ("Speaker 1/2/…") and the user renames once. Perfect stitching would
+ * require a persistent speaker embedding we do not yet maintain.
  */
 export type TranscriptEntry = {
   id: string;

@@ -21,6 +21,13 @@ export type UseTranscriptionOptions = {
   onEntry?: (entry: TranscriptEntry) => void;
   onError?: (msg: string, chunkIndex: number) => void;
   onRateLimited?: (msg: string, retryAfterSeconds?: number) => void;
+  /**
+   * Fires once per session when the per-chunk language detector
+   * converges on a stable language, and again only if it re-converges
+   * on a different one. Lets the UI surface "Detected: English (locked
+   * for better accuracy)" without needing to poll effectiveLanguage.
+   */
+  onLanguageLocked?: (lang: string) => void;
 };
 
 export type UseTranscriptionReturn = {
@@ -31,6 +38,14 @@ export type UseTranscriptionReturn = {
   totalMinutes: number;
   estimatedCost: number;
   failedChunks: number;
+  /**
+   * Language currently being passed to the server for new chunks. Starts
+   * as the user's language preference (or empty string for auto). Once
+   * the per-chunk detector locks onto a stable language, this updates to
+   * that code so all subsequent requests are pinned — prevents Azure
+   * from flipping a French meeting into English on a noisy chunk.
+   */
+  effectiveLanguage: string;
 };
 
 // Simple sleep helper for exponential backoff retries.
@@ -90,17 +105,33 @@ function groupBySpeaker(segments: RawSegment[]): GroupedTurn[] {
 export function useTranscription(
   options: UseTranscriptionOptions = {}
 ): UseTranscriptionReturn {
-  const { language, onEntry, onError, onRateLimited } = options;
+  const { language, onEntry, onError, onRateLimited, onLanguageLocked } =
+    options;
 
   const [queueDepth, setQueueDepth] = useState(0);
   const [inFlight, setInFlight] = useState(0);
   const [totalMinutes, setTotalMinutes] = useState(0);
   const [failedChunks, setFailedChunks] = useState(0);
+  const [effectiveLanguage, setEffectiveLanguage] = useState(language || "");
 
   // We model the queue as a ref to avoid re-render thrash on every push.
   const queueRef = useRef<CapturedChunk[]>([]);
   const inFlightRef = useRef(0);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Sticky-language tracker.
+  //   The Azure transcriber's per-chunk language detection is probabilistic
+  //   and can flip mid-meeting on a noisy chunk ("I know" → transcribed
+  //   as Spanish "ayuno"), producing nonsense text the user sees as a
+  //   random language switch. Lock onto a language once we see it agree
+  //   across 2 of the last 3 chunks, then pass it as x-language so the
+  //   server stops auto-detecting per chunk. If the user pinned a language
+  //   in Settings, we always defer to that — the sticky lock is only for
+  //   the "Auto-detect" case.
+  const langHistoryRef = useRef<string[]>([]);
+  const lockedLangRef = useRef<string>("");
+  const LANG_HISTORY = 3;
+  const LANG_LOCK_AGREEMENT = 2;
 
   const syncState = useCallback(() => {
     setQueueDepth(queueRef.current.length);
@@ -117,7 +148,12 @@ export function useTranscription(
         "x-audio-seconds": String(chunk.durationMs / 1000),
         "x-chunk-id": String(chunk.index),
       };
-      if (language) headers["x-language"] = language;
+      // Language priority (highest first):
+      //   1. user-pinned language from Settings (the `language` option)
+      //   2. sticky locked language derived from prior chunks
+      //   3. neither → let Azure auto-detect
+      const outgoingLang = language || lockedLangRef.current;
+      if (outgoingLang) headers["x-language"] = outgoingLang;
 
       // Silent-retry policy:
       //   5 attempts with tight exponential backoff (200ms, 500ms, 1s,
@@ -196,6 +232,7 @@ export function useTranscription(
           }
           const data = (await res.json()) as {
             text?: string;
+            language?: string | null;
             segments?: Array<{
               speaker: string;
               text: string;
@@ -203,6 +240,35 @@ export function useTranscription(
               end: number;
             }>;
           };
+
+          // Feed detected language into the sticky tracker (unless the
+          // user already pinned one). Only counts chunks with real
+          // content — silence / filler shouldn't vote.
+          if (!language && data.language && (data.text || "").trim().length >= MIN_TRANSCRIPT_LENGTH) {
+            const hist = langHistoryRef.current;
+            hist.push(data.language);
+            if (hist.length > LANG_HISTORY) hist.shift();
+            const counts = new Map<string, number>();
+            for (const l of hist) counts.set(l, (counts.get(l) ?? 0) + 1);
+            let winner = "";
+            let winnerCount = 0;
+            for (const [l, c] of counts) {
+              if (c > winnerCount) {
+                winner = l;
+                winnerCount = c;
+              }
+            }
+            if (
+              winner &&
+              winnerCount >= LANG_LOCK_AGREEMENT &&
+              winner !== lockedLangRef.current
+            ) {
+              lockedLangRef.current = winner;
+              setEffectiveLanguage(winner);
+              onLanguageLocked?.(winner);
+            }
+          }
+
           const segments = Array.isArray(data.segments) ? data.segments : [];
           if (segments.length > 0) {
             // Group consecutive same-speaker segments into one entry so
@@ -262,7 +328,7 @@ export function useTranscription(
       );
       setFailedChunks((n) => n + 1);
     },
-    [language, onEntry, onError, onRateLimited]
+    [language, onEntry, onError, onRateLimited, onLanguageLocked]
   );
 
   const drain = useCallback(async () => {
@@ -322,6 +388,7 @@ export function useTranscription(
     totalMinutes,
     estimatedCost,
     failedChunks,
+    effectiveLanguage,
   };
 }
 
