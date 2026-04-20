@@ -74,3 +74,19 @@ __pycache__/
 companion/venv/
 companion/.venv/
 graphify-out/
+
+# Capacitor native project generated artifacts.
+# The ios/ and android/ directories themselves ARE checked in
+# (they contain project config like Info.plist, AndroidManifest,
+# custom plugins), but the build outputs inside them should not be.
+ios/App/Pods/
+ios/App/build/
+ios/DerivedData/
+ios/App/public/
+android/.gradle/
+android/app/build/
+android/build/
+android/app/src/main/assets/public/
+android/local.properties
+android/capacitor.settings.gradle
+*.xcuserstate

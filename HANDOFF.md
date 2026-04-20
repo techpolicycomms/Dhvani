@@ -169,6 +169,7 @@ Filename uses `buildFilename(ext, { mode, title })` from `lib/exportUtils.ts`. P
 
 ## Open / known issues (updated)
 
+000. 🟡 **Mobile native (Capacitor)** — scaffolded 2026-04-21 but not yet built on-device. [`capacitor.config.ts`](capacitor.config.ts) + npm scripts (`mobile:sync`, `mobile:ios`, `mobile:android`, `mobile:doctor`, `mobile:run:ios`, `mobile:run:android`) in place. Pointing the WebView at a live Dhvani server via `DHVANI_MOBILE_SERVER_URL` env var. Native iOS/Android projects need to be generated on a machine with full Xcode + CocoaPods (iOS) and Android Studio + JDK 17 (Android) — run `npx cap add ios` / `npx cap add android` and commit the result. Full walkthrough in [`docs/MOBILE_DEMO_SETUP.md`](docs/MOBILE_DEMO_SETUP.md).
 0. ✅ **Transcription is intent-routed** — FIXED 2026-04-20. Home page is an [`IntentCards`](components/IntentCards.tsx) picker (what are you capturing?), not an audio-source picker:
     - **Solo notes** → mic + local Whisper, hard S1 speaker, private, $0.
     - **In-person conversation** → mic + choice of on-device (local Whisper + [`lib/localDiarizer.ts`](lib/localDiarizer.ts), voice-embedding clustering) OR cloud (Azure diarize).

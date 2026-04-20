@@ -30,10 +30,19 @@
     "qa:sweep": "node scripts/e2e/sweep.mjs",
     "qa:smoke": "node scripts/e2e/record-smoke.mjs",
     "qa:all": "npm run qa:sweep && npm run qa:smoke",
-    "release": "npm version patch && git push && git push --tags"
+    "release": "npm version patch && git push && git push --tags",
+    "mobile:doctor": "npx cap doctor",
+    "mobile:sync": "npx cap sync",
+    "mobile:ios": "npx cap open ios",
+    "mobile:android": "npx cap open android",
+    "mobile:run:ios": "npx cap run ios",
+    "mobile:run:android": "npx cap run android"
   },
   "dependencies": {
     "@azure/storage-blob": "^12.31.0",
+    "@capacitor/android": "^8.3.1",
+    "@capacitor/core": "^8.3.1",
+    "@capacitor/ios": "^8.3.1",
     "@xenova/transformers": "^2.17.2",
     "docx": "^9.6.1",
     "lucide-react": "^1.8.0",
@@ -46,6 +55,7 @@
     "uuid": "^9.0.1"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.3.1",
     "@types/node": "^20.11.30",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
