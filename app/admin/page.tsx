@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { auth, isAdminEmail, isAuthConfigured } from "@/lib/auth";
-import { isDemoMode } from "@/lib/demoMode";
 import { loadStats } from "@/lib/usageAggregates";
 import { AdminDashboardClient } from "./Client";
 
@@ -19,19 +18,6 @@ export const dynamic = "force-dynamic";
  * (sorting, the rate-limit editor, charts).
  */
 export default async function AdminPage() {
-  // Demo mode: the dashboard is open so the Green ICT and Org
-  // Intelligence tabs are explorable without SSO. Production blocks
-  // non-admins below.
-  if (isDemoMode) {
-    const stats = await loadStats();
-    return (
-      <AdminDashboardClient
-        initialStats={stats}
-        signedInEmail="demo@itu.int"
-      />
-    );
-  }
-
   if (!isAuthConfigured()) {
     return (
       <main className="min-h-screen flex items-center justify-center p-6 pt-10 bg-off-white">

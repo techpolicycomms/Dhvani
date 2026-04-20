@@ -134,10 +134,8 @@ function startDemoServer(): Promise<void> {
       PORT: String(DEMO_PORT),
       HOSTNAME: DEMO_HOST,
       NODE_ENV: "production",
-      DEMO_MODE: "true",
-      NEXT_PUBLIC_DEMO_MODE: "true",
       NEXTAUTH_SECRET:
-        process.env.NEXTAUTH_SECRET ?? "dhvani-demo-packaged-placeholder-secret",
+        process.env.NEXTAUTH_SECRET ?? "dhvani-packaged-placeholder-secret",
       NEXTAUTH_URL:
         process.env.NEXTAUTH_URL ?? `http://${DEMO_HOST}:${DEMO_PORT}`,
     },

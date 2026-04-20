@@ -1,65 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, isAdminEmail, isAuthConfigured } from "@/lib/auth";
-import { isDemoMode } from "@/lib/demoMode";
 import {
   getOrgInsights,
-  generateDemoRecords,
   recordAnonymisedMeeting,
   type AnonymisedMeetingRecord,
 } from "@/lib/orgIntelligence";
-import { promises as fs } from "node:fs";
-import path from "node:path";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-function logPath(): string {
-  return (
-    process.env.ORG_INSIGHTS_LOG_PATH ||
-    path.join(process.cwd(), "data", "org-insights.jsonl")
-  );
-}
-
-async function isLogEmpty(): Promise<boolean> {
-  try {
-    const stats = await fs.stat(logPath());
-    return stats.size === 0;
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code === "ENOENT") return true;
-    return true;
-  }
-}
-
-async function seedDemoRecords(): Promise<void> {
-  const p = logPath();
-  await fs.mkdir(path.dirname(p), { recursive: true });
-  const lines = generateDemoRecords(80)
-    .map((r: AnonymisedMeetingRecord) => JSON.stringify(r))
-    .join("\n");
-  await fs.writeFile(p, lines + "\n", "utf8");
-}
 
 /**
  * GET /api/admin/org-intelligence?period=monthly|quarterly|annual
  *
  * Aggregates anonymised meeting records and returns k-anonymity-safe
- * insights. Admin-gated. In demo mode, seeds the log with mock data
- * once so the dashboard isn't empty.
+ * insights. Admin-gated.
  */
 export async function GET(req: NextRequest) {
-  if (!isDemoMode && isAuthConfigured()) {
+  if (isAuthConfigured()) {
     const session = await auth();
     const email = session?.user?.email ?? "";
     if (!isAdminEmail(email)) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-  }
-
-  if (isDemoMode && (await isLogEmpty())) {
-    try {
-      await seedDemoRecords();
-    } catch (err) {
-      console.warn("[admin/org-intelligence] demo seed failed", err);
     }
   }
 

@@ -27,7 +27,6 @@
     "electron:build": "tsc -p electron/tsconfig.json && electron-builder -mw",
     "electron:build:mac": "tsc -p electron/tsconfig.json && CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg",
     "electron:build:win": "tsc -p electron/tsconfig.json && electron-builder --win nsis",
-    "electron:build:demo": "next build && node scripts/copy-electron-standalone-assets.mjs && tsc -p electron/tsconfig.json && DEMO_BUILD=true CSC_IDENTITY_AUTO_DISCOVERY=false electron-builder --mac dmg --config.extraMetadata.demoBuild=true --config.files.0=electron/dist/**/* --config.files.1=.next/standalone/**/* --config.files.2=.next/static/**/* --config.files.3=public/**/* --config.files.4=package.json",
     "qa:sweep": "node scripts/e2e/sweep.mjs",
     "qa:smoke": "node scripts/e2e/record-smoke.mjs",
     "qa:all": "npm run qa:sweep && npm run qa:smoke",
@@ -58,6 +57,7 @@
     "eslint-config-next": "14.2.5",
     "playwright": "^1.59.1",
     "postcss": "^8.4.38",
+    "sharp": "^0.34.5",
     "tailwindcss": "^3.4.4",
     "typescript": "^5.4.5",
     "wait-on": "^7.2.0"

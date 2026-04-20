@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { auth, isAuthConfigured } from "@/lib/auth";
-import { isDemoMode } from "@/lib/demoMode";
 
 // Public route prefixes — no session required. Everything else is locked
 // behind Microsoft SSO.
@@ -60,7 +59,7 @@ const authMiddleware = auth((req) => {
 });
 
 export default function middleware(req: NextRequest, ev: unknown) {
-  if (isDemoMode || !isAuthConfigured()) {
+  if (!isAuthConfigured()) {
     return NextResponse.next();
   }
   return (authMiddleware as unknown as (

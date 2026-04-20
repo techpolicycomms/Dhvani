@@ -31,10 +31,6 @@ type Props = {
 export function NavLinks({ isAdmin, orientation = "horizontal", minimal = false }: Props) {
   const pathname = usePathname();
 
-  // Demo mode shows Admin to everyone — the /admin pages gate access
-  // server-side in production. This just controls the nav affordance.
-  const demoMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
-
   const items: Array<{
     href: string;
     label: string;
@@ -54,7 +50,7 @@ export function NavLinks({ isAdmin, orientation = "horizontal", minimal = false 
         { href: "/url-transcribe", label: "URL", icon: Link2 },
         { href: "/desktop-setup", label: "Desktop Setup", icon: Laptop },
       ];
-  if (!minimal && (isAdmin || demoMode)) {
+  if (!minimal && isAdmin) {
     items.push({ href: "/admin", label: "Admin", icon: Shield });
   }
   if (!minimal) {

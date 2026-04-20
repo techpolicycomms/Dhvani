@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { auth, isAdminEmail, isAuthConfigured } from "@/lib/auth";
-import { isDemoMode } from "@/lib/demoMode";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
@@ -27,15 +26,13 @@ type TranscriptFile = {
 };
 
 export async function GET() {
-  if (!isDemoMode) {
-    if (!isAuthConfigured()) {
-      return NextResponse.json({ error: "Auth not configured." }, { status: 403 });
-    }
-    const session = await auth();
-    const email = session?.user?.email;
-    if (!email || !isAdminEmail(email)) {
-      return NextResponse.json({ error: "Forbidden." }, { status: 403 });
-    }
+  if (!isAuthConfigured()) {
+    return NextResponse.json({ error: "Auth not configured." }, { status: 403 });
+  }
+  const session = await auth();
+  const email = session?.user?.email;
+  if (!email || !isAdminEmail(email)) {
+    return NextResponse.json({ error: "Forbidden." }, { status: 403 });
   }
 
   let userDirs: string[];

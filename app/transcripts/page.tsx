@@ -224,7 +224,8 @@ export default function TranscriptsPage() {
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
         <div className="flex items-center justify-between mb-5">
-          <h1 className="text-xl font-bold text-dark-navy">
+          <h1 className="flex items-center gap-2 text-xl font-bold text-dark-navy">
+            <FileText size={20} className="text-itu-blue" aria-hidden />
             Transcript history
           </h1>
           <button

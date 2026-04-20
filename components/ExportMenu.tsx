@@ -1,7 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Download, ChevronDown } from "lucide-react";
+import {
+  Download,
+  ChevronDown,
+  Copy,
+  FileText,
+  FileCode2,
+  Film,
+  Braces,
+} from "lucide-react";
 import {
   buildFilename,
   downloadText,
@@ -125,15 +133,15 @@ export function ExportMenu({
       </button>
       {open && !disabled && (
         <div className="absolute right-0 bottom-full mb-2 w-64 bg-white border border-border-gray rounded-lg shadow-xl overflow-hidden z-10">
-          <MenuItem onClick={doCopy}>Copy All (clipboard)</MenuItem>
-          <MenuItem onClick={doCopyMarkdown}>Copy as Markdown</MenuItem>
-          <MenuItem onClick={doDownloadDocx}>
+          <MenuItem icon={<Copy size={14} />} onClick={doCopy}>Copy All (clipboard)</MenuItem>
+          <MenuItem icon={<FileCode2 size={14} />} onClick={doCopyMarkdown}>Copy as Markdown</MenuItem>
+          <MenuItem icon={<FileText size={14} />} onClick={doDownloadDocx}>
             Download .docx ({mode === "power" ? "ITU template" : "personal"})
           </MenuItem>
-          <MenuItem onClick={() => doDownload("md")}>Download .md</MenuItem>
-          <MenuItem onClick={() => doDownload("txt")}>Download .txt</MenuItem>
-          <MenuItem onClick={() => doDownload("srt")}>Download .srt</MenuItem>
-          <MenuItem onClick={() => doDownload("json")}>Download .json</MenuItem>
+          <MenuItem icon={<FileCode2 size={14} />} onClick={() => doDownload("md")}>Download .md</MenuItem>
+          <MenuItem icon={<FileText size={14} />} onClick={() => doDownload("txt")}>Download .txt</MenuItem>
+          <MenuItem icon={<Film size={14} />} onClick={() => doDownload("srt")}>Download .srt</MenuItem>
+          <MenuItem icon={<Braces size={14} />} onClick={() => doDownload("json")}>Download .json</MenuItem>
         </div>
       )}
       {status && (
@@ -147,18 +155,21 @@ export function ExportMenu({
 
 function MenuItem({
   children,
+  icon,
   onClick,
 }: {
   children: React.ReactNode;
+  icon?: React.ReactNode;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="w-full text-left px-3 py-2 text-sm text-dark-navy hover:bg-itu-blue-pale"
+      className="w-full flex items-center gap-2 px-3 py-2 text-sm text-dark-navy hover:bg-itu-blue-pale text-left"
     >
-      {children}
+      {icon && <span className="text-itu-blue shrink-0">{icon}</span>}
+      <span>{children}</span>
     </button>
   );
 }

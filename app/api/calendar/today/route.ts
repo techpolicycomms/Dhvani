@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getActiveUser, getGraphAccessToken } from "@/lib/auth";
-import { getDemoMeetings, isDemoMode } from "@/lib/demoMode";
 import {
   cacheGet,
   cacheSet,
@@ -25,9 +24,6 @@ const CACHE_TTL_MS = 5 * 60 * 1000;
  * Graph from the home page polling loop.
  */
 export async function GET(req: NextRequest) {
-  if (isDemoMode) {
-    return NextResponse.json({ meetings: getDemoMeetings() });
-  }
   const user = await getActiveUser();
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });

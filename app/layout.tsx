@@ -4,8 +4,6 @@ import { SessionProvider } from "next-auth/react";
 import "./globals.css";
 import { auth, isAuthConfigured } from "@/lib/auth";
 import InstallPrompt from "@/components/InstallPrompt";
-import DemoSessionProvider from "@/components/DemoSessionProvider";
-import DemoBanner from "@/components/DemoBanner";
 import { RecordingBadge } from "@/components/RecordingBadge";
 import { TranscriptionProvider } from "@/contexts/TranscriptionContext";
 import { UserProfileProvider } from "@/contexts/UserProfileContext";
@@ -61,12 +59,11 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const isDemoClientMode = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
   // Prime the client SessionProvider with the server-resolved session so
   // the first paint already knows who the user is (no flash of signed-out
   // state on slow networks). Skip entirely when SSO isn't configured — the
   // provider would just resolve to null and emit spurious warnings.
-  const session = !isDemoClientMode && isAuthConfigured() ? await auth() : null;
+  const session = isAuthConfigured() ? await auth() : null;
   return (
     <html
       lang="en"
@@ -95,32 +92,17 @@ export default async function RootLayout({
         style={{ fontFamily: "var(--font-noto-sans), 'Noto Sans', sans-serif" }}
       >
         <div style={{ height: 3, background: "#009CD6", width: "100%" }} />
-        {isDemoClientMode ? (
-          <DemoSessionProvider>
-            <UserProfileProvider>
-              <TranscriptionProvider>
-                <DemoBanner />
-                {children}
-                <RecordingBadge />
-                <OnboardingGate />
-                <OrphanRecordingBanner />
-                <InstallPrompt />
-              </TranscriptionProvider>
-            </UserProfileProvider>
-          </DemoSessionProvider>
-        ) : (
-          <SessionProvider session={session}>
-            <UserProfileProvider>
-              <TranscriptionProvider>
-                {children}
-                <RecordingBadge />
-                <OnboardingGate />
-                <OrphanRecordingBanner />
-                <InstallPrompt />
-              </TranscriptionProvider>
-            </UserProfileProvider>
-          </SessionProvider>
-        )}
+        <SessionProvider session={session}>
+          <UserProfileProvider>
+            <TranscriptionProvider>
+              {children}
+              <RecordingBadge />
+              <OnboardingGate />
+              <OrphanRecordingBanner />
+              <InstallPrompt />
+            </TranscriptionProvider>
+          </UserProfileProvider>
+        </SessionProvider>
         <script
           // PWA service worker management.
           //

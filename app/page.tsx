@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { signOut, useSession } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Mic, Plus, Save, Settings, Sparkles, X } from "lucide-react";
+import { Calendar, Mic, Plus, Save, Settings, Sparkles, X, Zap } from "lucide-react";
 import MeetingSummary from "@/components/MeetingSummary";
 import type { ActionItem } from "@/components/ActionItems";
 import AskDhvani from "@/components/AskDhvani";
@@ -562,13 +562,15 @@ export default function HomePage() {
         <section className="px-4 sm:px-6 pt-4 space-y-4">
           <div className="grid gap-3 lg:grid-cols-3">
             <div className="lg:col-span-2">
-              <h2 className="text-xs font-semibold text-mid-gray uppercase tracking-wider mb-2">
+              <h2 className="flex items-center gap-1.5 text-xs font-semibold text-mid-gray uppercase tracking-wider mb-2">
+                <Calendar size={12} aria-hidden />
                 Today&apos;s meetings
               </h2>
               <MeetingList onStartTranscription={onStartFromMeeting} />
             </div>
             <div>
-              <h2 className="text-xs font-semibold text-mid-gray uppercase tracking-wider mb-2">
+              <h2 className="flex items-center gap-1.5 text-xs font-semibold text-mid-gray uppercase tracking-wider mb-2">
+                <Zap size={12} aria-hidden />
                 Quick transcription
               </h2>
               <div className="rounded-lg border border-border-gray bg-white p-4 flex flex-col gap-3">
@@ -870,8 +872,7 @@ export default function HomePage() {
  * Normalise meeting.attendees into a flat `string[]` of display names.
  *
  * The `Meeting` type's contract is `string[]` (via `fromGraphEvent`), but
- * `getDemoMeetings()` currently returns `{ name, email }[]` so we handle
- * both rather than force a type migration while the demo data evolves.
+ * some upstream paths produce `{ name, email }[]`, so we accept both.
  */
 function extractAttendeeNames(attendees: unknown): string[] {
   if (!Array.isArray(attendees)) return [];

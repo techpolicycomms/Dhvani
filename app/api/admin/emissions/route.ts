@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, isAdminEmail, isAuthConfigured } from "@/lib/auth";
-import { isDemoMode } from "@/lib/demoMode";
 import {
   getEmissionsReport,
   type EmissionsPeriod,
@@ -17,7 +16,7 @@ export const dynamic = "force-dynamic";
  * pattern as /api/admin/usage).
  */
 export async function GET(req: NextRequest) {
-  if (!isDemoMode && isAuthConfigured()) {
+  if (isAuthConfigured()) {
     const session = await auth();
     const email = session?.user?.email ?? "";
     if (!isAdminEmail(email)) {

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, isAdminEmail, isAuthConfigured } from "@/lib/auth";
-import { isDemoMode } from "@/lib/demoMode";
 import { readAllUsage } from "@/lib/usageLogger";
 import { aggregate, toCsv } from "@/lib/usageAggregates";
 
@@ -18,21 +17,16 @@ export const dynamic = "force-dynamic";
  *   ?format=csv  — stream the raw usage log as CSV (for spreadsheet export)
  */
 export async function GET(req: NextRequest) {
-  // Demo mode opens the admin dashboard so reviewers can explore the
-  // full feature surface without SSO. Production still requires an
-  // ADMIN_EMAILS session.
-  if (!isDemoMode) {
-    if (!isAuthConfigured()) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
-    const session = await auth();
-    const email = session?.user?.email;
-    if (!email) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-    if (!isAdminEmail(email)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-    }
+  if (!isAuthConfigured()) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+  const session = await auth();
+  const email = session?.user?.email;
+  if (!email) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  if (!isAdminEmail(email)) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const format = req.nextUrl.searchParams.get("format");

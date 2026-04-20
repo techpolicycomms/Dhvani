@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth, isAdminEmail, isAuthConfigured } from "@/lib/auth";
-import { isDemoMode } from "@/lib/demoMode";
 import { isServiceEnabled } from "@/lib/rateLimiter";
 
 export const runtime = "nodejs";
@@ -50,9 +49,6 @@ function readConfig(): RuntimeConfig {
 }
 
 async function requireAdmin() {
-  // Demo mode is intentionally open — the dashboard is for showcasing
-  // the admin surface. Production still enforces the ADMIN_EMAILS gate.
-  if (isDemoMode) return { status: 200 as const };
   if (!isAuthConfigured()) return { status: 403 as const };
   const session = await auth();
   const email = session?.user?.email;

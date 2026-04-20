@@ -70,7 +70,7 @@ export function AudioModeSelector({ value, onChange, locked, lockReason }: Props
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-mid-gray">
-        Audio source
+        <Mic size={11} aria-hidden /> Audio source
         {locked && lockReason && (
           <span className="normal-case tracking-normal text-[11px] text-warning">
             {lockReason}
