@@ -112,7 +112,7 @@ export default function HomePage() {
     mediaStream,
     storageGrant,
   } = ctx.capture;
-  const { queueDepth, inFlight, totalMinutes, estimatedCost } = ctx.tx;
+  const { queueDepth, inFlight, totalMinutes, localMinutes, estimatedCost } = ctx.tx;
 
   // -------- UI-only state (home page only) --------
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -882,6 +882,7 @@ export default function HomePage() {
           inFlight={inFlight}
           error={error}
           totalMinutes={totalMinutes}
+          localMinutes={localMinutes}
           estimatedCost={estimatedCost}
         />
       </div>

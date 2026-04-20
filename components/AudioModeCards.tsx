@@ -21,7 +21,7 @@ const COMMON_MODES: ModeDef[] = [
   {
     id: "microphone",
     label: "Just me",
-    desc: "Only your voice",
+    desc: "On-device · private · $0",
     icon: "🎙",
   },
   {
@@ -102,12 +102,23 @@ export function AudioModeCards({ value, onChange }: Props) {
           );
         })}
       </div>
+      {selected === "microphone" && (
+        <p className="text-[11px] text-itu-blue-dark flex items-start gap-1.5 pt-1">
+          <Info size={12} className="mt-0.5 shrink-0" />
+          <span>
+            Transcribes locally with Whisper in your browser — nothing
+            leaves your device. First recording downloads ~140&nbsp;MB of
+            model (cached after). Single-speaker; no diarization needed.
+          </span>
+        </p>
+      )}
       {selected === "tab-audio" && (
         <p className="text-[11px] text-itu-blue-dark flex items-start gap-1.5 pt-1">
           <Info size={12} className="mt-0.5 shrink-0" />
           <span>
-            You&apos;ll be asked to pick a browser tab — make sure to check
-            &quot;Share audio&quot;.
+            Sends audio to ITU&apos;s Azure deployment for transcription +
+            speaker diarization. You&apos;ll be asked to pick a browser
+            tab — check &quot;Share audio&quot;.
           </span>
         </p>
       )}

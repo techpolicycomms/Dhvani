@@ -22,6 +22,7 @@ import {
   type StorageGrant,
 } from "@/lib/platform";
 import { preloadEmbedder } from "@/lib/voiceEmbedder";
+import { preloadLocalWhisper } from "@/lib/localWhisper";
 import { useWakeLock } from "@/hooks/useWakeLock";
 
 export type CapturedChunk = {
@@ -457,11 +458,19 @@ export function useAudioCapture(
         const grant = await requestPersistentStorageState();
         setStorageGrant(grant);
 
-        // Kick off the voice-embedding model download in parallel
-        // with capture setup. First recording pays the download
-        // (~90 MB cached in IndexedDB by transformers.js); subsequent
-        // recordings reuse the cached copy and are near-instant.
-        preloadEmbedder();
+        // Kick off model downloads in parallel with capture setup.
+        // First run pays the download (cached in IndexedDB by
+        // transformers.js); subsequent runs reuse the cache.
+        //
+        // Mic mode: transcription runs locally — pull the Whisper
+        // model. The voice embedder isn't needed (one speaker).
+        // Meeting modes: transcription uses cloud (Azure) — pull
+        // only the voice-embedding model for stable speaker ids.
+        if (mode === "microphone") {
+          preloadLocalWhisper();
+        } else {
+          preloadEmbedder();
+        }
 
         // Pre-flight on iOS: tab / system audio capture is physically
         // unavailable, so fail early with a user-actionable message

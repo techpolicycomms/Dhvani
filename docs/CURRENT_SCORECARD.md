@@ -11,14 +11,14 @@ measured — user confirmation pending.
 
 | Criterion         | Score | Change | Top gap |
 | ----------------- | ----- | ------ | ------- |
-| Mobile UX         |  4.4  | +0.4   | Lock-screen controls, Siri Shortcut still need Capacitor; iOS system-audio impossible on web |
-| Info Entry        |  4.3  | +0.3   | Auto-title stub; auto-topic tagging absent; voice-embedding diarization still roadmap |
+| Mobile UX         |  4.5  | +0.5   | Lock-screen controls, Siri Shortcut still need Capacitor; iOS system-audio impossible on web; local-mic now offline-capable |
+| Info Entry        |  4.4  | +0.4   | Auto-title stub; auto-topic tagging absent; voice-embedding diarization still beta |
 | 360° View         |  2.7  | +0.2   | People/Topic/Project views not built; speaker-stable transcripts now make "who said what" addressable |
 | AI Consumption    |  3.7  | +0.2   | Ask-your-meeting + cross-meeting synthesis + translation assist not built; recap quality lifts with stable speakers |
 | Integrations      |  2.5  |   0    | Calendar read ✅; exports (Notion/Obsidian/Things/Slack/webhook/Siri) absent |
-| Cost Transparency |  3.5  |   0    | Live meter ✅; monthly cap alerts, silence-skip chunking, Otter comparison missing |
+| Cost Transparency |  3.8  | +0.3   | Live meter ✅; local mic mode is $0/min; monthly cap alerts + silence-skip still missing |
 
-**Overall: 3.5 / 5.0** (was 3.3)
+**Overall: 3.6 / 5.0** (was 3.3)
 **Lowest: Integrations (2.5).**
 
 **Next week focus**: pick one of {People view, Calendar write-back,
@@ -137,9 +137,24 @@ scorecard attribution).
   on iOS isn't a dead-end anymore.
 - **Estimated impact**: Mobile UX +0.1.
 
+### Fix 11 — Mode-routed transcription: local Whisper for mic, Azure diarize for meetings
+
+- **Primary driver for**: Cost Transparency (●●●) — maps directly to
+  "BYOK / cheaper modes"; mic-mode recordings now cost $0 against
+  the Azure monthly budget.
+- **Secondary driver for**: Info Entry (●●) — local transcription
+  is materially faster for quick voice memos (no network hop).
+- **Tertiary**: Mobile UX (●) — offline-capable mic capture once the
+  Whisper model is cached.
+- **Does not affect**: 360° View, AI Consumption (chat/summary
+  still uses Azure regardless of transcription engine), Integrations.
+- **Estimated impact**: Cost Transparency +0.3, Info Entry +0.1.
+
 ### Planned, not yet shipped
 
-- Voice-embedding diarizer — see [DIARIZATION_ROADMAP.md](./DIARIZATION_ROADMAP.md).
+- Voice-embedding diarizer refinement — see [DIARIZATION_ROADMAP.md](./DIARIZATION_ROADMAP.md).
+- Native whisper.cpp binary bundled with Electron — faster-than-WASM
+  mic-mode transcription for desktop users.
 - Capacitor iOS/Android wrapper — see [MOBILE_NATIVE_ROADMAP.md](./MOBILE_NATIVE_ROADMAP.md).
   Each is a ●●● primary-driver feature for Mobile UX + a secondary
   criterion; both would clear the 5-step gate individually when built.

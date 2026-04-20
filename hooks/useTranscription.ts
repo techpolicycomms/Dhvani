@@ -7,6 +7,7 @@ import {
   MIN_TRANSCRIPT_LENGTH,
   WHISPER_PRICE_PER_MINUTE,
   defaultSpeakerLabel,
+  type CaptureMode,
   type TranscriptEntry,
 } from "@/lib/constants";
 import { blobToFile, formatElapsed } from "@/lib/audioUtils";
@@ -25,10 +26,22 @@ import {
   slicePcm,
 } from "@/lib/audioDecode";
 import { embedVoice } from "@/lib/voiceEmbedder";
+import { transcribeLocal } from "@/lib/localWhisper";
 import type { CapturedChunk } from "./useAudioCapture";
 
 export type UseTranscriptionOptions = {
   language?: string; // ISO code or "" for auto
+  /**
+   * Current capture mode, read on every chunk. Drives the engine
+   * split:
+   *   - "microphone"     → local Whisper (in-browser, private, $0)
+   *   - everything else  → Azure `gpt-4o-transcribe-diarize` via
+   *                        `/api/transcribe` (cloud, with speaker
+   *                        diarization)
+   * null is treated as meeting-mode (safe default: preserve the
+   * existing Azure pipeline behaviour).
+   */
+  captureMode?: CaptureMode | null;
   onEntry?: (entry: TranscriptEntry) => void;
   onError?: (msg: string, chunkIndex: number) => void;
   onRateLimited?: (msg: string, retryAfterSeconds?: number) => void;
@@ -46,7 +59,11 @@ export type UseTranscriptionReturn = {
   abort: () => void;
   queueDepth: number;
   inFlight: number;
+  /** Audio minutes processed via Azure (i.e. billed). */
   totalMinutes: number;
+  /** Audio minutes processed locally via in-browser Whisper — zero cost. */
+  localMinutes: number;
+  /** Derived cost estimate — only counts cloud minutes. */
   estimatedCost: number;
   failedChunks: number;
   /**
@@ -116,12 +133,26 @@ function groupBySpeaker(segments: RawSegment[]): GroupedTurn[] {
 export function useTranscription(
   options: UseTranscriptionOptions = {}
 ): UseTranscriptionReturn {
-  const { language, onEntry, onError, onRateLimited, onLanguageLocked } =
-    options;
+  const {
+    language,
+    captureMode,
+    onEntry,
+    onError,
+    onRateLimited,
+    onLanguageLocked,
+  } = options;
+  // Keep the mode on a ref so the long-lived sendOne closure sees
+  // the current value without us having to depend on it (which would
+  // invalidate every callback on a mode change).
+  const captureModeRef = useRef<CaptureMode | null>(captureMode ?? null);
+  useEffect(() => {
+    captureModeRef.current = captureMode ?? null;
+  }, [captureMode]);
 
   const [queueDepth, setQueueDepth] = useState(0);
   const [inFlight, setInFlight] = useState(0);
   const [totalMinutes, setTotalMinutes] = useState(0);
+  const [localMinutes, setLocalMinutes] = useState(0);
   const [failedChunks, setFailedChunks] = useState(0);
   const [effectiveLanguage, setEffectiveLanguage] = useState(language || "");
 
@@ -167,7 +198,10 @@ export function useTranscription(
     setInFlight(inFlightRef.current);
   }, []);
 
-  const sendOne = useCallback(
+  // Pulled out of sendOne so mic-mode can fall back to cloud on
+  // local failure without recursion, and so the mic branch can stay
+  // readable at the top of sendOne.
+  const sendOneRemote = useCallback(
     async (chunk: CapturedChunk): Promise<void> => {
       const file = blobToFile(chunk.blob, chunk.extension, chunk.index);
       const form = new FormData();
@@ -475,6 +509,93 @@ export function useTranscription(
     [language, onEntry, onError, onRateLimited, onLanguageLocked]
   );
 
+  // Mic-mode local branch. Runs Whisper in-browser, emits entries
+  // with a hard-coded S1 stable speaker (mic mode is single-speaker
+  // by definition — the voice-embedding stitcher isn't needed here).
+  // Cost accumulates into totalMinutes as LOCAL minutes; estimated
+  // cost stays at $0 because no Azure spend is incurred.
+  const sendOneLocal = useCallback(
+    async (chunk: CapturedChunk): Promise<void> => {
+      try {
+        const decoded = await decodeChunkToPcm(chunk.blob);
+        if (!decoded) throw new Error("decode failed");
+        const result = await transcribeLocal(decoded.pcm, {
+          language: language || lockedLangRef.current || undefined,
+        });
+        const segments = result.segments;
+        // Language lock — same logic as the remote path so the UI's
+        // "Detected: English" badge lights up in local mode too.
+        if (!language && result.language && result.segments.length > 0) {
+          const hist = langHistoryRef.current;
+          hist.push(result.language);
+          if (hist.length > LANG_HISTORY) hist.shift();
+          const counts = new Map<string, number>();
+          for (const l of hist) counts.set(l, (counts.get(l) ?? 0) + 1);
+          let winner = "";
+          let winnerCount = 0;
+          for (const [l, c] of counts) {
+            if (c > winnerCount) {
+              winner = l;
+              winnerCount = c;
+            }
+          }
+          if (
+            winner &&
+            winnerCount >= LANG_LOCK_AGREEMENT &&
+            winner !== lockedLangRef.current
+          ) {
+            lockedLangRef.current = winner;
+            setEffectiveLanguage(winner);
+            onLanguageLocked?.(winner);
+          }
+        }
+
+        if (segments.length > 0) {
+          const grouped = groupBySpeaker(segments);
+          for (const g of grouped) {
+            const text = g.text.trim();
+            if (text.length < MIN_TRANSCRIPT_LENGTH) continue;
+            onEntry?.({
+              id: uuid(),
+              timestamp: formatElapsed(chunk.capturedAtMs + g.startMs),
+              text,
+              rawSpeaker: g.rawSpeaker,
+              stableSpeakerId: "S1",
+              speaker: defaultSpeakerLabel("S1"),
+            });
+          }
+        }
+        // Track minutes for the local-minutes stat (not billed).
+        setLocalMinutes((t) => t + chunk.durationMs / 60000);
+        if (chunk.sessionId) {
+          void markChunkTranscribed(chunk.sessionId, chunk.index);
+        }
+      } catch (err) {
+        // Local path failed — fall back to Azure so a broken model
+        // load (bad network, CSP, etc.) doesn't silently kill the
+        // recording. The remote path has its own retry loop.
+        console.warn(
+          "[transcription:local] chunk failed, falling back to cloud",
+          { chunkIndex: chunk.index, err: (err as Error).message }
+        );
+        await sendOneRemote(chunk);
+      }
+    },
+    [language, onEntry, onLanguageLocked, sendOneRemote]
+  );
+
+  // Mode-routed entry point used by the drain loop. Mic → local;
+  // every other mode (tab-audio, electron, virtual-cable) → Azure.
+  const sendOne = useCallback(
+    async (chunk: CapturedChunk): Promise<void> => {
+      if (captureModeRef.current === "microphone") {
+        return sendOneLocal(chunk);
+      }
+      return sendOneRemote(chunk);
+    },
+    [sendOneLocal, sendOneRemote]
+  );
+
   const drain = useCallback(async () => {
     while (
       inFlightRef.current < MAX_CONCURRENT_TRANSCRIPTIONS &&
@@ -530,6 +651,7 @@ export function useTranscription(
     queueDepth,
     inFlight,
     totalMinutes,
+    localMinutes,
     estimatedCost,
     failedChunks,
     effectiveLanguage,

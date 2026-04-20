@@ -18,6 +18,35 @@ Current implementations:
 
 Wired into: `app/api/transcribe/route.ts`, `app/api/summarize/route.ts`.
 
+## Mode-routed transcription
+
+As of 2026-04-20, the client routes transcription by capture mode
+rather than always sending audio to Azure:
+
+- **Microphone mode** → **local Whisper** (in-browser via
+  `@xenova/transformers`). Audio never leaves the device. Zero Azure
+  cost. Single-speaker by definition, so no diarization or voice
+  embedder is needed. Implemented in `lib/localWhisper.ts`, called
+  from `hooks/useTranscription.ts#sendOneLocal`.
+- **Meeting modes** (`tab-audio`, `electron`, `virtual-cable`) →
+  Azure `gpt-4o-transcribe-diarize` via `/api/transcribe`. Multi-
+  speaker with diarization; client-side voice embedding (via
+  `lib/voiceEmbedder.ts` + `lib/embeddingStitcher.ts`) matches the
+  same voice across chunks and long silences.
+
+`useTranscription` reads the active mode on every chunk
+(`captureModeRef`), so switching sources mid-session Just Works.
+Local failures (model load error, Web Audio decode failure) fall
+through to the cloud path — a broken model download never kills
+a recording.
+
+Cost accounting tracks local minutes and cloud minutes separately;
+the ControlBar surfaces both so users see "cloud + local" splits.
+
+A native whisper.cpp binary shipped with the Electron build is a
+future perf upgrade (Emscripten WASM is ~3-5× slower than the
+native C++). Logged under Deferred work below.
+
 ### Events (`lib/events.ts`)
 Single in-process `EventBus`. Routes emit domain events
 (`transcription.started`, `transcription.completed`, `summary.generated`,
@@ -83,6 +112,14 @@ when horizontal integration needs them — not before:
   target like SharePoint lands)
 - API versioning (`/api/v1/…`) — breaking change for extension/
   Electron clients, do in a coordinated release
+- **Native whisper.cpp for Electron** — bundle a per-platform
+  (macOS arm64/x64, Windows x64, Linux x64) whisper.cpp binary with
+  electron-builder; Electron main process spawns it on local-mode
+  chunks and exposes a renderer IPC. ~3-5× faster than the current
+  WASM path and shrinks the per-recording model load from ~140 MB
+  to whatever model file ships with the app. Same `TranscriptionResult`
+  shape, so `lib/localWhisper.ts` would just branch on
+  `window.electronAPI?.isElectron` and call the IPC.
 
 ## Adding a new AI provider
 

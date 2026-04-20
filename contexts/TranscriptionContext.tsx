@@ -118,8 +118,15 @@ export function TranscriptionProvider({ children }: { children: ReactNode }) {
   });
 
   // --- transcription pipeline (API calls + queue + retries) ---
+  //
+  // Routing: mic-mode chunks transcribe locally via Whisper
+  // (private, zero cost); meeting-mode chunks (tab-audio / electron /
+  // virtual-cable) go to Azure `gpt-4o-transcribe-diarize` for
+  // diarized output. The pipeline reads `capture.captureMode` on
+  // every chunk so switching sources mid-session Just Works.
   const tx = useTranscription({
     language,
+    captureMode: capture.captureMode,
     onEntry: store.addEntry,
     onError: (msg, _idx) => {
       // The hook now only fires onError for out-of-band issues (e.g.

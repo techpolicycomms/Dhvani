@@ -18,6 +18,8 @@ type Props = {
   inFlight: number;
   error: string | null;
   totalMinutes: number;
+  /** Minutes processed locally via in-browser Whisper (zero cost). */
+  localMinutes?: number;
   estimatedCost: number;
   disabled?: boolean;
 };
@@ -54,6 +56,7 @@ export function ControlBar(props: Props) {
     inFlight,
     error,
     totalMinutes,
+    localMinutes = 0,
     estimatedCost,
     disabled,
   } = props;
@@ -153,7 +156,13 @@ export function ControlBar(props: Props) {
           <Stat label="Segments" value={String(chunkCount)} />
           <Stat
             label="Cost"
-            value={`$${estimatedCost.toFixed(3)} (${totalMinutes.toFixed(1)} min)`}
+            value={
+              localMinutes > 0 && totalMinutes === 0
+                ? `$0 · ${localMinutes.toFixed(1)} min local`
+                : localMinutes > 0
+                  ? `$${estimatedCost.toFixed(3)} · ${totalMinutes.toFixed(1)} cloud + ${localMinutes.toFixed(1)} local min`
+                  : `$${estimatedCost.toFixed(3)} (${totalMinutes.toFixed(1)} min)`
+            }
           />
         </div>
       </div>
