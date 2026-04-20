@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
-import { Loader2, MessageCircle, Send, X } from "lucide-react";
+import { AlertCircle, Loader2, MessageCircle, Send, X } from "lucide-react";
+import { DISCLAIMER_SHORT } from "@/lib/disclaimer";
 
 type Citation = {
   meetingTitle: string;
@@ -146,6 +147,14 @@ export default function AskDhvani({ transcriptIds, scope = "all" }: Props) {
             </div>
           </div>
         )}
+      </div>
+
+      <div
+        role="note"
+        className="flex items-start gap-2 px-3 py-2 border-t border-border-gray bg-off-white text-[11px] leading-snug text-mid-gray"
+      >
+        <AlertCircle size={12} className="shrink-0 mt-0.5 text-warning" aria-hidden />
+        <span>AI answers are derived from your transcripts. {DISCLAIMER_SHORT}</span>
       </div>
 
       <div className="border-t border-border-gray p-3">

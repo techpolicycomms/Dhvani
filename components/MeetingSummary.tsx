@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from "react";
 import {
+  AlertCircle,
   Sparkles,
   Copy,
   Check,
@@ -15,6 +16,7 @@ import {
 import ActionItems, { type ActionItem } from "./ActionItems";
 import { useMode } from "@/hooks/useMode";
 import type { TranscriptEntry } from "@/lib/constants";
+import { DISCLAIMER_FULL, DISCLAIMER_SHORT } from "@/lib/disclaimer";
 
 type Props = {
   transcript: TranscriptEntry[];
@@ -86,7 +88,13 @@ export default function MeetingSummary({
 
   const copyToClipboard = useCallback(async () => {
     try {
-      await navigator.clipboard.writeText(summary);
+      // Append the disclaimer so pasted summary text carries the ITU
+      // legal caveat wherever it lands (email, Slack, Notion). Keeps
+      // the liability posture in one place — edits in lib/disclaimer.ts
+      // flow here automatically.
+      await navigator.clipboard.writeText(
+        `${summary}\n\n---\nDisclaimer: ${DISCLAIMER_FULL}`
+      );
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch {
@@ -213,6 +221,13 @@ export default function MeetingSummary({
           {/* Summary markdown — rendered as simple formatted text */}
           <div className="px-4 py-4">
             <SummaryMarkdown text={summary} />
+            <div
+              role="note"
+              className="mt-4 flex items-start gap-2 px-3 py-2 bg-off-white border border-border-gray rounded text-[11px] leading-snug text-mid-gray"
+            >
+              <AlertCircle size={12} className="shrink-0 mt-0.5 text-warning" aria-hidden />
+              <span>AI-generated summary. {DISCLAIMER_SHORT}</span>
+            </div>
           </div>
 
           {/* Action items */}

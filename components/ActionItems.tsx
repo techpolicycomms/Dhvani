@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback } from "react";
-import { CheckSquare, Square, User } from "lucide-react";
+import { AlertCircle, CheckSquare, Square, User } from "lucide-react";
 import { colorForSpeaker } from "@/lib/constants";
+import { DISCLAIMER_SHORT } from "@/lib/disclaimer";
 
 export type ActionItem = {
   task: string;
@@ -33,6 +34,13 @@ export default function ActionItems({ items, onChange, readOnly }: Props) {
 
   return (
     <div className="space-y-2">
+      <div
+        role="note"
+        className="flex items-start gap-2 px-3 py-2 bg-off-white border border-border-gray rounded text-[11px] leading-snug text-mid-gray"
+      >
+        <AlertCircle size={12} className="shrink-0 mt-0.5 text-warning" aria-hidden />
+        <span>AI-extracted from the transcript. {DISCLAIMER_SHORT}</span>
+      </div>
       {items.map((item, i) => (
         <div
           key={i}
