@@ -148,6 +148,29 @@ export function TranscriptionProvider({ children }: { children: ReactNode }) {
   // --- dispatch new capture chunks through the pipeline ---
   useChunkDispatcher(capture.audioChunks, tx.transcribeChunk);
 
+  // --- pre-warm the transcribe path on mount ---
+  // First-chunk latency includes DNS + TLS handshake + cold route
+  // compile. A single cheap GET right after mount amortises all three
+  // so the first real chunk of the first recording skips ~200-400ms
+  // of handshake overhead and lands in the transcript visibly sooner.
+  // Fire-and-forget; no UI impact.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const controller = new AbortController();
+    // keepalive lets the request survive a quick tab backgrounding;
+    // cache:no-store avoids SW intercept polluting the warm path.
+    void fetch("/api/health", {
+      method: "GET",
+      credentials: "include",
+      cache: "no-store",
+      keepalive: true,
+      signal: controller.signal,
+    }).catch(() => {
+      /* warm-up is best-effort */
+    });
+    return () => controller.abort();
+  }, []);
+
   // --- clearSession: auto-save, stop recording, wipe transcript ---
   const clearSession = useCallback<
     TranscriptionContextValue["clearSession"]

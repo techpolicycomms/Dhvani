@@ -120,12 +120,15 @@ export function useTranscription(
       if (language) headers["x-language"] = language;
 
       // Silent-retry policy:
-      //   5 attempts with exponential backoff (1s, 2s, 4s, 8s, 16s).
-      //   The user never sees per-chunk failure toasts — we keep the
-      //   chunk persisted to OPFS and let the online-event auto-resumer
-      //   (OrphanRecordingBanner) pick it up on reconnect instead. The
-      //   user's mental model is "it heard me, eventually".
-      const maxAttempts = 5;
+      //   5 attempts with tight exponential backoff (200ms, 500ms, 1s,
+      //   2s, 4s). Most transient failures (network blips, Azure 5xx
+      //   during deployment rollovers) recover within 1 second — the
+      //   previous 1-to-16s policy made a sub-second problem look like
+      //   a 30-second outage to the user. Total worst case is now
+      //   ≈ 7.7 s per chunk; after that the chunk stays on disk for
+      //   silent orphan-recovery on next mount / reconnect.
+      const BACKOFF_MS = [200, 500, 1000, 2000, 4000];
+      const maxAttempts = BACKOFF_MS.length;
       let attempt = 0;
       let lastErr: Error | null = null;
       while (attempt < maxAttempts) {
@@ -160,7 +163,7 @@ export function useTranscription(
             const body = await res.json().catch(() => ({}));
             lastErr = new Error(body.error || `HTTP ${res.status}`);
             if (attempt < maxAttempts) {
-              await sleep(1000 * Math.pow(2, attempt - 1));
+              await sleep(BACKOFF_MS[attempt - 1] ?? 4000);
               continue;
             }
             throw lastErr;

@@ -6,16 +6,23 @@
 export const WHISPER_PRICE_PER_MINUTE = 0.006;
 
 // Default chunk duration in milliseconds for the MediaRecorder rotation
-// cycle. 1.5 s halves perceived latency vs. the original 3 s default;
-// users can trade up to 15 s via the settings slider for better
-// cross-chunk speaker tracking from the diarizer.
-export const DEFAULT_CHUNK_DURATION_MS = 1500;
-export const MIN_CHUNK_DURATION_MS = 1000;
+// cycle. 1 s gives near-real-time appearance (first transcript entry
+// typically lands within 2 s of first speech, accounting for the Azure
+// OpenAI round-trip). The diarizer still has enough acoustic context
+// at 1 s to hold speaker identity; shorter than that starts degrading
+// speaker labels without meaningfully improving latency.
+// Users can trade up to 15 s via the Settings slider when they care
+// more about denser speaker tracking than latency.
+export const DEFAULT_CHUNK_DURATION_MS = 1000;
+export const MIN_CHUNK_DURATION_MS = 500;
 export const MAX_CHUNK_DURATION_MS = 15000;
 
 // Maximum number of concurrent requests sent to the Whisper API.
-// Raised to 4 so 1.5 s chunks never block on queue depth during bursts.
-export const MAX_CONCURRENT_TRANSCRIPTIONS = 4;
+// Raised to 6 so 1 s chunks never block on queue depth — a typical
+// meeting generates chunks at a rate the transcribe API fully
+// absorbs at this concurrency, and Azure OpenAI deployments handle
+// 6 concurrent with headroom below the default per-user quota.
+export const MAX_CONCURRENT_TRANSCRIPTIONS = 6;
 
 // Target MediaRecorder bitrate. Opus is intelligible at 16 kbps; 24 kbps
 // gives headroom for accents, background noise, and multi-speaker audio

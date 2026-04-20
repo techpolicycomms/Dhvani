@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertTriangle, RefreshCw, Trash2, X } from "lucide-react";
 import { useSession } from "next-auth/react";
 import {
@@ -11,106 +11,145 @@ import {
 } from "@/lib/audioPersistence";
 import { useTranscriptionContext } from "@/contexts/TranscriptionContext";
 import type { CapturedChunk } from "@/hooks/useAudioCapture";
+import { DEFAULT_CHUNK_DURATION_MS } from "@/lib/constants";
 
 /**
- * Sticky banner that surfaces sessions whose manifest is still marked
- * "recording" — i.e. the browser was closed or the tab crashed mid-
- * meeting. The user can Recover (feed the persisted chunks back through
- * the transcription pipeline) or Discard (throw the audio away).
+ * Orphan-session auto-recovery.
  *
- * Only renders when at least one orphan exists AND nothing is currently
- * recording. Mounted once in the root layout so it works across routes.
+ * The pipeline is designed so no audio is ever lost — every chunk is
+ * persisted to OPFS before it's transcribed, and a session whose
+ * manifest is still marked "recording" (the tab crashed, the browser
+ * died, the user force-quit) has its chunks sitting on disk waiting
+ * to be fed back through the transcription API.
+ *
+ * The previous UX put that recovery behind a user click (Recover /
+ * Discard banner). That's wrong — it surfaces "you almost lost audio"
+ * anxiety for a system that's been explicitly built to never lose
+ * audio. Replaced with silent auto-recovery on every mount + on the
+ * `online` event: chunks dispatch through the pipeline unattended,
+ * land in the Library, and the user sees nothing.
+ *
+ * The banner stays as a genuine failure fallback — it only appears if
+ * a recovery attempt throws (disk corrupted, OPFS handle revoked,
+ * etc.). In that narrow case users see the Recover / Discard choice
+ * and can manually resolve.
  */
 export function OrphanRecordingBanner() {
   const { capture, tx } = useTranscriptionContext();
   const { status } = useSession();
-  const [orphans, setOrphans] = useState<OrphanSession[]>([]);
+  const [failedOrphans, setFailedOrphans] = useState<OrphanSession[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [dismissedIds, setDismissedIds] = useState<Set<string>>(new Set());
+  // Track orphans we've already kicked into auto-recovery this session
+  // so a re-mount (fast React re-render, page nav) doesn't double-dispatch
+  // the same chunks.
+  const inFlightIdsRef = useRef<Set<string>>(new Set());
 
+  // Feed one orphan's chunks back through the live transcription pipeline.
+  // Does NOT touch UI state — recovery should be invisible on the happy path.
+  const silentRecover = useCallback(
+    async (orphan: OrphanSession) => {
+      if (inFlightIdsRef.current.has(orphan.meta.id)) return;
+      inFlightIdsRef.current.add(orphan.meta.id);
+      try {
+        const { blobs } = await recoverSession(orphan.meta.id);
+        blobs.forEach((blob, i) => {
+          const chunkIndex = orphan.chunkIndexes[i] ?? i;
+          const chunk: CapturedChunk = {
+            index: chunkIndex,
+            blob,
+            mimeType: orphan.meta.mimeType || "audio/webm",
+            extension: orphan.meta.extension || "webm",
+            capturedAtMs: chunkIndex * DEFAULT_CHUNK_DURATION_MS,
+            durationMs: DEFAULT_CHUNK_DURATION_MS,
+            sessionId: orphan.meta.id,
+          };
+          tx.transcribeChunk(chunk);
+        });
+      } catch (err) {
+        // Disk / OPFS / IDB trouble — rare. Surface the banner so the
+        // user can see what's stuck and decide.
+        console.warn("[OrphanRecovery] auto-recover failed", err);
+        setFailedOrphans((prev) => {
+          if (prev.some((o) => o.meta.id === orphan.meta.id)) return prev;
+          return [...prev, orphan];
+        });
+        throw err;
+      }
+    },
+    [tx]
+  );
+
+  // Sweep on mount: every session whose manifest is still "recording"
+  // gets auto-recovered the moment the app comes up. Skipped while a
+  // recording is active — we don't want to tangle the live session with
+  // dispatch of chunks from a crashed one.
   useEffect(() => {
     if (capture.isCapturing) return;
     if (status !== "authenticated") return;
     let cancelled = false;
     void (async () => {
-      const found = await listOrphanSessions();
-      if (!cancelled) setOrphans(found);
+      const orphans = await listOrphanSessions();
+      if (cancelled || orphans.length === 0) return;
+      for (const orphan of orphans) {
+        try {
+          await silentRecover(orphan);
+        } catch {
+          /* surfaced via failedOrphans */
+        }
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [capture.isCapturing, status]);
+  }, [capture.isCapturing, status, silentRecover]);
 
-  // Offline queue completion. When the browser comes back online,
-  // silently auto-resume any pending orphan sessions. We deliberately
-  // do NOT surface a toast counting "pending chunks" — the user's
-  // mental model is "it heard me"; announcing recovery details just
-  // creates anxiety about data loss that isn't real. The background
-  // pipeline is expected to succeed; if it doesn't, the banner still
-  // offers manual Recover.
+  // Online-again sweep: if the browser dropped offline mid-session and
+  // reconnects, pick up anything that didn't finish.
   useEffect(() => {
     if (status !== "authenticated") return;
     if (typeof window === "undefined") return;
     const onOnline = async () => {
       const pending = await listOrphanSessions();
-      if (pending.length === 0) return;
       for (const orphan of pending) {
         try {
-          await handleRecoverInternal(orphan);
-        } catch (err) {
-          console.warn("[OrphanRecovery] silent auto-resume failed", err);
+          await silentRecover(orphan);
+        } catch {
+          /* already surfaced */
         }
       }
     };
     window.addEventListener("online", onOnline);
     return () => window.removeEventListener("online", onOnline);
-    // handleRecoverInternal is defined below; eslint will warn — safe
-    // because it only reads the closed-over `tx` which is stable for
-    // the lifetime of TranscriptionProvider.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
+  }, [status, silentRecover]);
 
-  // Internal helper used by both manual click and auto-resume.
-  const handleRecoverInternal = useCallback(
-    async (orphan: OrphanSession) => {
-      const { blobs } = await recoverSession(orphan.meta.id);
-      blobs.forEach((blob, i) => {
-        const capturedAtMs = (orphan.chunkIndexes[i] ?? i) * 1500;
-        const chunk: CapturedChunk = {
-          index: orphan.chunkIndexes[i] ?? i,
-          blob,
-          mimeType: orphan.meta.mimeType || "audio/webm",
-          extension: orphan.meta.extension || "webm",
-          capturedAtMs,
-          durationMs: 1500,
-          sessionId: orphan.meta.id,
-        };
-        tx.transcribeChunk(chunk);
-      });
-      setOrphans((prev) => prev.filter((o) => o.meta.id !== orphan.meta.id));
-    },
-    [tx]
-  );
-
-  const handleRecover = useCallback(
+  const handleManualRecover = useCallback(
     async (orphan: OrphanSession) => {
       setBusyId(orphan.meta.id);
       try {
-        await handleRecoverInternal(orphan);
+        // Manual retry — clear the failed flag first so silentRecover
+        // doesn't short-circuit on the inFlight guard.
+        inFlightIdsRef.current.delete(orphan.meta.id);
+        await silentRecover(orphan);
+        setFailedOrphans((prev) =>
+          prev.filter((o) => o.meta.id !== orphan.meta.id)
+        );
       } catch (err) {
-        console.warn("[OrphanRecovery] recover failed", err);
+        console.warn("[OrphanRecovery] manual recover failed", err);
       } finally {
         setBusyId(null);
       }
     },
-    [handleRecoverInternal]
+    [silentRecover]
   );
 
   const handleDiscard = useCallback(async (orphan: OrphanSession) => {
     setBusyId(orphan.meta.id);
     try {
       await discardSession(orphan.meta.id);
-      setOrphans((prev) => prev.filter((o) => o.meta.id !== orphan.meta.id));
+      setFailedOrphans((prev) =>
+        prev.filter((o) => o.meta.id !== orphan.meta.id)
+      );
     } catch (err) {
       console.warn("[OrphanRecovery] discard failed", err);
     } finally {
@@ -122,8 +161,12 @@ export function OrphanRecordingBanner() {
     setDismissedIds((prev) => new Set(prev).add(id));
   }, []);
 
-  const visible = orphans.filter((o) => !dismissedIds.has(o.meta.id));
-  if (visible.length === 0 || capture.isCapturing || status !== "authenticated") {
+  const visible = failedOrphans.filter((o) => !dismissedIds.has(o.meta.id));
+  if (
+    visible.length === 0 ||
+    capture.isCapturing ||
+    status !== "authenticated"
+  ) {
     return null;
   }
 
@@ -139,7 +182,6 @@ export function OrphanRecordingBanner() {
           month: "short",
           day: "numeric",
         });
-        const chunkCount = orphan.chunkIndexes.length;
         const busy = busyId === orphan.meta.id;
         return (
           <div
@@ -153,22 +195,21 @@ export function OrphanRecordingBanner() {
             />
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold text-dark-navy">
-                Incomplete recording from {dateLabel}, {timeLabel}
+                Couldn&apos;t finish recovery automatically
               </div>
               <div className="text-[11px] text-mid-gray mt-0.5">
-                {chunkCount} audio chunk{chunkCount === 1 ? "" : "s"} still
-                saved locally. Recover to transcribe, or discard to free
-                space.
+                Recording from {dateLabel}, {timeLabel}. Retry below, or
+                discard if you don&apos;t need it.
               </div>
               <div className="mt-2 flex gap-2">
                 <button
                   type="button"
-                  onClick={() => handleRecover(orphan)}
+                  onClick={() => handleManualRecover(orphan)}
                   disabled={busy}
                   className="inline-flex items-center gap-1 text-[11px] font-medium bg-itu-blue text-white px-2.5 py-1 rounded-md hover:bg-itu-blue-dark disabled:opacity-60"
                 >
                   <RefreshCw size={12} />
-                  Recover
+                  Retry
                 </button>
                 <button
                   type="button"
