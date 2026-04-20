@@ -150,4 +150,4 @@ END REPORT
 
 ## Running unattended (optional)
 
-A headless variant runs Playwright without GUI control. It cannot exercise true system-audio routing, so it substitutes a deterministic audio file piped via `ffmpeg` into a virtual mic driver. See `scripts/e2e/` (to be created) when unattended runs become a CI requirement.
+A headless variant runs Playwright without GUI control. It cannot exercise true system-audio routing, so it substitutes a fake media stream (Chromium `--use-fake-device-for-media-stream`). Current headless coverage lives in `scripts/e2e/` — `sweep.mjs` (Test 10 route/theme matrix) and `record-smoke.mjs` (Test 2.4 silent-retry guard). Run via `npm run qa:sweep` / `npm run qa:smoke` / `npm run qa:all`. Screenshots land in `qa-report-screenshots/` (gitignored).

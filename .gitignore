@@ -5,6 +5,7 @@ node_modules
 
 # testing
 /coverage
+/qa-report-screenshots/
 
 # next.js
 /.next/
