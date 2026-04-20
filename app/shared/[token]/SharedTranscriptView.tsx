@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Clock, Copy, Check, Download, FileText, Users } from "lucide-react";
+import { AlertCircle, Clock, Copy, Check, Download, FileText, Users } from "lucide-react";
 import type { TranscriptEntry } from "@/lib/constants";
+import { DISCLAIMER_BANNER } from "@/lib/disclaimer";
 import type { ActionItem } from "@/components/ActionItems";
 import ActionItems from "@/components/ActionItems";
 
@@ -148,7 +149,14 @@ export default function SharedTranscriptView({ transcript }: Props) {
           </div>
         </div>
 
-        <div className="text-center mt-6 text-xs text-mid-gray">
+        <div
+          role="note"
+          className="mt-6 flex items-start gap-2 px-3 py-2 bg-off-white border border-border-gray rounded text-[11px] leading-snug text-mid-gray"
+        >
+          <AlertCircle size={14} className="shrink-0 mt-0.5 text-warning" aria-hidden />
+          <span>{DISCLAIMER_BANNER}</span>
+        </div>
+        <div className="text-center mt-4 text-xs text-mid-gray">
           Powered by Dhvani — ITU Innovation Hub
         </div>
       </div>

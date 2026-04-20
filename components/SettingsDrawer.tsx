@@ -193,9 +193,13 @@ export function SettingsDrawer(props: Props) {
           </Field>
 
           <Field
-            label={`Chunk Duration: ${(chunkDuration / 1000).toFixed(0)}s`}
+            label={`Chunk Duration: ${(chunkDuration / 1000).toFixed(0)}s${
+              chunkDuration >= 6000 && chunkDuration <= 8000
+                ? " — recommended"
+                : ""
+            }`}
             icon={Sliders}
-            hint="Shorter = faster appearance. Longer = better speaker tracking."
+            hint="6–8 s is recommended for best accuracy. The diarizer needs ≥6 s of acoustic context to reliably differentiate speakers, and longer chunks give the language model more surrounding words to disambiguate homophones. Shorter chunks (1–3 s) make the first transcript entry appear faster but the text is noticeably less accurate and speakers collapse together."
           >
             <input
               type="range"
@@ -207,7 +211,10 @@ export function SettingsDrawer(props: Props) {
               className="w-full accent-itu-blue"
             />
             <div className="flex justify-between text-[10px] text-mid-gray mt-1">
-              <span>{MIN_CHUNK_DURATION_MS / 1000}s</span>
+              <span>{MIN_CHUNK_DURATION_MS / 1000}s · latency</span>
+              <span className="text-itu-blue-dark font-semibold">
+                6–8s · recommended
+              </span>
               <span>{MAX_CHUNK_DURATION_MS / 1000}s</span>
             </div>
           </Field>

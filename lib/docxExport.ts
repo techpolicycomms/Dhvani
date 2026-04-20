@@ -38,6 +38,7 @@ import {
   Paragraph,
   TextRun,
 } from "docx";
+import { DISCLAIMER_FULL } from "./disclaimer";
 import { COPY, type Mode } from "./mode";
 import type { TranscriptEntry } from "./constants";
 import type { SpeakerResolver } from "./exportUtils";
@@ -248,6 +249,30 @@ export async function generateDocx(
     children.push(new Paragraph({ text: entry.text }));
     children.push(new Paragraph({ text: "" }));
   }
+
+  // AI-transcription disclaimer. Always appended as the final block so
+  // the legal copy travels with every exported .docx. Wording lives in
+  // lib/disclaimer.ts; edits to ITU's institutional liability stance
+  // flow through one file.
+  children.push(new Paragraph({ text: "" }));
+  children.push(
+    new Paragraph({
+      heading: HeadingLevel.HEADING_3,
+      children: [new TextRun({ text: "Disclaimer" })],
+    })
+  );
+  children.push(
+    new Paragraph({
+      children: [
+        new TextRun({
+          text: DISCLAIMER_FULL,
+          italics: true,
+          color: "555555",
+          size: 18,
+        }),
+      ],
+    })
+  );
 
   const footerText =
     mode === "power"

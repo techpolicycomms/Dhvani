@@ -1,5 +1,6 @@
 import { formatSrtTimestamp, parseElapsed } from "./audioUtils";
 import type { TranscriptEntry } from "./constants";
+import { DISCLAIMER_FULL } from "./disclaimer";
 
 /**
  * Resolver for turning a raw speaker id into a display name (honouring
@@ -25,7 +26,7 @@ export function toTxt(
   transcript: TranscriptEntry[],
   resolve?: SpeakerResolver
 ): string {
-  return transcript
+  const body = transcript
     .map((e) => {
       const speaker = displayFor(e, resolve);
       return speaker
@@ -33,6 +34,7 @@ export function toTxt(
         : `[${e.timestamp}] ${e.text}`;
     })
     .join("\n");
+  return `${body}\n\n---\nDisclaimer: ${DISCLAIMER_FULL}\n`;
 }
 
 /**
@@ -70,17 +72,22 @@ export function toJson(
   transcript: TranscriptEntry[],
   resolve?: SpeakerResolver
 ): string {
+  const entries = transcript.map((e) => {
+    const speaker = displayFor(e, resolve);
+    return {
+      id: e.id,
+      timestamp: e.timestamp,
+      ...(speaker ? { speaker } : {}),
+      ...(e.rawSpeaker ? { rawSpeaker: e.rawSpeaker } : {}),
+      text: e.text,
+    };
+  });
   return JSON.stringify(
-    transcript.map((e) => {
-      const speaker = displayFor(e, resolve);
-      return {
-        id: e.id,
-        timestamp: e.timestamp,
-        ...(speaker ? { speaker } : {}),
-        ...(e.rawSpeaker ? { rawSpeaker: e.rawSpeaker } : {}),
-        text: e.text,
-      };
-    }),
+    {
+      disclaimer: DISCLAIMER_FULL,
+      generatedAt: new Date().toISOString(),
+      entries,
+    },
     null,
     2
   );
@@ -118,6 +125,7 @@ export function toMarkdown(
       : `**[${e.timestamp}]**`;
     lines.push(`${head} ${e.text}`, "");
   }
+  lines.push("", "---", "", `> **Disclaimer.** ${DISCLAIMER_FULL}`);
   return lines.join("\n").trim();
 }
 

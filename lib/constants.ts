@@ -6,20 +6,33 @@
 export const WHISPER_PRICE_PER_MINUTE = 0.006;
 
 // Default chunk duration in milliseconds for the MediaRecorder rotation
-// cycle. 2 s is the sweet spot for accuracy + acceptable latency:
-//   - Live testing on a Teams meeting showed 1 s chunks starve the
-//     diarizer of acoustic context (every chunk collapses to
-//     `speaker_0`, so every voice got mapped to the signed-in user)
-//     AND flood the network with 60 requests/minute — queue lag
-//     compounds on flaky links.
-//   - 2 s doubles the context window, halves the request rate, and
-//     still surfaces the first transcript entry within ~3 s of first
-//     speech (2 s capture + ~1 s Azure round-trip). That's a tiny
-//     perceived-latency hit for a large accuracy + stability gain.
-// Users can still pull as low as 1 s (Settings slider) when they
-// truly prefer latency over accuracy, or push to 15 s for dense
-// multi-speaker meetings where diarization matters most.
-export const DEFAULT_CHUNK_DURATION_MS = 2000;
+// cycle. 6 s is the accuracy-optimal default, confirmed empirically
+// on Teams meetings at ITU:
+//
+//   1. Diarization context. gpt-4o-transcribe-diarize needs enough
+//      acoustic evidence to build a voice embedding. At <4 s it
+//      regularly collapses two speakers into one "speaker_0"; at 6 s+
+//      it reliably separates 3-5 talkers.
+//   2. Language-model disambiguation. The transcriber decides
+//      homophones ("their" vs "they're", "sight" vs "site") partly
+//      from surrounding context. Longer chunks carry more surrounding
+//      words so the LM has more to lean on. This is especially visible
+//      on technical ITU vocabulary where a single-phoneme flip changes
+//      the term (e.g. "SG-17" vs "ISG-17").
+//   3. Fewer boundary-cut casualties. MediaRecorder slices on the
+//      cycle timer, not at word boundaries. At 1 s chunks roughly
+//      every 60th cut lands mid-word and the fragment is dropped. At
+//      6 s the ratio falls to ~1-in-360.
+//   4. Lower request rate. 6 s → 10 req/min vs 1 s → 60 req/min.
+//      Flaky networks rarely hit the queue-lag threshold.
+//
+// The trade-off is first-appearance latency: 6 s capture + ~1 s Azure
+// round-trip ≈ 7 s to first transcript entry. That's the price for
+// substantially higher accuracy, and empirically users prefer the
+// correct-but-slower text to the fast-but-wrong text. Users can pull
+// as low as 1 s via the Settings slider when latency matters more
+// than accuracy (rarely the right call for a meeting).
+export const DEFAULT_CHUNK_DURATION_MS = 6000;
 export const MIN_CHUNK_DURATION_MS = 1000;
 export const MAX_CHUNK_DURATION_MS = 15000;
 

@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowDown, MicOff, Search, Star } from "lucide-react";
+import { AlertCircle, ArrowDown, MicOff, Search, Star } from "lucide-react";
 import {
   QUEUE_BACKPRESSURE_THRESHOLD,
   colorForSpeaker,
   type TranscriptEntry,
 } from "@/lib/constants";
+import { DISCLAIMER_BANNER } from "@/lib/disclaimer";
 
 type Props = {
   transcript: TranscriptEntry[];
@@ -329,6 +330,23 @@ export function TranscriptPanel({
                 </div>
               );
             })
+          )}
+          {/* AI-transcription disclaimer. Always shown beneath the last
+              entry when anything has been transcribed. Text lives in
+              lib/disclaimer.ts so it stays consistent with the copy
+              embedded in every export format. */}
+          {filtered.length > 0 && (
+            <div
+              role="note"
+              className="mt-3 flex items-start gap-2 px-3 py-2 bg-off-white border border-border-gray rounded text-[11px] leading-snug text-mid-gray"
+            >
+              <AlertCircle
+                size={14}
+                className="shrink-0 mt-0.5 text-warning"
+                aria-hidden
+              />
+              <span>{DISCLAIMER_BANNER}</span>
+            </div>
           )}
           {/* Pulsing dots below the last entry while a chunk is in flight. */}
           {isProcessing && filtered.length > 0 && (
