@@ -108,6 +108,27 @@ UI / UX FOUNDATION
 - Bureau/department routing (unless Chris asks)
 - Admin dashboards (minimal Power mode only)
 
+## Scope of the gate
+
+The 5-step gate below applies to **new features** and **meaningful
+behavior changes** that a user would perceive as a different product.
+It does **not** apply to:
+
+- Bug fixes and regression prevention (e.g. "transcript shows random
+  language switches mid-meeting") — ship freely, log in
+  `CURRENT_SCORECARD.md` under the criterion affected so scorecard
+  movement stays attributable.
+- Plumbing / refactors that unblock a later gated feature — ship
+  with a one-line note in the commit referencing the gated feature
+  it's building toward.
+- Hygiene work (dependency bumps, CI config, docs, tests) — ship
+  freely, no scorecard entry needed.
+
+Rule of thumb: **if a user wouldn't describe the change as a new
+capability, it's outside the gate.** If unclear, ask. The gate
+exists to stop scope creep on net-new features, not to block
+keeping the existing product healthy.
+
 ## Execution protocol
 
 When proposing a feature, use this 5-step gate before writing code.
