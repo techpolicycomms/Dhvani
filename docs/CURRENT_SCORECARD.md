@@ -150,6 +150,29 @@ scorecard attribution).
   still uses Azure regardless of transcription engine), Integrations.
 - **Estimated impact**: Cost Transparency +0.3, Info Entry +0.1.
 
+### Fix 12 — Intent-routed transcription (revamp of Fix 11)
+
+The mic-vs-meeting split was too coarse. On-device isn't just for
+solo voice memos — a private 1-1 conversation also belongs there
+when the user prefers privacy over cloud accuracy. Replaced the
+audio-source picker with an **intent picker** + optional privacy
+toggle, and added local diarization (chunk-level voice-embedding
+clustering) so on-device conversations get speaker labels.
+
+- **Primary driver for**:
+  - Info Entry (●●●) — "Inline editing everywhere" + correct
+    participant attribution on on-device conversations (previously
+    impossible without cloud).
+  - Cost Transparency (●●●) — on-device in-person meetings are
+    now $0 too, not just solo notes.
+- **Secondary driver for**:
+  - Mobile UX (●●) — simpler home page (3 intent cards, clear
+    subtitles with privacy/cost badges) vs. the previous 3-by-3
+    decision matrix.
+  - 360° View (●●) — more transcripts get reliable speaker ids.
+- **Estimated impact**: Info Entry +0.2, Cost Transparency +0.1,
+  Mobile UX +0.1.
+
 ### Planned, not yet shipped
 
 - Voice-embedding diarizer refinement — see [DIARIZATION_ROADMAP.md](./DIARIZATION_ROADMAP.md).

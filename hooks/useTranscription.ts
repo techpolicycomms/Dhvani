@@ -7,7 +7,9 @@ import {
   MIN_TRANSCRIPT_LENGTH,
   WHISPER_PRICE_PER_MINUTE,
   defaultSpeakerLabel,
+  type CaptureIntent,
   type CaptureMode,
+  type PrivacyMode,
   type TranscriptEntry,
 } from "@/lib/constants";
 import { blobToFile, formatElapsed } from "@/lib/audioUtils";
@@ -27,21 +29,25 @@ import {
 } from "@/lib/audioDecode";
 import { embedVoice } from "@/lib/voiceEmbedder";
 import { transcribeLocal } from "@/lib/localWhisper";
+import { diarizeLocalSegments } from "@/lib/localDiarizer";
 import type { CapturedChunk } from "./useAudioCapture";
 
 export type UseTranscriptionOptions = {
   language?: string; // ISO code or "" for auto
-  /**
-   * Current capture mode, read on every chunk. Drives the engine
-   * split:
-   *   - "microphone"     → local Whisper (in-browser, private, $0)
-   *   - everything else  → Azure `gpt-4o-transcribe-diarize` via
-   *                        `/api/transcribe` (cloud, with speaker
-   *                        diarization)
-   * null is treated as meeting-mode (safe default: preserve the
-   * existing Azure pipeline behaviour).
-   */
+  /** Audio source mode (informational; routing is driven by intent + privacy). */
   captureMode?: CaptureMode | null;
+  /**
+   * User intent. Drives engine selection:
+   *   - "solo-notes"      → local Whisper, hard-coded single speaker
+   *   - "in-person"       → local Whisper + local diarizer  (on-device)
+   *                       OR Azure diarize                   (cloud)
+   *   - "online-meeting"  → Azure diarize
+   * null/undefined defaults to the conservative cloud path so the
+   * current production behaviour is preserved.
+   */
+  intent?: CaptureIntent | null;
+  /** Privacy tier — only consulted when intent = in-person. */
+  privacy?: PrivacyMode | null;
   onEntry?: (entry: TranscriptEntry) => void;
   onError?: (msg: string, chunkIndex: number) => void;
   onRateLimited?: (msg: string, retryAfterSeconds?: number) => void;
@@ -136,18 +142,28 @@ export function useTranscription(
   const {
     language,
     captureMode,
+    intent,
+    privacy,
     onEntry,
     onError,
     onRateLimited,
     onLanguageLocked,
   } = options;
-  // Keep the mode on a ref so the long-lived sendOne closure sees
-  // the current value without us having to depend on it (which would
-  // invalidate every callback on a mode change).
+  // Keep intent / privacy / captureMode on refs so the long-lived
+  // sendOne closure reads the current values without being
+  // invalidated on every change.
   const captureModeRef = useRef<CaptureMode | null>(captureMode ?? null);
+  const intentRef = useRef<CaptureIntent | null>(intent ?? null);
+  const privacyRef = useRef<PrivacyMode | null>(privacy ?? null);
   useEffect(() => {
     captureModeRef.current = captureMode ?? null;
   }, [captureMode]);
+  useEffect(() => {
+    intentRef.current = intent ?? null;
+  }, [intent]);
+  useEffect(() => {
+    privacyRef.current = privacy ?? null;
+  }, [privacy]);
 
   const [queueDepth, setQueueDepth] = useState(0);
   const [inFlight, setInFlight] = useState(0);
@@ -509,11 +525,10 @@ export function useTranscription(
     [language, onEntry, onError, onRateLimited, onLanguageLocked]
   );
 
-  // Mic-mode local branch. Runs Whisper in-browser, emits entries
-  // with a hard-coded S1 stable speaker (mic mode is single-speaker
-  // by definition — the voice-embedding stitcher isn't needed here).
-  // Cost accumulates into totalMinutes as LOCAL minutes; estimated
-  // cost stays at $0 because no Azure spend is incurred.
+  // Mic-mode local branch. Runs Whisper in-browser, then depending
+  // on intent either hard-codes S1 (solo-notes) or runs segments
+  // through the local diarizer (in-person). Cost stays at $0 —
+  // accumulated into `localMinutes` for the UI.
   const sendOneLocal = useCallback(
     async (chunk: CapturedChunk): Promise<void> => {
       try {
@@ -550,18 +565,48 @@ export function useTranscription(
           }
         }
 
+        // Reset the shared embedding stitcher on session change so
+        // local and cloud paths share stable-id numbering per session.
+        if (
+          chunk.sessionId &&
+          chunk.sessionId !== stitcherSessionRef.current
+        ) {
+          embeddingStitcherRef.current.reset();
+          timeStitcherRef.current.reset();
+          stitcherSessionRef.current = chunk.sessionId;
+        }
+
         if (segments.length > 0) {
-          const grouped = groupBySpeaker(segments);
+          const isConversation = intentRef.current === "in-person";
+          // For solo-notes everything is S1. For in-person we pass
+          // through the local diarizer (voice-embedding clustering).
+          const diarized = isConversation
+            ? await diarizeLocalSegments(
+                chunk.blob,
+                segments,
+                embeddingStitcherRef.current
+              )
+            : segments.map((s) => ({ ...s, stableSpeakerId: "S1" }));
+
+          const grouped = groupBySpeaker(
+            diarized.map((d) => ({
+              speaker: d.stableSpeakerId,
+              text: d.text,
+              start: d.start,
+              end: d.end,
+            }))
+          );
           for (const g of grouped) {
             const text = g.text.trim();
             if (text.length < MIN_TRANSCRIPT_LENGTH) continue;
+            const stableSpeakerId = g.rawSpeaker;
             onEntry?.({
               id: uuid(),
               timestamp: formatElapsed(chunk.capturedAtMs + g.startMs),
               text,
               rawSpeaker: g.rawSpeaker,
-              stableSpeakerId: "S1",
-              speaker: defaultSpeakerLabel("S1"),
+              stableSpeakerId,
+              speaker: defaultSpeakerLabel(stableSpeakerId),
             });
           }
         }
@@ -584,13 +629,18 @@ export function useTranscription(
     [language, onEntry, onLanguageLocked, sendOneRemote]
   );
 
-  // Mode-routed entry point used by the drain loop. Mic → local;
-  // every other mode (tab-audio, electron, virtual-cable) → Azure.
+  // Intent- and privacy-driven routing. Replaces the earlier pure
+  // capture-mode branch so users choosing in-person + cloud still
+  // get diarized cloud transcripts, and solo-notes on a tab-audio
+  // source (hypothetical, uncommon) would still go local.
   const sendOne = useCallback(
     async (chunk: CapturedChunk): Promise<void> => {
-      if (captureModeRef.current === "microphone") {
-        return sendOneLocal(chunk);
-      }
+      const currentIntent = intentRef.current;
+      const currentPrivacy = privacyRef.current;
+      const useLocal =
+        currentIntent === "solo-notes" ||
+        (currentIntent === "in-person" && currentPrivacy === "on-device");
+      if (useLocal) return sendOneLocal(chunk);
       return sendOneRemote(chunk);
     },
     [sendOneLocal, sendOneRemote]

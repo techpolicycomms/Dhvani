@@ -18,34 +18,75 @@ Current implementations:
 
 Wired into: `app/api/transcribe/route.ts`, `app/api/summarize/route.ts`.
 
-## Mode-routed transcription
+## Intent-routed transcription
 
-As of 2026-04-20, the client routes transcription by capture mode
-rather than always sending audio to Azure:
+As of 2026-04-20 the home page is an **intent picker** (what are
+you trying to capture?), not a raw audio-source picker. Intent +
+privacy drive engine selection:
 
-- **Microphone mode** → **local Whisper** (in-browser via
-  `@xenova/transformers`). Audio never leaves the device. Zero Azure
-  cost. Single-speaker by definition, so no diarization or voice
-  embedder is needed. Implemented in `lib/localWhisper.ts`, called
-  from `hooks/useTranscription.ts#sendOneLocal`.
-- **Meeting modes** (`tab-audio`, `electron`, `virtual-cable`) →
-  Azure `gpt-4o-transcribe-diarize` via `/api/transcribe`. Multi-
-  speaker with diarization; client-side voice embedding (via
-  `lib/voiceEmbedder.ts` + `lib/embeddingStitcher.ts`) matches the
-  same voice across chunks and long silences.
+| Intent                          | Privacy     | Engine                                      | Speaker ids |
+|---                              |---          |---                                          |---          |
+| Solo notes (voice memo)         | on-device   | Local Whisper (`lib/localWhisper.ts`)       | Hard S1     |
+| In-person conversation          | on-device   | Local Whisper + local diarizer              | Voice-embedding clustering (`lib/localDiarizer.ts`) |
+| In-person conversation          | cloud       | Azure `gpt-4o-transcribe-diarize`           | Voice-embedding stitcher (`lib/embeddingStitcher.ts`) |
+| Online meeting (tab/system)     | cloud only* | Azure `gpt-4o-transcribe-diarize`           | Voice-embedding stitcher                   |
 
-`useTranscription` reads the active mode on every chunk
-(`captureModeRef`), so switching sources mid-session Just Works.
-Local failures (model load error, Web Audio decode failure) fall
-through to the cloud path — a broken model download never kills
-a recording.
+*Local diarization of tab-audio / system-audio is a future build;
+until then `online-meeting` always uses cloud.
 
-Cost accounting tracks local minutes and cloud minutes separately;
-the ControlBar surfaces both so users see "cloud + local" splits.
+### Routing
 
-A native whisper.cpp binary shipped with the Electron build is a
-future perf upgrade (Emscripten WASM is ~3-5× slower than the
-native C++). Logged under Deferred work below.
+`hooks/useTranscription.ts` keeps intent + privacy on refs and
+reads them on every chunk. `sendOne` branches to either:
+
+- `sendOneLocal` — decodes the chunk Blob to 16 kHz mono PCM,
+  runs Whisper in-browser, optionally runs local diarization
+  (`lib/localDiarizer.ts` — slices PCM by Whisper timestamps,
+  embeds each slice, clusters via the shared `EmbeddingStitcher`
+  instance).
+- `sendOneRemote` — the existing Azure path.
+
+Either path falls through to the other on failure, so a bad
+model download never kills a recording.
+
+### Audio source
+
+`IntentCards` derives `chosenMode` from the selected intent:
+- `solo-notes` / `in-person` → `microphone`
+- `online-meeting` → `electron` (if inside the Electron wrapper)
+  or `tab-audio` (browser)
+
+The underlying `useAudioCapture` hook is unchanged — it still
+takes a `CaptureMode` and doesn't know about intent.
+
+### Cost accounting
+
+`tx.totalMinutes` tracks cloud minutes (billed). `tx.localMinutes`
+tracks on-device minutes (zero cost). The ControlBar renders
+either "$0.012 (2.0 min)" (all cloud), "$0 · 4.2 min local"
+(all local), or "$0.012 · 2.0 cloud + 4.2 local min" (mixed).
+
+### Future: native whisper.cpp for Electron
+
+The current local path uses `@xenova/transformers` (onnxruntime-web
+in a WASM backend). A native whisper.cpp binary shipped with the
+Electron build would be ~3-5× faster and skip the ~140 MB model
+download. Same `TranscriptionResult` contract, so the swap is a
+branch in `lib/localWhisper.ts` on `window.electronAPI?.isElectron`.
+See Deferred work below.
+
+### Future: re-process with cloud
+
+Intent = in-person + privacy = on-device will want a "re-process
+with cloud for higher accuracy" workflow later. Shape:
+  1. Keep audio chunks in OPFS after transcription (don't delete
+     on successful transcribe).
+  2. On the saved-transcript detail page, offer a "Re-process
+     with cloud" action that re-uploads via the existing
+     `/api/transcribe` route and replaces the transcript in
+     place.
+  3. Encryption at rest for retained audio (nice-to-have;
+     OPFS is origin-scoped but not encrypted).
 
 ### Events (`lib/events.ts`)
 Single in-process `EventBus`. Routes emit domain events

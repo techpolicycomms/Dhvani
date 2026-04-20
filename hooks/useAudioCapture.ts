@@ -462,12 +462,18 @@ export function useAudioCapture(
         // First run pays the download (cached in IndexedDB by
         // transformers.js); subsequent runs reuse the cache.
         //
-        // Mic mode: transcription runs locally — pull the Whisper
-        // model. The voice embedder isn't needed (one speaker).
-        // Meeting modes: transcription uses cloud (Azure) — pull
-        // only the voice-embedding model for stable speaker ids.
+        // - Mic mode: transcription runs locally — pull the Whisper
+        //   model. We also preload the voice embedder because
+        //   in-person-conversation (on-device) mode uses it for
+        //   local diarization. Solo-notes mode never calls the
+        //   embedder so the preload is wasted work there, but a
+        //   single dynamic-import is cheap next to a ~140 MB
+        //   Whisper fetch and we don't know intent at this layer.
+        // - Meeting modes: transcription uses cloud (Azure) — pull
+        //   only the voice-embedding model for stable speaker ids.
         if (mode === "microphone") {
           preloadLocalWhisper();
+          preloadEmbedder();
         } else {
           preloadEmbedder();
         }

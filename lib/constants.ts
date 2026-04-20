@@ -76,6 +76,8 @@ export const LS_KEYS = {
   deviceId: "dhvani-device-id",
   captureMode: "dhvani-capture-mode",
   setupComplete: "dhvani-setup-complete",
+  captureIntent: "dhvani-capture-intent",
+  privacyMode: "dhvani-privacy-mode",
 } as const;
 
 // Languages supported by Dhvani's language-hint dropdown. The Whisper
@@ -96,6 +98,37 @@ export const SUPPORTED_LANGUAGES: Array<{ code: string; label: string }> = [
 ];
 
 export type CaptureMode = "tab-audio" | "microphone" | "virtual-cable" | "electron";
+
+/**
+ * User intent — what they're trying to accomplish right now. Drives
+ * the transcription engine + post-processing choice, rather than
+ * capture mode alone (which is just "which audio source").
+ *
+ *   - "solo-notes"       : voice memo / info dump. Solo speaker.
+ *                           Local Whisper on-device; GPT structures
+ *                           into action items + follow-ups after
+ *                           recording ends.
+ *   - "in-person"        : live 1-1 or small-group conversation.
+ *                           Mic captures both sides. User picks
+ *                           privacy tier (on-device or cloud).
+ *   - "online-meeting"   : Teams/Zoom/Meet in browser or desktop
+ *                           app. Multi-speaker via tab / system
+ *                           audio. Always cloud (diarizing
+ *                           tab-audio on-device is a future build).
+ */
+export type CaptureIntent = "solo-notes" | "in-person" | "online-meeting";
+
+/**
+ * Privacy tier — local-only vs. cloud-assisted. Only meaningful
+ * for intents where we offer a choice (`in-person` right now).
+ *
+ *   - "on-device" : every byte stays on the device. Transcription
+ *                    + diarization via the in-browser Whisper +
+ *                    voice-embedder pipeline. No Azure spend.
+ *   - "cloud"     : audio sent to Azure `gpt-4o-transcribe-diarize`.
+ *                    Higher accuracy, per-minute cost.
+ */
+export type PrivacyMode = "on-device" | "cloud";
 
 /**
  * A single transcript line.

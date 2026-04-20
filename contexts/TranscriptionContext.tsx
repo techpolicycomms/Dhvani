@@ -34,7 +34,9 @@ import { useTranscriptStore } from "@/hooks/useTranscriptStore";
 import {
   DEFAULT_CHUNK_DURATION_MS,
   LS_KEYS,
+  type CaptureIntent,
   type CaptureMode,
+  type PrivacyMode,
 } from "@/lib/constants";
 
 type AudioCaptureValue = ReturnType<typeof useAudioCapture>;
@@ -55,6 +57,13 @@ type TranscriptionContextValue = {
   setDeviceId: (v: string) => void;
   chosenMode: string;
   setChosenMode: (v: string) => void;
+
+  /** User intent: solo-notes | in-person | online-meeting. */
+  intent: CaptureIntent;
+  setIntent: (v: CaptureIntent) => void;
+  /** Privacy tier: on-device | cloud. Only meaningful for `in-person`. */
+  privacy: PrivacyMode;
+  setPrivacy: (v: PrivacyMode) => void;
 
   // Shared transient state (toast + rate-limit banner).
   toast: string | null;
@@ -103,6 +112,14 @@ export function TranscriptionProvider({ children }: { children: ReactNode }) {
     LS_KEYS.captureMode,
     ""
   );
+  const [intent, setIntent] = usePersistedString(
+    LS_KEYS.captureIntent,
+    "solo-notes"
+  ) as [CaptureIntent, (v: CaptureIntent) => void];
+  const [privacy, setPrivacy] = usePersistedString(
+    LS_KEYS.privacyMode,
+    "on-device"
+  ) as [PrivacyMode, (v: PrivacyMode) => void];
 
   // --- shared transient UI state ---
   const [toast, setToast] = useState<string | null>(null);
@@ -119,14 +136,21 @@ export function TranscriptionProvider({ children }: { children: ReactNode }) {
 
   // --- transcription pipeline (API calls + queue + retries) ---
   //
-  // Routing: mic-mode chunks transcribe locally via Whisper
-  // (private, zero cost); meeting-mode chunks (tab-audio / electron /
-  // virtual-cable) go to Azure `gpt-4o-transcribe-diarize` for
-  // diarized output. The pipeline reads `capture.captureMode` on
-  // every chunk so switching sources mid-session Just Works.
+  // Routing is intent-driven rather than capture-mode driven:
+  //
+  //   - solo-notes              → local Whisper, hard S1 speaker
+  //   - in-person + on-device   → local Whisper + local diarizer
+  //                               (voice embedder clustering)
+  //   - in-person + cloud       → Azure diarize
+  //   - online-meeting          → Azure diarize
+  //
+  // The pipeline reads intent/privacy/captureMode on every chunk so
+  // switching mid-session Just Works.
   const tx = useTranscription({
     language,
     captureMode: capture.captureMode,
+    intent,
+    privacy,
     onEntry: store.addEntry,
     onError: (msg, _idx) => {
       // The hook now only fires onError for out-of-band issues (e.g.
@@ -241,6 +265,10 @@ export function TranscriptionProvider({ children }: { children: ReactNode }) {
         setDeviceId,
         chosenMode,
         setChosenMode,
+        intent,
+        setIntent,
+        privacy,
+        setPrivacy,
         toast,
         setToast,
         rateLimitMsg,

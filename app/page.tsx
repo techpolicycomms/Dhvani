@@ -13,6 +13,7 @@ import SentimentBadge from "@/components/SentimentBadge";
 import FollowUpEmail from "@/components/FollowUpEmail";
 import { AudioModeCards } from "@/components/AudioModeCards";
 import { AudioModeSelector } from "@/components/AudioModeSelector";
+import { IntentCards } from "@/components/IntentCards";
 import MobileCapabilityBanner from "@/components/MobileCapabilityBanner";
 import { AudioWaveform } from "@/components/AudioWaveform";
 import { ControlBar } from "@/components/ControlBar";
@@ -79,6 +80,10 @@ export default function HomePage() {
     setDeviceId,
     chosenMode,
     setChosenMode,
+    intent,
+    setIntent,
+    privacy,
+    setPrivacy,
     toast,
     setToast,
     rateLimitMsg,
@@ -562,13 +567,19 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* AUDIO SOURCE — picker visible in Power. In Personal we default
-          to microphone so the user just sees the record button. */}
-      {isPower && !isCapturing && (
+      {/* CAPTURE INTENT — picker visible in both modes when idle.
+          Intent (solo-notes / in-person / online-meeting) + privacy
+          drive the transcription engine; the underlying capture mode
+          is derived from the intent and kept in sync via the
+          onCaptureModeChange callback. */}
+      {!isCapturing && (
         <section className="px-4 sm:px-6 pt-4">
-          <AudioModeCards
-            value={(chosenMode as CaptureMode) || ""}
-            onChange={(next) => setChosenMode(next)}
+          <IntentCards
+            intent={intent}
+            privacy={privacy}
+            onIntentChange={setIntent}
+            onPrivacyChange={setPrivacy}
+            onCaptureModeChange={(mode) => setChosenMode(mode)}
           />
         </section>
       )}
