@@ -165,3 +165,49 @@ mark.dhvani-highlight {
     transform: translateY(-2px);
   }
 }
+
+/* -------------------------------------------------------------------
+   Mobile touch-target floor.
+
+   iOS HIG asks for ≥44pt, Android Material asks for ≥48dp. Many of our
+   buttons are sized for mouse precision (e.g. `px-2.5 py-1` ≈ 28px tall)
+   — fine on desktop, thumb-hostile on mobile.
+
+   Rather than retrofit every component with `min-h-[44px]`, this scoped
+   rule enforces a 44px floor on real interactive elements only when the
+   primary input is coarse (a finger). Desktop with a mouse is
+   unaffected, so density and visuals don't change there.
+
+   Opt-outs:
+   - `.tap-tight`  — explicit opt-out for dense UI (transcript row
+                     pin/star, calendar micro-actions, inline badge
+                     chips) where packing trumps comfort.
+   - elements inside `.transcript-scroll` keep their original sizing
+                     so the scrolling list doesn't stretch into a
+                     fat-finger list on a phone; the parent row is
+                     hit-tested instead.
+   ------------------------------------------------------------------- */
+@media (hover: none) and (pointer: coarse) {
+  button:not(.tap-tight):not([data-tap-tight]),
+  a[role="button"]:not(.tap-tight),
+  [role="button"]:not(.tap-tight),
+  input[type="button"]:not(.tap-tight),
+  input[type="submit"]:not(.tap-tight),
+  input[type="reset"]:not(.tap-tight) {
+    min-height: 44px;
+  }
+  /* Icon-only buttons also need horizontal room for the thumb — match
+     the height on the minor axis. Heuristic: buttons whose accessible
+     name comes from `aria-label` (no visible text child) are usually
+     icon-only. */
+  button[aria-label]:not(.tap-tight) {
+    min-width: 44px;
+  }
+  /* Preserve transcript-row density on mobile — hit-test the whole
+     row instead of each micro-button. */
+  .transcript-scroll button:not(.tap-tight),
+  .transcript-scroll a[role="button"]:not(.tap-tight) {
+    min-height: 0;
+    min-width: 0;
+  }
+}

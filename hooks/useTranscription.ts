@@ -14,6 +14,17 @@ import {
   markChunkTranscribed,
   sweepFinalizedSession,
 } from "@/lib/audioPersistence";
+import { createSpeakerStitcher } from "@/lib/speakerStitcher";
+import {
+  createEmbeddingStitcher,
+  type SpeakerEmbeddingInput,
+} from "@/lib/embeddingStitcher";
+import {
+  concatPcm,
+  decodeChunkToPcm,
+  slicePcm,
+} from "@/lib/audioDecode";
+import { embedVoice } from "@/lib/voiceEmbedder";
 import type { CapturedChunk } from "./useAudioCapture";
 
 export type UseTranscriptionOptions = {
@@ -132,6 +143,24 @@ export function useTranscription(
   const lockedLangRef = useRef<string>("");
   const LANG_HISTORY = 3;
   const LANG_LOCK_AGREEMENT = 2;
+
+  // Speaker stitcher. Normalises per-chunk rawSpeaker ids ("speaker_0")
+  // into session-stable ids ("S1") so a single voice keeps the same
+  // label across all chunks. Reset whenever we detect a new sessionId.
+  //
+  // Two layers:
+  //   1. `embeddingStitcher` is the primary — it computes a voice
+  //      fingerprint per speaker per chunk and matches via cosine
+  //      similarity to session-wide centroids. Recognises the same
+  //      speaker across arbitrarily long silences (this is the user-
+  //      facing goal).
+  //   2. `timeStitcher` is the fallback — used when embedding fails
+  //      (model load error, audio decode failure, or an SSR path).
+  //      Strictly worse than embeddings but still better than per-
+  //      chunk raw ids.
+  const embeddingStitcherRef = useRef(createEmbeddingStitcher());
+  const timeStitcherRef = useRef(createSpeakerStitcher());
+  const stitcherSessionRef = useRef<string>("");
 
   const syncState = useCallback(() => {
     setQueueDepth(queueRef.current.length);
@@ -271,6 +300,119 @@ export function useTranscription(
 
           const segments = Array.isArray(data.segments) ? data.segments : [];
           if (segments.length > 0) {
+            // Reset both stitchers on session change.
+            if (chunk.sessionId && chunk.sessionId !== stitcherSessionRef.current) {
+              embeddingStitcherRef.current.reset();
+              timeStitcherRef.current.reset();
+              stitcherSessionRef.current = chunk.sessionId;
+            }
+
+            // Compute a voice embedding per raw speaker present in
+            // this chunk, then let the embedding stitcher do cosine-
+            // similarity matching against session centroids. On any
+            // embedding failure (audio decode fails, model not yet
+            // loaded, slice too short) we fall back to the time
+            // stitcher with the same raw input.
+            let stableByRaw: Map<string, string>;
+            let embedSource: "embedding" | "time" = "time";
+            try {
+              const decoded = await decodeChunkToPcm(chunk.blob);
+              if (!decoded) throw new Error("decode failed");
+              // Group raw segments by speaker for this chunk; for
+              // each speaker, concat all their PCM slices and embed
+              // the result. One embedding per speaker per chunk.
+              type PerRaw = {
+                rawSpeaker: string;
+                slices: Float32Array[];
+              };
+              const perRaw = new Map<string, PerRaw>();
+              for (const s of segments) {
+                const slice = slicePcm(
+                  decoded.pcm,
+                  decoded.sampleRate,
+                  s.start,
+                  s.end
+                );
+                if (slice.length === 0) continue;
+                const existing = perRaw.get(s.speaker);
+                if (existing) {
+                  existing.slices.push(slice);
+                } else {
+                  perRaw.set(s.speaker, {
+                    rawSpeaker: s.speaker,
+                    slices: [slice],
+                  });
+                }
+              }
+              const embeddings = await Promise.all(
+                Array.from(perRaw.values()).map(async (pr) => {
+                  const pcm = concatPcm(pr.slices);
+                  const vec = await embedVoice(pcm).catch(() => null);
+                  return { rawSpeaker: pr.rawSpeaker, embedding: vec };
+                })
+              );
+              const anySucceeded = embeddings.some((e) => e.embedding);
+              if (!anySucceeded) throw new Error("no usable embeddings");
+              const inputs: SpeakerEmbeddingInput[] = embeddings;
+              const { mapping } =
+                embeddingStitcherRef.current.ingest(inputs);
+              stableByRaw = mapping;
+              embedSource = "embedding";
+            } catch (embedErr) {
+              // Keep the fallback path side-effect-free on the
+              // embedding stitcher's state: fall through to time
+              // stitcher, which tracks its own parallel state.
+              const { mapping } = timeStitcherRef.current.ingest(
+                chunk.index,
+                chunk.capturedAtMs,
+                segments.map((s) => ({
+                  speaker: s.speaker,
+                  start: s.start,
+                  end: s.end,
+                }))
+              );
+              stableByRaw = mapping;
+              if (
+                typeof window !== "undefined" &&
+                (window as { DHVANI_DEBUG_SPEAKERS?: boolean })
+                  .DHVANI_DEBUG_SPEAKERS
+              ) {
+                console.warn(
+                  "[stitcher] embedding path failed; using time fallback",
+                  embedErr
+                );
+              }
+            }
+
+            // Optional diagnostics — turn on by setting
+            // `window.DHVANI_DEBUG_SPEAKERS = true` in DevTools.
+            if (
+              typeof window !== "undefined" &&
+              (window as { DHVANI_DEBUG_SPEAKERS?: boolean })
+                .DHVANI_DEBUG_SPEAKERS
+            ) {
+              const rawCounts: Record<string, number> = {};
+              for (const s of segments) {
+                rawCounts[s.speaker] = (rawCounts[s.speaker] || 0) + 1;
+              }
+              const decisions =
+                embedSource === "embedding"
+                  ? embeddingStitcherRef.current.lastDecisions()
+                  : [];
+              console.log(
+                `[stitcher:${embedSource}] chunk`,
+                chunk.index,
+                "@",
+                chunk.capturedAtMs,
+                "ms — raw:",
+                rawCounts,
+                "→ stable:",
+                Object.fromEntries(stableByRaw),
+                decisions.length > 0 ? "— decisions:" : "",
+                decisions
+              );
+            }
+
             // Group consecutive same-speaker segments into one entry so
             // a single speaker's continuous turn reads naturally. Keep
             // the start offset of the first segment in the group for the
@@ -279,12 +421,14 @@ export function useTranscription(
             for (const g of grouped) {
               const text = g.text.trim();
               if (text.length < MIN_TRANSCRIPT_LENGTH) continue;
+              const stableSpeakerId = stableByRaw.get(g.rawSpeaker);
               onEntry?.({
                 id: uuid(),
                 timestamp: formatElapsed(chunk.capturedAtMs + g.startMs),
                 text,
                 rawSpeaker: g.rawSpeaker,
-                speaker: defaultSpeakerLabel(g.rawSpeaker),
+                stableSpeakerId,
+                speaker: defaultSpeakerLabel(stableSpeakerId || g.rawSpeaker),
               });
             }
           } else {

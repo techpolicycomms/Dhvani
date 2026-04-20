@@ -13,9 +13,15 @@ import {
   finalizeSession,
   newSessionId,
   persistChunk,
-  requestPersistentStorage,
   startRecordingSession,
 } from "@/lib/audioPersistence";
+import {
+  cannotCaptureTabOrSystemAudio,
+  haptic,
+  requestPersistentStorageState,
+  type StorageGrant,
+} from "@/lib/platform";
+import { preloadEmbedder } from "@/lib/voiceEmbedder";
 import { useWakeLock } from "@/hooks/useWakeLock";
 
 export type CapturedChunk = {
@@ -54,6 +60,13 @@ export type UseAudioCaptureReturn = {
    * start, after stop, and in Electron mode (no browser stream exists).
    */
   mediaStream: MediaStream | null;
+  /**
+   * Last result of `navigator.storage.persist()`. When `"denied"`, the
+   * browser may evict OPFS/IDB recordings after ~7 days of non-use —
+   * the caller should warn the user. `"unknown"` means the API wasn't
+   * available (e.g. SSR or an old browser).
+   */
+  storageGrant: StorageGrant;
 };
 
 // Detect if we're running inside the Electron wrapper. The preload
@@ -100,6 +113,9 @@ export function useAudioCapture(
   // React state mirror of `mediaStreamRef` so consumers can useEffect on it.
   const [mediaStream, setMediaStream] = useState<MediaStream | null>(null);
   const [elapsedTime, setElapsedTime] = useState(0);
+  const [storageGrant, setStorageGrant] = useState<StorageGrant>({
+    state: "unknown",
+  });
 
   const mediaStreamRef = useRef<MediaStream | null>(null);
   // Source streams that feed the mixer in "electron" (meeting) mode.
@@ -438,7 +454,30 @@ export function useAudioCapture(
           );
           return;
         }
-        await requestPersistentStorage();
+        const grant = await requestPersistentStorageState();
+        setStorageGrant(grant);
+
+        // Kick off the voice-embedding model download in parallel
+        // with capture setup. First recording pays the download
+        // (~90 MB cached in IndexedDB by transformers.js); subsequent
+        // recordings reuse the cached copy and are near-instant.
+        preloadEmbedder();
+
+        // Pre-flight on iOS: tab / system audio capture is physically
+        // unavailable, so fail early with a user-actionable message
+        // rather than a cryptic NotSupportedError from getDisplayMedia.
+        if (
+          (mode === "tab-audio" || mode === "electron") &&
+          cannotCaptureTabOrSystemAudio() &&
+          !isElectron()
+        ) {
+          setError(
+            "iOS doesn't let browsers capture tab or system audio. " +
+              "Switch to Microphone mode — hold your phone near the speaker, " +
+              "or pair a Bluetooth capture device."
+          );
+          return;
+        }
 
         // New session id for this recording — all subsequent chunks
         // attach to it.
@@ -469,6 +508,9 @@ export function useAudioCapture(
         beginRecording(stream);
         setIsCapturing(true);
         isCapturingRef.current = true;
+        // Short double-pulse on record start — an Android mobile cue
+        // that the mic is live. Silent no-op on iOS and desktop.
+        haptic([30, 50, 30]);
         console.log("[useAudioCapture] startCapture complete, isCapturing=true");
       } catch (err: unknown) {
         const e = err as { name?: string; message?: string };
@@ -502,6 +544,9 @@ export function useAudioCapture(
     setIsCapturing(false);
     teardown();
     void wakeLock.release();
+    // Single longer pulse on stop — a distinct "done" cue versus the
+    // double-pulse on start.
+    haptic(60);
     // Mark the session finalized. The transcription pipeline deletes
     // chunks as they upload successfully; once the last one lands, the
     // OPFS directory is cleaned up by markChunkTranscribed / finalize.
@@ -529,5 +574,6 @@ export function useAudioCapture(
     elapsedTime,
     chunkCount: audioChunks.length,
     mediaStream,
+    storageGrant,
   };
 }

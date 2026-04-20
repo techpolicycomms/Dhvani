@@ -151,13 +151,20 @@ export async function POST(req: NextRequest) {
 function formatTranscript(
   title: string,
   startedAt: string,
-  entries: Array<{ text: string; speaker?: string; rawSpeaker?: string; timestamp: string }>,
+  entries: Array<{
+    text: string;
+    speaker?: string;
+    rawSpeaker?: string;
+    stableSpeakerId?: string;
+    timestamp: string;
+  }>,
   speakerNames?: Record<string, string>
 ): string {
   const date = startedAt.slice(0, 10);
   let out = `\n--- Meeting: "${title}" | Date: ${date} ---\n`;
   for (const e of entries) {
-    const speaker = (e.rawSpeaker && speakerNames?.[e.rawSpeaker]) || e.speaker || "Unknown";
+    const id = e.stableSpeakerId || e.rawSpeaker;
+    const speaker = (id && speakerNames?.[id]) || e.speaker || "Unknown";
     out += `[${e.timestamp}] ${speaker}: ${e.text}\n`;
   }
   return out;

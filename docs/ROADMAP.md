@@ -43,7 +43,7 @@ Baseline measurement is the first thing ISD instruments post-handover.
 **Problem:** a 30-minute transcript with mis-labeled speakers is worse than no transcript. Delegates also switch languages mid-sentence; we lose them.
 
 **Must ship:**
-- **Speaker persistence across chunks** — right now the diarizer treats each chunk independently and we paper over with label heuristics. Move to a light on-device voice-fingerprint store (opt-in) so "Speaker 1" stays "Speaker 1" across a 2-hour session.
+- **Speaker persistence across chunks** — stopgap shipped 2026-04-20: a session-wide time-adjacency stitcher (see [`lib/speakerStitcher.ts`](../lib/speakerStitcher.ts) and [DIARIZATION_ROADMAP.md](./DIARIZATION_ROADMAP.md)) and an inline merge UI on the transcript panel. Voice-embedding based identification (the real fix) is the next step — on-device ECAPA-TDNN via `@xenova/transformers`, cosine-similarity clustering, feature-flagged rollout.
 - **Code-switch robustness** — detect mid-utterance language changes (EN↔FR↔ES are the common ITU cases) and feed the right language hint per chunk rather than per session.
 - **ITU vocabulary pack** — ship a default VocabularyManager preset covering ITU acronyms (SG, WG, CPM, PP, etc.) so the first transcript any new user sees already says "SG-17" instead of "SG17" or "Essgee Seventeen".
 - **Recap quality eval harness** — a small benchmark suite of real ITU meetings with human-graded summaries; measure drift as we tune prompts.

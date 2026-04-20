@@ -40,7 +40,21 @@ const SPEAKER_COLORS = [
   "#0891B2", // cyan
   "#65A30D", // lime
 ];
-const speakerAssignments = new Map(); // rawSpeaker -> { color, label }
+// Speaker stitcher state. The diarizer assigns raw ids like
+// "speaker_0" *per chunk*, so the same voice can be speaker_0 in one
+// chunk and speaker_1 in the next. We normalise to session-stable ids
+// ("S1", "S2", …) using a time-adjacency heuristic: if a raw id's
+// first utterance in this chunk starts within ADJ_GAP_MS of some known
+// stable speaker's last-heard end, they're probably the same person.
+// Greedy one-to-one assignment per chunk.
+//
+// This mirrors lib/speakerStitcher.ts in the main web app — keep both
+// in sync if the algorithm changes.
+const ADJ_STRICT_GAP_MS = 1500;
+const ADJ_LOOSE_GAP_MS = 8000;
+const speakerAssignments = new Map(); // stableId -> { color, label }
+const known = []; // [{ stableId, lastEndMs }]
+let nextStableIdN = 1;
 const entries = [];
 let isCapturing = false;
 
@@ -53,16 +67,85 @@ function formatClock(totalSeconds) {
   return `${mm}:${ss}`;
 }
 
-function speakerLabel(rawSpeaker) {
-  if (!rawSpeaker) return { color: SPEAKER_COLORS[0], label: "Speaker 1" };
-  if (!speakerAssignments.has(rawSpeaker)) {
-    const idx = speakerAssignments.size % SPEAKER_COLORS.length;
-    speakerAssignments.set(rawSpeaker, {
+function speakerLabel(stableId) {
+  if (!stableId) return { color: SPEAKER_COLORS[0], label: "Speaker 1" };
+  if (!speakerAssignments.has(stableId)) {
+    const m = /^S(\d+)$/.exec(stableId);
+    const num = m ? parseInt(m[1], 10) : speakerAssignments.size + 1;
+    const idx = (num - 1) % SPEAKER_COLORS.length;
+    speakerAssignments.set(stableId, {
       color: SPEAKER_COLORS[idx],
-      label: `Speaker ${speakerAssignments.size + 1}`,
+      label: `Speaker ${num}`,
     });
   }
-  return speakerAssignments.get(rawSpeaker);
+  return speakerAssignments.get(stableId);
+}
+
+// Map a chunk's raw speaker ids to session-stable ids using three
+// tiers: strict adjacency (≤1.5s), loose adjacency (≤8s), single-speaker
+// carry-over (if both chunk and history have exactly one speaker, match
+// regardless of gap). Keep in sync with lib/speakerStitcher.ts.
+function matchWithinGap(rawsSorted, mapping, used, gapMs) {
+  for (const [raw, agg] of rawsSorted) {
+    if (mapping.has(raw)) continue;
+    let best = null;
+    let bestGap = Infinity;
+    for (const k of known) {
+      if (used.has(k.stableId)) continue;
+      const gap = agg.firstStartMs - k.lastEndMs;
+      if (gap < -500) continue;
+      if (gap > gapMs) continue;
+      if (Math.abs(gap) < bestGap) {
+        bestGap = Math.abs(gap);
+        best = k;
+      }
+    }
+    if (best) {
+      mapping.set(raw, best.stableId);
+      used.add(best.stableId);
+      if (agg.lastEndMs > best.lastEndMs) best.lastEndMs = agg.lastEndMs;
+    }
+  }
+}
+
+function stitchChunk(chunkOffsetMs, segments) {
+  const perRaw = new Map();
+  for (const seg of segments) {
+    const raw = seg.speaker || "speaker_0";
+    const startMs = chunkOffsetMs + (seg.start || 0) * 1000;
+    const endMs = chunkOffsetMs + (seg.end || seg.start || 0) * 1000;
+    const existing = perRaw.get(raw);
+    if (existing) {
+      if (startMs < existing.firstStartMs) existing.firstStartMs = startMs;
+      if (endMs > existing.lastEndMs) existing.lastEndMs = endMs;
+    } else {
+      perRaw.set(raw, { firstStartMs: startMs, lastEndMs: endMs });
+    }
+  }
+  const rawsSorted = Array.from(perRaw.entries()).sort(
+    (a, b) => a[1].firstStartMs - b[1].firstStartMs
+  );
+  const used = new Set();
+  const mapping = new Map();
+
+  // Tier 1 — strict adjacency. Always safe.
+  matchWithinGap(rawsSorted, mapping, used, ADJ_STRICT_GAP_MS);
+  // Tier 2 — loose adjacency. Only safe when there's multi-speaker
+  // context to disambiguate against. Without that, a large gap
+  // cannot tell "same speaker pausing" from "different speaker
+  // taking over" — so we prefer the visible false-split.
+  if (rawsSorted.length > 1 || known.length > 1) {
+    matchWithinGap(rawsSorted, mapping, used, ADJ_LOOSE_GAP_MS);
+  }
+  // Remainder — allocate new stable ids.
+  for (const [raw, agg] of rawsSorted) {
+    if (mapping.has(raw)) continue;
+    const stableId = `S${nextStableIdN++}`;
+    mapping.set(raw, stableId);
+    used.add(stableId);
+    known.push({ stableId, lastEndMs: agg.lastEndMs });
+  }
+  return mapping;
 }
 
 function updateStatusUI() {
@@ -129,24 +212,30 @@ function appendSegments(chunk) {
         : [];
   if (segs.length === 0) return;
 
+  // Run the chunk's raw speaker ids through the session stitcher so
+  // the same voice keeps the same label across chunks.
+  const chunkOffsetMs = (chunk.elapsedSeconds || 0) * 1000;
+  const stableByRaw = stitchChunk(chunkOffsetMs, segs);
+
   // Collapse consecutive same-speaker segments within the chunk so the
   // UI doesn't fragment into many tiny bubbles for one speaker.
   const collapsed = [];
   for (const seg of segs) {
     const raw = seg.speaker || "speaker_0";
+    const stableId = stableByRaw.get(raw) || raw;
     const prev = collapsed[collapsed.length - 1];
-    if (prev && prev.rawSpeaker === raw) {
+    if (prev && prev.stableId === stableId) {
       prev.text = `${prev.text} ${seg.text}`.replace(/\s+/g, " ").trim();
     } else {
-      collapsed.push({ rawSpeaker: raw, text: (seg.text || "").trim() });
+      collapsed.push({ stableId, text: (seg.text || "").trim() });
     }
   }
 
   for (const c of collapsed) {
     if (!c.text) continue;
-    const { color, label } = speakerLabel(c.rawSpeaker);
+    const { color, label } = speakerLabel(c.stableId);
     const entry = {
-      rawSpeaker: c.rawSpeaker,
+      stableSpeakerId: c.stableId,
       color,
       label,
       text: c.text,
@@ -245,6 +334,8 @@ clearBtn.addEventListener("click", () => {
   if (!confirm("Clear the current transcript?")) return;
   entries.length = 0;
   speakerAssignments.clear();
+  known.length = 0;
+  nextStableIdN = 1;
   transcriptEl.innerHTML = "";
   chunkMeta.textContent = "";
   updateStatusUI();

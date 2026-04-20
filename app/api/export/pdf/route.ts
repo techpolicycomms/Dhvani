@@ -63,7 +63,8 @@ export async function POST(req: NextRequest) {
 
   addLine("Transcript", 12, "0 0.2 0.4", true);
   for (const e of transcript.entries.slice(0, 200)) {
-    const speaker = (e.rawSpeaker && transcript.speakerNames?.[e.rawSpeaker]) || e.speaker || "";
+    const id = e.stableSpeakerId || e.rawSpeaker;
+    const speaker = (id && transcript.speakerNames?.[id]) || e.speaker || "";
     const prefix = speaker ? `${speaker}: ` : "";
     addLine(`[${e.timestamp}] ${prefix}${e.text}`, 8, "0.12 0.16 0.2");
   }

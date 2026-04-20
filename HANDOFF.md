@@ -169,6 +169,9 @@ Filename uses `buildFilename(ext, { mode, title })` from `lib/exportUtils.ts`. P
 
 ## Open / known issues (updated)
 
+0. ✅ **Speaker identification was broken across chunks** — FIXED 2026-04-20 with a session-wide time-adjacency stitcher ([`lib/speakerStitcher.ts`](lib/speakerStitcher.ts)) and an inline merge UI on the transcript speaker list. Plan for voice-embedding replacement in [`docs/DIARIZATION_ROADMAP.md`](docs/DIARIZATION_ROADMAP.md).
+0b. ✅ **Mobile-first record page** — FIXED 2026-04-20: ControlBar is fixed-bottom on mobile with iPhone safe-area inset, hero waveform strip when capturing, sticky header, swipeable SettingsDrawer, 44 px touch-target floor via `@media (pointer: coarse)` rule in [`app/globals.css`](app/globals.css).
+0c. ✅ **iOS graceful degrade** — FIXED 2026-04-20: [`lib/platform.ts`](lib/platform.ts) + [`components/MobileCapabilityBanner.tsx`](components/MobileCapabilityBanner.tsx) preflight tab/system-audio requests on iOS, explain the WebKit limitation, and suggest the mic path. Storage-eviction banner surfaces when `navigator.storage.persist()` returns denied. Haptics (Android) on record start/stop. Native mobile path scoped in [`docs/MOBILE_NATIVE_ROADMAP.md`](docs/MOBILE_NATIVE_ROADMAP.md).
 1. ✅ **`/download` page dark mode + artifact handling** — FIXED this session.
 2. ✅ **Brand color swap to #009CD6** — DONE.
 3. ✅ **Silent chunk retry** — DONE (5 retries, no user-facing failure toasts).

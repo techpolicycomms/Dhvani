@@ -158,11 +158,10 @@ export async function POST(req: NextRequest) {
   }
   for (const e of entries) {
     if (!e || typeof e.text !== "string" || !e.text.trim()) continue;
+    // Prefer session-stable id, fall back to the legacy per-chunk raw id.
+    const id = e.stableSpeakerId || e.rawSpeaker;
     const speaker =
-      (e.rawSpeaker && speakerNames[e.rawSpeaker]) ||
-      e.speaker ||
-      e.rawSpeaker ||
-      "Unknown";
+      (id && speakerNames[id]) || e.speaker || id || "Unknown";
     lines.push(`[${speaker}]: ${e.text.trim()}`);
   }
   let transcriptText = lines.join("\n");
@@ -240,7 +239,7 @@ export async function POST(req: NextRequest) {
       const durationMinutes = approxDurationMinutes(firstTs, lastTs);
       const speakerCount = new Set(
         entries
-          .map((e) => e.rawSpeaker || e.speaker)
+          .map((e) => e.stableSpeakerId || e.rawSpeaker || e.speaker)
           .filter((s): s is string => !!s)
       ).size;
       void recordAnonymisedMeeting({

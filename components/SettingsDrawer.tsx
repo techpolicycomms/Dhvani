@@ -112,6 +112,30 @@ export function SettingsDrawer(props: Props) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  // Horizontal swipe-to-close. Records a touchstart x, then if the
+  // user drags right by > DISMISS_DX_PX without matching vertical
+  // motion, we close — mobile drawer convention. Vertical-dominant
+  // motion is left alone so the drawer can still be scrolled.
+  const DISMISS_DX_PX = 64;
+  const [dragStartX, setDragStartX] = useState<number | null>(null);
+  const [dragStartY, setDragStartY] = useState<number | null>(null);
+  const onTouchStart = (e: React.TouchEvent) => {
+    const t = e.touches[0];
+    if (!t) return;
+    setDragStartX(t.clientX);
+    setDragStartY(t.clientY);
+  };
+  const onTouchEnd = (e: React.TouchEvent) => {
+    if (dragStartX === null || dragStartY === null) return;
+    const t = e.changedTouches[0];
+    if (!t) return;
+    const dx = t.clientX - dragStartX;
+    const dy = Math.abs(t.clientY - dragStartY);
+    setDragStartX(null);
+    setDragStartY(null);
+    if (dx > DISMISS_DX_PX && dx > dy) onClose();
+  };
+
   return (
     <>
       <div
@@ -126,20 +150,23 @@ export function SettingsDrawer(props: Props) {
         className={[
           "fixed top-0 right-0 bottom-0 z-50 w-full sm:w-[420px] bg-white border-l border-border-gray shadow-2xl",
           "transform transition-transform overflow-y-auto",
+          "pb-[env(safe-area-inset-bottom)]",
           open ? "translate-x-0" : "translate-x-full",
         ].join(" ")}
         role="dialog"
         aria-label="Settings"
+        onTouchStart={onTouchStart}
+        onTouchEnd={onTouchEnd}
       >
-        <div className="flex items-center justify-between px-5 py-4 border-b border-border-gray sticky top-0 bg-white">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border-gray sticky top-0 bg-white z-10">
           <h2 className="text-lg font-semibold text-dark-navy">Settings</h2>
           <button
             type="button"
             onClick={onClose}
-            className="text-mid-gray hover:text-dark-navy p-1 rounded hover:bg-light-gray"
+            className="text-mid-gray hover:text-dark-navy p-2 -mr-2 rounded hover:bg-light-gray"
             aria-label="Close settings"
           >
-            <X size={18} />
+            <X size={20} />
           </button>
         </div>
 

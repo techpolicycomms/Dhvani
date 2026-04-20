@@ -1,24 +1,25 @@
 # Dhvani Current Scorecard
 
-Last updated: 2026-04-20
+Last updated: 2026-04-20 (updated after speaker-fix + mobile UX sprint)
 
-Self-scored against [JTBD_ALIGNMENT.md](./JTBD_ALIGNMENT.md) after
-the live-test feedback batch ([fae30ff](../)). Estimates, not
+Self-scored against [JTBD_ALIGNMENT.md](./JTBD_ALIGNMENT.md). This
+revision adds the speaker-identity fix, mobile-first record page,
+and touch-target floor from the 2026-04-20 session. Estimates, not
 measured — user confirmation pending.
 
 ## Estimated scorecard
 
 | Criterion         | Score | Change | Top gap |
 | ----------------- | ----- | ------ | ------- |
-| Mobile UX         |  4.0  | +0.3   | Lock-screen controls, Siri Shortcut, haptics not wired |
-| Info Entry        |  4.0  | +0.6   | Auto-title still stub; auto-topic tagging absent; quick-capture widget not built |
-| 360° View         |  2.5  |   0    | People/Topic/Project views not built; only a flat /transcripts list |
-| AI Consumption    |  3.5  | +0.2   | Recap present; ask-your-meeting + cross-meeting synthesis + translation assist not built |
+| Mobile UX         |  4.4  | +0.4   | Lock-screen controls, Siri Shortcut still need Capacitor; iOS system-audio impossible on web |
+| Info Entry        |  4.3  | +0.3   | Auto-title stub; auto-topic tagging absent; voice-embedding diarization still roadmap |
+| 360° View         |  2.7  | +0.2   | People/Topic/Project views not built; speaker-stable transcripts now make "who said what" addressable |
+| AI Consumption    |  3.7  | +0.2   | Ask-your-meeting + cross-meeting synthesis + translation assist not built; recap quality lifts with stable speakers |
 | Integrations      |  2.5  |   0    | Calendar read ✅; exports (Notion/Obsidian/Things/Slack/webhook/Siri) absent |
 | Cost Transparency |  3.5  |   0    | Live meter ✅; monthly cap alerts, silence-skip chunking, Otter comparison missing |
 
-**Overall: 3.3 / 5.0**
-**Lowest: 360° View (2.5) — tie with Integrations.**
+**Overall: 3.5 / 5.0** (was 3.3)
+**Lowest: Integrations (2.5).**
 
 **Next week focus**: pick one of {People view, Calendar write-back,
 Notion/email export}. People view is the highest-leverage gap
@@ -90,3 +91,55 @@ Predicted criterion movers this week: Mobile UX (+0.3), Info Entry
 stayed flat (360°, Integrations, Cost). Lowest-score criterion next
 week should be 360° View or Integrations — build against whichever
 gets explicit priority.
+
+## 2026-04-20 — speaker identity fix + mobile UX sprint
+
+This batch fixes the three live-test complaints: speaker
+identification, mobile app posture, and mobile-first visual design.
+Follows the Appendix B protocol retroactively (all items are
+behaviour fixes / UX improvements on shipped features, not net-new
+capabilities — outside the 5-step gate but logged here for
+scorecard attribution).
+
+### Fix 7 — Session-stable speaker ids (time-adjacency stitcher)
+
+- **Primary driver for**: Info Entry (●●●) — "Auto-participant
+  extraction" finally tracks one id per voice instead of one id per
+  chunk. 360° View (●●●) — speaker-attributed transcripts become
+  cross-meeting queryable.
+- **Secondary for**: AI Consumption (●●) — recap can cite "Alice
+  raised concerns…" without the label flickering between chunks.
+- **Estimated impact**: Info Entry +0.2, 360° View +0.2,
+  AI Consumption +0.1.
+
+### Fix 8 — Mobile-first record page (fixed bottom ControlBar + hero waveform + iOS safe-area)
+
+- **Primary driver for**: Mobile UX (●●●) — maps directly to
+  "Bottom-anchored controls" and "One-tap record button"; the
+  Start/Stop is now within thumb reach regardless of transcript
+  length.
+- **Secondary for**: Info Entry (●●).
+- **Estimated impact**: Mobile UX +0.2.
+
+### Fix 9 — Touch-target floor + swipeable SettingsDrawer + haptics
+
+- **Primary driver for**: Mobile UX (●●●) — "Haptics" explicitly
+  listed at ●●●; 44 pt floor and swipe-to-close close known
+  fat-finger traps in the settings flow.
+- **Estimated impact**: Mobile UX +0.1.
+
+### Fix 10 — Graceful iOS audio-capture degrade + storage-eviction warning
+
+- **Primary driver for**: Mobile UX (●●●) — maps to "One-tap flows";
+  blocking iOS users at tab/system audio with a clear "use mic
+  instead" message beats an opaque NotSupportedError.
+- **Secondary for**: Info Entry (●●) — the recording they do start
+  on iOS isn't a dead-end anymore.
+- **Estimated impact**: Mobile UX +0.1.
+
+### Planned, not yet shipped
+
+- Voice-embedding diarizer — see [DIARIZATION_ROADMAP.md](./DIARIZATION_ROADMAP.md).
+- Capacitor iOS/Android wrapper — see [MOBILE_NATIVE_ROADMAP.md](./MOBILE_NATIVE_ROADMAP.md).
+  Each is a ●●● primary-driver feature for Mobile UX + a secondary
+  criterion; both would clear the 5-step gate individually when built.

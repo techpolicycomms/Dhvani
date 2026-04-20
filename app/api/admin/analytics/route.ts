@@ -19,7 +19,12 @@ type TranscriptFile = {
   durationMinutes: number;
   chunkCount: number;
   estimatedCost: number;
-  entries: Array<{ rawSpeaker?: string; speaker?: string; text: string }>;
+  entries: Array<{
+    rawSpeaker?: string;
+    stableSpeakerId?: string;
+    speaker?: string;
+    text: string;
+  }>;
   speakerNames?: Record<string, string>;
   summary?: string;
   meeting?: { platform: string; subject: string };
@@ -94,7 +99,8 @@ export async function GET() {
     if (t.entries) {
       for (const e of t.entries) {
         totalWords += (e.text || "").split(/\s+/).filter(Boolean).length;
-        const spk = (t.speakerNames?.[e.rawSpeaker || ""] || e.speaker || "").trim();
+        const lookupId = e.stableSpeakerId || e.rawSpeaker || "";
+        const spk = (t.speakerNames?.[lookupId] || e.speaker || "").trim();
         if (spk) speakerSet.add(spk);
       }
     }

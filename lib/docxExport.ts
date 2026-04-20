@@ -234,7 +234,7 @@ export async function generateDocx(
   for (const entry of input.transcript) {
     turnNo += 1;
     const speaker = input.resolveSpeaker
-      ? input.resolveSpeaker(entry.rawSpeaker)
+      ? input.resolveSpeaker(entry.stableSpeakerId || entry.rawSpeaker)
       : entry.speaker;
     const heading = speaker
       ? `${isPower ? `¶${turnNo} · ` : ""}${speaker} · ${entry.timestamp}`

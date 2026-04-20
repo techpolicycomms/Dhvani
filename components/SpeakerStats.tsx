@@ -15,29 +15,34 @@ export default function SpeakerStats({ transcript, speakerNames, talkTime }: Pro
     if (talkTime && talkTime.length > 0) {
       return talkTime.map((t) => ({
         speaker: t.speaker,
-        rawSpeaker: t.speaker.toLowerCase().replace(/\s+/g, "_"),
+        speakerId: t.speaker.toLowerCase().replace(/\s+/g, "_"),
         percent: t.percent,
         wordCount: 0,
         segments: 0,
       }));
     }
 
-    const byRaw: Record<string, { wordCount: number; segments: number }> = {};
+    const byId: Record<string, { wordCount: number; segments: number }> = {};
     let totalWords = 0;
     for (const e of transcript) {
-      const key = e.rawSpeaker || "unknown";
-      if (!byRaw[key]) byRaw[key] = { wordCount: 0, segments: 0 };
+      // Key on stableSpeakerId (new) and fall back to rawSpeaker (legacy
+      // transcripts saved before stitcher was wired up).
+      const key = e.stableSpeakerId || e.rawSpeaker || "unknown";
+      if (!byId[key]) byId[key] = { wordCount: 0, segments: 0 };
       const words = e.text.split(/\s+/).filter(Boolean).length;
-      byRaw[key].wordCount += words;
-      byRaw[key].segments += 1;
+      byId[key].wordCount += words;
+      byId[key].segments += 1;
       totalWords += words;
     }
 
-    return Object.entries(byRaw)
-      .map(([raw, data]) => ({
-        speaker: (speakerNames?.[raw]) || raw.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
-        rawSpeaker: raw,
-        percent: totalWords > 0 ? Math.round((data.wordCount / totalWords) * 100) : 0,
+    return Object.entries(byId)
+      .map(([id, data]) => ({
+        speaker:
+          (speakerNames?.[id]) ||
+          id.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+        speakerId: id,
+        percent:
+          totalWords > 0 ? Math.round((data.wordCount / totalWords) * 100) : 0,
         wordCount: data.wordCount,
         segments: data.segments,
       }))
@@ -57,7 +62,7 @@ export default function SpeakerStats({ transcript, speakerNames, talkTime }: Pro
       </div>
       <div className="p-4 space-y-3">
         {stats.map((s) => (
-          <div key={s.rawSpeaker} className="space-y-1">
+          <div key={s.speakerId} className="space-y-1">
             <div className="flex items-center justify-between text-sm">
               <span className="font-medium text-dark-navy">{s.speaker}</span>
               <span className="text-xs text-mid-gray">{s.percent}%</span>
@@ -67,7 +72,7 @@ export default function SpeakerStats({ transcript, speakerNames, talkTime }: Pro
                 className="h-full rounded-full transition-all duration-500"
                 style={{
                   width: `${Math.max(2, s.percent)}%`,
-                  backgroundColor: colorForSpeaker(s.rawSpeaker),
+                  backgroundColor: colorForSpeaker(s.speakerId),
                 }}
               />
             </div>

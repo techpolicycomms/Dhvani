@@ -25,14 +25,15 @@ export default function SharedTranscriptView({ transcript }: Props) {
   const [copied, setCopied] = useState(false);
   const t = transcript;
 
-  const resolveSpeaker = (rawSpeaker?: string) => {
-    if (!rawSpeaker) return undefined;
-    return t.speakerNames?.[rawSpeaker] || rawSpeaker;
+  const resolveSpeaker = (id?: string) => {
+    if (!id) return undefined;
+    return t.speakerNames?.[id] || id;
   };
 
   const exportTxt = () => {
     const lines = t.entries.map((e) => {
-      const speaker = resolveSpeaker(e.rawSpeaker) || e.speaker || "";
+      const id = e.stableSpeakerId || e.rawSpeaker;
+      const speaker = resolveSpeaker(id) || e.speaker || "";
       return `[${e.timestamp}]${speaker ? ` ${speaker}:` : ""} ${e.text}`;
     });
     const blob = new Blob([lines.join("\n")], { type: "text/plain" });
@@ -48,7 +49,8 @@ export default function SharedTranscriptView({ transcript }: Props) {
 
   const copyAll = async () => {
     const lines = t.entries.map((e) => {
-      const speaker = resolveSpeaker(e.rawSpeaker) || e.speaker || "";
+      const id = e.stableSpeakerId || e.rawSpeaker;
+      const speaker = resolveSpeaker(id) || e.speaker || "";
       return `[${e.timestamp}]${speaker ? ` ${speaker}:` : ""} ${e.text}`;
     });
     await navigator.clipboard.writeText(lines.join("\n"));
@@ -59,7 +61,8 @@ export default function SharedTranscriptView({ transcript }: Props) {
   const date = new Date(t.startedAt);
   const speakers = new Set<string>();
   t.entries.forEach((e) => {
-    const s = resolveSpeaker(e.rawSpeaker) || e.speaker;
+    const id = e.stableSpeakerId || e.rawSpeaker;
+    const s = resolveSpeaker(id) || e.speaker;
     if (s) speakers.add(s);
   });
 
@@ -128,7 +131,8 @@ export default function SharedTranscriptView({ transcript }: Props) {
             </h2>
             <div className="space-y-1.5 max-h-[600px] overflow-y-auto">
               {t.entries.map((e) => {
-                const speaker = resolveSpeaker(e.rawSpeaker) || e.speaker;
+                const id = e.stableSpeakerId || e.rawSpeaker;
+                const speaker = resolveSpeaker(id) || e.speaker;
                 return (
                   <div key={e.id} className="flex gap-3 text-sm py-1">
                     <span className="text-xs text-mid-gray font-mono shrink-0 pt-0.5 w-16 text-right">

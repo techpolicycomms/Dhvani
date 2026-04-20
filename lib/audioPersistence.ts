@@ -230,22 +230,6 @@ export async function checkStorageQuota(): Promise<{
   return { quota, usage, available: Math.max(0, quota - usage) };
 }
 
-/** Ask the browser not to evict us. Returns true if granted. */
-export async function requestPersistentStorage(): Promise<boolean> {
-  if (
-    typeof navigator === "undefined" ||
-    !navigator.storage?.persist
-  ) {
-    return false;
-  }
-  try {
-    if (await navigator.storage.persisted()) return true;
-    return await navigator.storage.persist();
-  } catch {
-    return false;
-  }
-}
-
 /** Create a new recording session. Idempotent on same sessionId. */
 export async function startRecordingSession(
   sessionId: string,

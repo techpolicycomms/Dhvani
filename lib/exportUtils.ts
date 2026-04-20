@@ -3,16 +3,17 @@ import type { TranscriptEntry } from "./constants";
 import { DISCLAIMER_FULL } from "./disclaimer";
 
 /**
- * Resolver for turning a raw speaker id into a display name (honouring
- * the user's rename map). Exports accept this as a dependency so pages
- * can pass the same resolver used by the TranscriptPanel.
+ * Resolver for turning a speaker id (stable or legacy raw) into a
+ * display name (honouring the user's rename map). Exports accept this
+ * as a dependency so pages can pass the same resolver used by the
+ * TranscriptPanel.
  */
 export type SpeakerResolver = (
-  rawSpeaker: string | undefined
+  id: string | undefined
 ) => string | undefined;
 
 function displayFor(entry: TranscriptEntry, resolve?: SpeakerResolver): string | undefined {
-  if (resolve) return resolve(entry.rawSpeaker);
+  if (resolve) return resolve(entry.stableSpeakerId || entry.rawSpeaker);
   return entry.speaker;
 }
 
@@ -78,6 +79,7 @@ export function toJson(
       id: e.id,
       timestamp: e.timestamp,
       ...(speaker ? { speaker } : {}),
+      ...(e.stableSpeakerId ? { speakerId: e.stableSpeakerId } : {}),
       ...(e.rawSpeaker ? { rawSpeaker: e.rawSpeaker } : {}),
       text: e.text,
     };

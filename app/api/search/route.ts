@@ -58,7 +58,8 @@ export async function GET(req: NextRequest) {
     const entries = transcript.entries;
     for (let i = 0; i < entries.length; i++) {
       const e = entries[i];
-      const speaker = (e.rawSpeaker && transcript.speakerNames?.[e.rawSpeaker]) || e.speaker || "";
+      const id = e.stableSpeakerId || e.rawSpeaker;
+      const speaker = (id && transcript.speakerNames?.[id]) || e.speaker || "";
       if (speaker) allSpeakers.add(speaker);
 
       if (speakerFilter && speaker.toLowerCase() !== speakerFilter) continue;

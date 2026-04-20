@@ -100,28 +100,29 @@ export type CaptureMode = "tab-audio" | "microphone" | "virtual-cable" | "electr
 /**
  * A single transcript line.
  *
- * `rawSpeaker` is the id returned by the diarizer (e.g. `"speaker_0"`).
+ * `rawSpeaker` is the raw per-chunk id returned by the diarizer
+ * (e.g. `"speaker_0"`) — NOT stable across chunks; kept only for
+ * debugging and legacy rename-map lookups.
+ *
+ * `stableSpeakerId` is the session-wide normalised id produced by
+ * `createSpeakerStitcher` (e.g. `"S1"`). Stable across all chunks in
+ * a single recording and is the id everything user-visible (rename
+ * map, colour, SpeakerStats) keys off.
+ *
  * `speaker` is the *default* display label at creation time
  * (e.g. `"Speaker 1"`). The live display resolves through the rename
  * map in useTranscriptStore, so renaming a speaker doesn't require
  * mutating every entry.
  *
- * Both fields are optional: when the transcription response lacks
+ * All three are optional: when the transcription response lacks
  * diarization segments (fallback path), entries have no speaker.
- *
- * NOTE: diarizer speaker ids are scoped to a single audio request. Ids
- * across separate /api/transcribe calls are NOT correlated — same voice
- * may be `speaker_0` in one chunk and `speaker_1` in the next. That's
- * why we no longer pre-map `speaker_0` to the signed-in user — it made
- * everyone's voice collapse to one name. Default labels stay generic
- * ("Speaker 1/2/…") and the user renames once. Perfect stitching would
- * require a persistent speaker embedding we do not yet maintain.
  */
 export type TranscriptEntry = {
   id: string;
   timestamp: string;
   text: string;
   rawSpeaker?: string;
+  stableSpeakerId?: string;
   speaker?: string;
 };
 
@@ -141,28 +142,38 @@ export const SPEAKER_COLORS = [
 
 /**
  * Convert a raw diarizer id like "speaker_0" → "Speaker 1" for display.
+ * Accepts either a raw per-chunk id ("speaker_0") or a stable session
+ * id ("S1") — both render as human-readable "Speaker N".
  */
-export function defaultSpeakerLabel(rawSpeaker: string): string {
-  const m = /^speaker[_-]?(\d+)$/i.exec(rawSpeaker);
-  if (m) return `Speaker ${parseInt(m[1], 10) + 1}`;
-  // Unknown format — show the raw id so the user can still tell speakers apart.
-  return rawSpeaker;
+export function defaultSpeakerLabel(idOrRaw: string): string {
+  const stable = /^S(\d+)$/.exec(idOrRaw);
+  if (stable) return `Speaker ${stable[1]}`;
+  const raw = /^speaker[_-]?(\d+)$/i.exec(idOrRaw);
+  if (raw) return `Speaker ${parseInt(raw[1], 10) + 1}`;
+  // Unknown format — show the id so the user can still tell speakers apart.
+  return idOrRaw;
 }
 
 /**
  * Deterministic color for a speaker — index into SPEAKER_COLORS keyed
- * off the numeric suffix, falling back to a stable string hash.
+ * off the numeric suffix. Accepts stable ids ("S1") or raw ids
+ * ("speaker_0"); falls back to a stable string hash for unknowns.
  */
-export function colorForSpeaker(rawSpeaker: string): string {
-  const m = /^speaker[_-]?(\d+)$/i.exec(rawSpeaker);
+export function colorForSpeaker(idOrRaw: string): string {
+  const stable = /^S(\d+)$/.exec(idOrRaw);
+  if (stable) {
+    const idx = Math.max(0, parseInt(stable[1], 10) - 1);
+    return SPEAKER_COLORS[idx % SPEAKER_COLORS.length];
+  }
+  const raw = /^speaker[_-]?(\d+)$/i.exec(idOrRaw);
   let idx = 0;
-  if (m) {
-    idx = parseInt(m[1], 10);
+  if (raw) {
+    idx = parseInt(raw[1], 10);
   } else {
     // djb2-ish hash for unknown ids.
     let h = 0;
-    for (let i = 0; i < rawSpeaker.length; i++) {
-      h = (h * 31 + rawSpeaker.charCodeAt(i)) | 0;
+    for (let i = 0; i < idOrRaw.length; i++) {
+      h = (h * 31 + idOrRaw.charCodeAt(i)) | 0;
     }
     idx = Math.abs(h);
   }

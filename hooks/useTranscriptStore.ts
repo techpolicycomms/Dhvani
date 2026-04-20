@@ -27,22 +27,32 @@ export type UseTranscriptStoreReturn = {
    * addEntry.
    */
   updateEntryText: (entryId: string, newText: string) => void;
+  /**
+   * Merge two speakers — useful when the stitcher has split one voice
+   * across two stable ids. Rewrites `stableSpeakerId` in every affected
+   * entry AND carries over any rename already applied to the source.
+   */
+  mergeSpeakers: (sourceStableId: string, targetStableId: string) => void;
   clearTranscript: () => void;
   hasSavedSession: boolean;
   resumeSession: () => void;
   discardSavedSession: () => void;
-  /** Ordered list of raw speaker ids seen in the current transcript. */
-  detectedSpeakers: string[];
-  /** Map of raw id → current display name (custom rename, if any). */
-  speakerNames: Record<string, string>;
-  /** Resolve a raw id to its display name (custom or default). */
-  resolveSpeaker: (rawSpeaker: string | undefined) => string | undefined;
-  /** Rename a speaker. Pass empty string to reset to the default label. */
-  renameSpeaker: (rawSpeaker: string, displayName: string) => void;
   /**
-   * Seed speaker_0/speaker_1/… with the signed-in user's name followed by
-   * meeting attendee names. Only fills slots the user hasn't already
-   * customised — so a manual rename is never clobbered on a restart.
+   * Ordered list of stable speaker ids seen in the current transcript
+   * (first-seen order). Stable across chunks — one id per voice, not
+   * one id per chunk.
+   */
+  detectedSpeakers: string[];
+  /** Map of stable id → current display name (custom rename, if any). */
+  speakerNames: Record<string, string>;
+  /** Resolve a stable (or legacy raw) id to its display name. */
+  resolveSpeaker: (id: string | undefined) => string | undefined;
+  /** Rename a speaker. Pass empty string to reset to the default label. */
+  renameSpeaker: (stableId: string, displayName: string) => void;
+  /**
+   * Seed S1/S2/… with the signed-in user's name followed by meeting
+   * attendee names. Only fills slots the user hasn't already customised
+   * — so a manual rename is never clobbered on a restart.
    */
   primeSpeakers: (userName: string | null | undefined, attendees?: string[]) => void;
   /** Calendar meeting the current capture is tagged against, if any. */
@@ -205,35 +215,62 @@ export function useTranscriptStore(): UseTranscriptStoreReturn {
     savedRef.current = null;
   }, []);
 
-  // Preserve first-seen order of raw speaker ids across the transcript
-  // so the legend reads top-to-bottom chronologically.
+  // Preserve first-seen order of **stable** speaker ids across the
+  // transcript so the legend reads top-to-bottom chronologically. Falls
+  // back to rawSpeaker for legacy entries saved before stitcher was
+  // wired up.
   const detectedSpeakers = useMemo(() => {
     const seen = new Set<string>();
     const out: string[] = [];
     for (const e of transcript) {
-      if (e.rawSpeaker && !seen.has(e.rawSpeaker)) {
-        seen.add(e.rawSpeaker);
-        out.push(e.rawSpeaker);
+      const id = e.stableSpeakerId || e.rawSpeaker;
+      if (id && !seen.has(id)) {
+        seen.add(id);
+        out.push(id);
       }
     }
     return out;
   }, [transcript]);
 
   const resolveSpeaker = useCallback(
-    (rawSpeaker: string | undefined) => {
-      if (!rawSpeaker) return undefined;
-      return speakerNames[rawSpeaker] || defaultSpeakerLabel(rawSpeaker);
+    (id: string | undefined) => {
+      if (!id) return undefined;
+      return speakerNames[id] || defaultSpeakerLabel(id);
     },
     [speakerNames]
   );
 
   const renameSpeaker = useCallback(
-    (rawSpeaker: string, displayName: string) => {
+    (stableId: string, displayName: string) => {
       setSpeakerNames((prev) => {
         const next = { ...prev };
         const trimmed = displayName.trim();
-        if (!trimmed) delete next[rawSpeaker];
-        else next[rawSpeaker] = trimmed;
+        if (!trimmed) delete next[stableId];
+        else next[stableId] = trimmed;
+        return next;
+      });
+    },
+    []
+  );
+
+  const mergeSpeakers = useCallback(
+    (sourceStableId: string, targetStableId: string) => {
+      if (sourceStableId === targetStableId) return;
+      // Rewrite every entry that was labelled as the source speaker.
+      setTranscript((prev) =>
+        prev.map((e) =>
+          e.stableSpeakerId === sourceStableId
+            ? { ...e, stableSpeakerId: targetStableId }
+            : e
+        )
+      );
+      // Carry over rename map: if the source had a custom name and the
+      // target doesn't, inherit it. Either way, drop the source entry.
+      setSpeakerNames((prev) => {
+        if (!prev[sourceStableId]) return prev;
+        const next = { ...prev };
+        if (!next[targetStableId]) next[targetStableId] = prev[sourceStableId];
+        delete next[sourceStableId];
         return next;
       });
     },
@@ -252,11 +289,10 @@ export function useTranscriptStore(): UseTranscriptStoreReturn {
         const next = { ...prev };
         let changed = false;
         candidates.forEach((name, i) => {
-          const rawId = `speaker_${i}`;
-          // Only seed slots the user hasn't already customised — we must
-          // never overwrite a manual rename the user set in a past session.
-          if (!next[rawId]) {
-            next[rawId] = name;
+          // Stable ids are 1-based ("S1", "S2", …).
+          const stableId = `S${i + 1}`;
+          if (!next[stableId]) {
+            next[stableId] = name;
             changed = true;
           }
         });
@@ -270,6 +306,7 @@ export function useTranscriptStore(): UseTranscriptStoreReturn {
     transcript,
     addEntry,
     updateEntryText,
+    mergeSpeakers,
     clearTranscript,
     hasSavedSession,
     resumeSession,

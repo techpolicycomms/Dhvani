@@ -1,0 +1,6 @@
+dist-electron/
+extension/icons/
+public/icons/
+public/icon-*.png
+companion/venv/
+companion/.venv/

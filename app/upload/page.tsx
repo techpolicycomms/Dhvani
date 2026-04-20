@@ -8,6 +8,7 @@ import { TranscriptPanel } from "@/components/TranscriptPanel";
 import { v4 as uuid } from "uuid";
 import { formatElapsed } from "@/lib/audioUtils";
 import { defaultSpeakerLabel, type TranscriptEntry } from "@/lib/constants";
+import { createSpeakerStitcher } from "@/lib/speakerStitcher";
 
 const MAX_CHUNK = 25 * 1024 * 1024;
 const ACCEPTED = ".mp3,.mp4,.wav,.m4a,.webm,.ogg,.flac,.aac";
@@ -43,6 +44,7 @@ export default function UploadPage() {
     }
 
     const entries: TranscriptEntry[] = [];
+    const stitcher = createSpeakerStitcher();
     for (let i = 0; i < chunks.length; i++) {
       setProgress(Math.round(((i) / chunks.length) * 100));
       const form = new FormData();
@@ -65,13 +67,29 @@ export default function UploadPage() {
         const data = await res.json();
         const segments = Array.isArray(data.segments) ? data.segments : [];
         if (segments.length > 0) {
+          // Use the session-wide stitcher so uploaded multi-chunk files
+          // get stable speaker ids across chunks (same fix as the live
+          // recording pipeline in useTranscription).
+          const chunkOffsetMs = (i * MAX_CHUNK) / 16;
+          const { mapping } = stitcher.ingest(
+            i,
+            chunkOffsetMs,
+            segments.map((s: { speaker?: string; start?: number; end?: number }) => ({
+              speaker: s.speaker || "speaker_0",
+              start: s.start || 0,
+              end: s.end || (s.start || 0),
+            }))
+          );
           for (const s of segments) {
+            const rawSpeaker = s.speaker || "speaker_0";
+            const stableId = mapping.get(rawSpeaker);
             entries.push({
               id: uuid(),
-              timestamp: formatElapsed((s.start || 0) * 1000 + i * MAX_CHUNK / 16),
+              timestamp: formatElapsed((s.start || 0) * 1000 + chunkOffsetMs),
               text: (s.text || "").trim(),
-              rawSpeaker: s.speaker || "speaker_0",
-              speaker: defaultSpeakerLabel(s.speaker || "speaker_0"),
+              rawSpeaker,
+              stableSpeakerId: stableId,
+              speaker: defaultSpeakerLabel(stableId || rawSpeaker),
             });
           }
         } else if (data.text?.trim()) {

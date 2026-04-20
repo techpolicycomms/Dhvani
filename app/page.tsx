@@ -13,6 +13,7 @@ import SentimentBadge from "@/components/SentimentBadge";
 import FollowUpEmail from "@/components/FollowUpEmail";
 import { AudioModeCards } from "@/components/AudioModeCards";
 import { AudioModeSelector } from "@/components/AudioModeSelector";
+import MobileCapabilityBanner from "@/components/MobileCapabilityBanner";
 import { AudioWaveform } from "@/components/AudioWaveform";
 import { ControlBar } from "@/components/ControlBar";
 import { ExportMenu } from "@/components/ExportMenu";
@@ -93,6 +94,7 @@ export default function HomePage() {
     detectedSpeakers,
     resolveSpeaker,
     renameSpeaker,
+    mergeSpeakers,
     updateEntryText,
     activeMeeting,
     setActiveMeeting,
@@ -108,6 +110,7 @@ export default function HomePage() {
     elapsedTime,
     chunkCount,
     mediaStream,
+    storageGrant,
   } = ctx.capture;
   const { queueDepth, inFlight, totalMinutes, estimatedCost } = ctx.tx;
 
@@ -458,7 +461,10 @@ export default function HomePage() {
 
   // -------- Main UI --------
   return (
-    <main className="min-h-screen flex flex-col bg-off-white pt-[3px]">
+    // Bottom padding on mobile reserves space for the fixed ControlBar
+    // so the last transcript entry isn't hidden behind it. Desktop keeps
+    // the bar in the normal flow.
+    <main className="min-h-screen flex flex-col bg-off-white pt-[3px] pb-40 sm:pb-0">
       {/* HEADER */}
       <header className="flex items-center justify-between px-4 sm:px-6 py-3 border-b border-border-gray bg-white">
         <div className="flex items-center gap-4">
@@ -500,6 +506,16 @@ export default function HomePage() {
           </button>
         </div>
       </header>
+
+      {/* MOBILE CAPABILITY BANNERS — iOS tab-audio limit + storage
+          eviction warning. Both are dismissable and only render when
+          the condition is live. */}
+      <div className="px-4 sm:px-6 pt-3">
+        <MobileCapabilityBanner
+          storageGrant={storageGrant}
+          chosenMode={chosenMode}
+        />
+      </div>
 
       {/* REMINDER BANNER (sticky) — Power mode only. */}
       {isPower && currentReminder && (
@@ -595,7 +611,11 @@ export default function HomePage() {
         </section>
       )}
 
-      {/* ACTIVE MEETING CHIP + live waveform */}
+      {/* ACTIVE MEETING CHIP + live waveform.
+          Mobile-first layout: when capturing, a full-width hero strip
+          shows a large waveform above the transcript so the user sees
+          audio activity at a glance. On desktop the inline compact
+          layout is preserved. */}
       {(activeMeeting || isCapturing) && (
         <div className="px-4 sm:px-6 pt-3 flex flex-wrap items-center gap-3">
           {/* "Ready for…" pre-fill banner — Addendum C2.
@@ -622,15 +642,45 @@ export default function HomePage() {
             </div>
           )}
           {isCapturing && (
-            <div className="inline-flex items-center gap-2 text-xs text-itu-blue-dark">
-              <span className="relative inline-flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full rounded-full bg-error opacity-75 animate-ping" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-error" />
-              </span>
-              <span className="font-semibold">Recording</span>
-              <AudioWaveform stream={mediaStream} active={isCapturing} />
-              <LiveStats transcript={transcript} startedAtIso={captureStartedAtRef.current} />
-            </div>
+            <>
+              {/* Desktop: compact inline layout. */}
+              <div className="hidden sm:inline-flex items-center gap-2 text-xs text-itu-blue-dark">
+                <span className="relative inline-flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-error opacity-75 animate-ping" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-error" />
+                </span>
+                <span className="font-semibold">Recording</span>
+                <AudioWaveform stream={mediaStream} active={isCapturing} />
+                <LiveStats
+                  transcript={transcript}
+                  startedAtIso={captureStartedAtRef.current}
+                />
+              </div>
+              {/* Mobile: full-width hero waveform strip. */}
+              <div className="sm:hidden w-full flex flex-col gap-2 rounded-xl bg-white border border-border-gray p-3 shadow-sm">
+                <div className="flex items-center justify-between">
+                  <span className="inline-flex items-center gap-2 text-sm font-semibold text-itu-blue-dark">
+                    <span className="relative inline-flex h-2.5 w-2.5">
+                      <span className="absolute inline-flex h-full w-full rounded-full bg-error opacity-75 animate-ping" />
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-error" />
+                    </span>
+                    Recording
+                  </span>
+                  <LiveStats
+                    transcript={transcript}
+                    startedAtIso={captureStartedAtRef.current}
+                  />
+                </div>
+                <AudioWaveform
+                  stream={mediaStream}
+                  active={isCapturing}
+                  bars={40}
+                  width={360}
+                  height={56}
+                  className="w-full h-14"
+                />
+              </div>
+            </>
           )}
         </div>
       )}
@@ -643,6 +693,7 @@ export default function HomePage() {
           detectedSpeakers={detectedSpeakers}
           resolveSpeaker={resolveSpeaker}
           renameSpeaker={renameSpeaker}
+          mergeSpeakers={mergeSpeakers}
           expectedSpeakers={expectedSpeakers}
           currentUserLabel={currentUserLabel}
           pinnedIds={pinnedIds}
@@ -813,22 +864,27 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* CONTROL BAR */}
-      <ControlBar
-        isCapturing={isCapturing}
-        onStart={onStart}
-        onStop={stopCapture}
-        onReconnect={reconnect}
-        captureMode={captureMode || (chosenMode as CaptureMode) || null}
-        deviceLabel={deviceLabel}
-        elapsedMs={elapsedTime}
-        chunkCount={chunkCount}
-        queueDepth={queueDepth}
-        inFlight={inFlight}
-        error={error}
-        totalMinutes={totalMinutes}
-        estimatedCost={estimatedCost}
-      />
+      {/* CONTROL BAR — fixed to the bottom on mobile so the Start/Stop
+          button is always within thumb reach; in-flow on desktop where
+          the viewport isn't the constraint. Extra bottom-safe-area
+          inset handles iPhone home indicators. */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 shadow-[0_-4px_16px_rgba(0,0,0,0.08)] pb-[env(safe-area-inset-bottom)] sm:static sm:shadow-none sm:pb-0">
+        <ControlBar
+          isCapturing={isCapturing}
+          onStart={onStart}
+          onStop={stopCapture}
+          onReconnect={reconnect}
+          captureMode={captureMode || (chosenMode as CaptureMode) || null}
+          deviceLabel={deviceLabel}
+          elapsedMs={elapsedTime}
+          chunkCount={chunkCount}
+          queueDepth={queueDepth}
+          inFlight={inFlight}
+          error={error}
+          totalMinutes={totalMinutes}
+          estimatedCost={estimatedCost}
+        />
+      </div>
 
       {/* RATE LIMIT BANNER (persistent) */}
       {rateLimitMsg && (

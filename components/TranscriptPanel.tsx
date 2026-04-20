@@ -8,13 +8,23 @@ import {
   type TranscriptEntry,
 } from "@/lib/constants";
 import { DISCLAIMER_BANNER } from "@/lib/disclaimer";
+import SpeakerPill from "./SpeakerPill";
 
 type Props = {
   transcript: TranscriptEntry[];
   isCapturing: boolean;
+  /**
+   * Ordered list of **stable** speaker ids (e.g. "S1", "S2") seen in the
+   * current transcript. Falls back to raw per-chunk ids on legacy
+   * transcripts saved before the stitcher shipped.
+   */
   detectedSpeakers?: string[];
-  resolveSpeaker?: (rawSpeaker: string | undefined) => string | undefined;
-  renameSpeaker?: (rawSpeaker: string, displayName: string) => void;
+  /** Resolve a stable id to a display name (or return the default). */
+  resolveSpeaker?: (stableId: string | undefined) => string | undefined;
+  /** Rename a stable speaker id — empty string resets to default. */
+  renameSpeaker?: (stableId: string, displayName: string) => void;
+  /** Merge one stable speaker id into another (carries renames). */
+  mergeSpeakers?: (sourceStableId: string, targetStableId: string) => void;
   /**
    * Names we expect to hear — signed-in user first, then attendees from
    * the calendar invite. Powers the one-click assign picker so users
@@ -56,6 +66,7 @@ export function TranscriptPanel({
   detectedSpeakers = [],
   resolveSpeaker,
   renameSpeaker,
+  mergeSpeakers,
   expectedSpeakers = [],
   currentUserLabel,
   pinnedIds,
@@ -237,9 +248,12 @@ export function TranscriptPanel({
             </div>
           ) : (
             filtered.map((entry, idx) => {
-              const raw = entry.rawSpeaker;
-              const display = resolveSpeaker?.(raw) ?? entry.speaker;
-              const color = raw ? colorForSpeaker(raw) : undefined;
+              // Prefer stableSpeakerId (one id per voice, stable across
+              // chunks). Fall back to rawSpeaker for transcripts saved
+              // before the stitcher was wired up.
+              const id = entry.stableSpeakerId || entry.rawSpeaker;
+              const display = resolveSpeaker?.(id) ?? entry.speaker;
+              const color = id ? colorForSpeaker(id) : undefined;
               const zebra = idx % 2 === 1 ? "bg-off-white" : "bg-white";
               return (
                 <div
@@ -256,20 +270,17 @@ export function TranscriptPanel({
                     [{entry.timestamp}]
                   </button>
                   <div className="min-w-0 flex-1">
-                    {display && raw && (
-                      <button
-                        type="button"
-                        onClick={() => renameSpeaker && setEditing(raw)}
-                        className="inline-flex items-center gap-1.5 mr-2 text-xs font-semibold align-baseline hover:underline"
-                        style={{ color }}
-                        title={renameSpeaker ? "Click to rename" : undefined}
-                      >
-                        <span
-                          className="inline-block w-2 h-2 rounded-full"
-                          style={{ backgroundColor: color }}
+                    {display && id && color && (
+                      <span className="mr-2">
+                        <SpeakerPill
+                          name={display}
+                          color={color}
+                          onClick={
+                            renameSpeaker ? () => setEditing(id) : undefined
+                          }
+                          title={renameSpeaker ? "Click to rename" : undefined}
                         />
-                        {display}:
-                      </button>
+                      </span>
                     )}
                     {onEditEntry && editingEntryId === entry.id ? (
                       <textarea
@@ -376,45 +387,55 @@ export function TranscriptPanel({
           </div>
           {hasSpeakers && (
             <ul className="space-y-1.5">
-              {detectedSpeakers.map((raw) => {
-                const color = colorForSpeaker(raw);
-                const display = resolveSpeaker?.(raw) ?? raw;
+              {detectedSpeakers.map((id) => {
+                const color = colorForSpeaker(id);
+                const display = resolveSpeaker?.(id) ?? id;
                 // A voice cluster is "already named" when the user has
                 // explicitly renamed it, i.e. its display differs from the
                 // default "Speaker N" label. Drives the Change vs Assign
                 // verb on the picker trigger.
                 const named = display && !/^Speaker\s/i.test(display);
                 return (
-                  <li key={raw} className="space-y-1 min-w-0">
+                  <li key={id} className="space-y-1 min-w-0">
                     <div className="flex items-center gap-2 min-w-0">
-                      <span
-                        className="inline-block w-2.5 h-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: color }}
-                      />
-                      <span
-                        className="truncate text-dark-navy flex-1 min-w-0"
-                        title={display}
-                      >
-                        {display}
-                      </span>
+                      <SpeakerPill name={display} color={color} size="sm" />
+                      <span className="flex-1" />
                       {renameSpeaker && (
                         <button
                           type="button"
                           onClick={() =>
-                            setEditing((prev) => (prev === raw ? null : raw))
+                            setEditing((prev) => (prev === id ? null : id))
                           }
-                          className="text-[10px] text-itu-blue-dark hover:text-itu-blue underline underline-offset-2"
+                          className="text-[10px] text-itu-blue-dark hover:text-itu-blue underline underline-offset-2 tap-tight"
                         >
                           {named ? "Change" : "Name"}
                         </button>
                       )}
                     </div>
-                    {editing === raw && renameSpeaker && (
+                    {editing === id && renameSpeaker && (
                       <SpeakerAssignPicker
                         expectedSpeakers={expectedSpeakers}
                         currentDisplay={display}
+                        mergeCandidates={
+                          mergeSpeakers
+                            ? detectedSpeakers
+                                .filter((other) => other !== id)
+                                .map((other) => ({
+                                  id: other,
+                                  label: resolveSpeaker?.(other) ?? other,
+                                }))
+                            : []
+                        }
+                        onMerge={
+                          mergeSpeakers
+                            ? (targetId) => {
+                                mergeSpeakers(id, targetId);
+                                setEditing(null);
+                              }
+                            : undefined
+                        }
                         onPick={(v) => {
-                          renameSpeaker(raw, v);
+                          renameSpeaker(id, v);
                           setEditing(null);
                         }}
                         onCancel={() => setEditing(null)}
@@ -467,20 +488,70 @@ export function TranscriptPanel({
 function SpeakerAssignPicker({
   expectedSpeakers,
   currentDisplay,
+  mergeCandidates = [],
+  onMerge,
   onPick,
   onCancel,
 }: {
   expectedSpeakers: string[];
   currentDisplay: string;
+  /**
+   * Other speakers in the same transcript the user could merge this one
+   * into. Offered as a tertiary action when the stitcher has split one
+   * voice into two stable ids — the most common stitcher failure.
+   */
+  mergeCandidates?: Array<{ id: string; label: string }>;
+  onMerge?: (targetStableId: string) => void;
   onPick: (name: string) => void;
   onCancel: () => void;
 }) {
   const [customMode, setCustomMode] = useState(expectedSpeakers.length === 0);
+  const [mergeMode, setMergeMode] = useState(false);
   const [value, setValue] = useState(
     // Only seed with the current display if it's already a human name,
     // not the default "Speaker N" — otherwise custom entry starts empty.
     /^Speaker\s/i.test(currentDisplay) ? "" : currentDisplay
   );
+
+  if (mergeMode && onMerge && mergeCandidates.length > 0) {
+    return (
+      <div className="rounded-md border border-itu-blue bg-itu-blue-pale p-2 space-y-1">
+        <div className="text-[10px] uppercase tracking-wider text-itu-blue-dark mb-1">
+          Merge into…
+        </div>
+        <ul className="space-y-0.5 max-h-40 overflow-y-auto">
+          {mergeCandidates.map((c) => (
+            <li key={c.id}>
+              <button
+                type="button"
+                onClick={() => onMerge(c.id)}
+                className="w-full text-left truncate text-xs text-dark-navy hover:bg-white rounded px-2 py-1"
+                title={`Merge all of ${currentDisplay} into ${c.label}`}
+              >
+                {c.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+        <div className="flex items-center gap-1 pt-1 text-[10px]">
+          <button
+            type="button"
+            onClick={() => setMergeMode(false)}
+            className="flex-1 text-itu-blue-dark hover:bg-white rounded px-2 py-1 text-left"
+          >
+            Back
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="text-mid-gray hover:bg-white rounded px-2 py-1"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (customMode) {
     return (
@@ -553,6 +624,16 @@ function SpeakerAssignPicker({
         >
           Someone else…
         </button>
+        {onMerge && mergeCandidates.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setMergeMode(true)}
+            className="text-itu-blue-dark hover:bg-white rounded px-2 py-1"
+            title="This voice is actually another speaker already in the list"
+          >
+            Merge…
+          </button>
+        )}
         <button
           type="button"
           onClick={onCancel}

@@ -117,6 +117,10 @@ export async function POST(req: NextRequest) {
         typeof ent.rawSpeaker === "string"
           ? ent.rawSpeaker.slice(0, 64)
           : undefined,
+      stableSpeakerId:
+        typeof ent.stableSpeakerId === "string"
+          ? ent.stableSpeakerId.slice(0, 64)
+          : undefined,
       speaker:
         typeof ent.speaker === "string" ? ent.speaker.slice(0, 64) : undefined,
     });
