@@ -102,23 +102,21 @@ without touching code.
 
 ## Packaged app (Electron)
 
-`electron/main.ts` forks `.next/standalone/server.js` in production
-(with `ELECTRON_RUN_AS_NODE=1`) on `127.0.0.1:38447`, polls `/` until
-ready, then swaps the BrowserWindow from a splash `data:` URL to the
-live server. Demo defaults (`DEMO_MODE=true`, a placeholder
-`NEXTAUTH_SECRET`) are injected into the forked child's env so the
-DMG works with zero `.env.local`. `asar: false` in the build config is
-required because `fork()` cannot execute a script inside an asar
-archive.
+`electron/main.ts` opens a single `BrowserWindow` pointed at the
+central server (`https://dhvani.itu.int` by default, or
+`DHVANI_SERVER_URL` / `build-config.json` for internal-beta overrides).
+No local server, no bundled credentials — users sign in with their
+ITU Microsoft account. Installer is ~50 MB.
 
 ## Auth (`lib/auth.ts`, `middleware.ts`)
 
-Three modes, controlled by env:
+Two modes, controlled by env:
 1. **SSO** — `AZURE_AD_CLIENT_SECRET` set. NextAuth + Microsoft Entra.
-2. **Local no-auth** — secret unset. Synthetic `LOCAL_USER`.
-3. **Demo** — `DEMO_MODE=true`. Middleware short-circuits before the
-   NextAuth wrapper runs (avoids `MissingSecret`), routes return
-   `DEMO_USER` from `getActiveUser()`.
+   This is the production path for `dhvani.itu.int`.
+2. **Local no-auth** — secret unset. Synthetic `LOCAL_USER` is
+   returned from `getActiveUser()` and middleware passes through.
+   Intended for local `next dev` only; a loud console warning fires
+   on startup.
 
 ## Environment variable reference
 
@@ -137,13 +135,12 @@ Three modes, controlled by env:
 | `FEATURE_SHARING` | on | `false` disables transcript sharing |
 | `AZURE_OPENAI_API_KEY` / `_ENDPOINT` / `_WHISPER_DEPLOYMENT` | — | Transcription |
 | `AZURE_OPENAI_CHAT_API_KEY` / `_CHAT_ENDPOINT` / `_CHAT_DEPLOYMENT` | inherits shared | Chat (can live on a different Azure resource) |
-| `DEMO_MODE` / `NEXT_PUBLIC_DEMO_MODE` | `false` | Force demo mode |
 
 ## Deferred provider work
 
 The following interfaces are scoped but not yet implemented. Add them
 when horizontal integration needs them — not before:
-- Calendar (`microsoft-calendar`, `demo-calendar`, future `google`)
+- Calendar (`microsoft-calendar`, future `google`)
 - Storage (`filesystem` exists, future `azure-blob`, `sharepoint`,
   `supabase`)
 - Auth provider wrapper (current `lib/auth.ts` already encapsulates

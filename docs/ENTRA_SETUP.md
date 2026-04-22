@@ -1,8 +1,8 @@
 # Microsoft Entra ID — App Registration checklist for Dhvani
 
-This is the **only** tenant-side configuration needed for Dhvani's
-regular (non-demo) mode to work end-to-end. Everything else lives in
-the app's environment variables (see `.env.production.example`).
+This is the **only** tenant-side configuration needed for Dhvani to
+work end-to-end. Everything else lives in the app's environment
+variables (see `.env.production.example`).
 
 Do this once per environment (`localhost`, `staging`, `production`).
 
@@ -91,8 +91,6 @@ AZURE_AD_TENANT_ID=<Directory (tenant) ID from step 1>
 NEXTAUTH_SECRET=<output of `openssl rand -base64 32`>
 NEXTAUTH_URL=https://dhvani.itu.int
 ADMIN_EMAILS=<comma-separated admin emails>
-DEMO_MODE=false
-NEXT_PUBLIC_DEMO_MODE=false
 ```
 
 …plus the Azure OpenAI variables from `.env.production.example`.
