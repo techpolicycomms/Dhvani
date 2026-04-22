@@ -4,8 +4,8 @@
 #
 # Run this on the host where you intend to build the production bundle
 # (or in CI before promoting to Azure Web App). Verifies every required
-# env var is present, refuses to continue if DEMO_MODE is still on, and
-# runs the full `npm run build` to catch compile-time regressions.
+# env var is present and runs the full `npm run build` to catch
+# compile-time regressions.
 #
 #   scripts/test-production.sh
 #
@@ -66,14 +66,6 @@ done
 echo
 if [ "$missing" -gt 0 ]; then
   echo -e "${RED}FAIL${NC}: $missing required variable(s) missing."
-  exit 1
-fi
-
-# ---------------------------------------------------------------------
-# Demo-mode guard — refuse to build a production bundle with DEMO_MODE=true.
-# ---------------------------------------------------------------------
-if [ "$DEMO_MODE" = "true" ] || [ "$NEXT_PUBLIC_DEMO_MODE" = "true" ]; then
-  echo -e "${RED}FAIL${NC}: DEMO_MODE / NEXT_PUBLIC_DEMO_MODE is true — unset both before a production build."
   exit 1
 fi
 

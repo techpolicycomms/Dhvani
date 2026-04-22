@@ -120,7 +120,6 @@ Aligned with **IPSASB SRS 1** (Jan 2026), **GHG Protocol** Scopes 1/2/3, and **I
 | Mac desktop (Electron) | Thin window → central server | DMG, ~90 MB |
 | Windows desktop | Thin window → central server | NSIS installer |
 | Chrome extension | Manifest V3 side panel | Packaged from `extension/` |
-| **Demo DMG** (offline) | Bundles Next standalone server | `npm run electron:build:demo` |
 
 ---
 
@@ -131,7 +130,7 @@ git clone https://github.com/techpolicycomms/Dhvani.git
 cd Dhvani
 npm install
 cp .env.local.example .env.local
-# Demo mode is on by default — no credentials required to boot
+# Fill in the Azure OpenAI + Entra credentials — see docs/ENTRA_SETUP.md
 npm run dev
 # http://localhost:3000
 ```
@@ -220,7 +219,6 @@ lib/
 ├─ calendar.ts             Graph event → Meeting normalisation
 ├─ config.ts               Centralised provider + feature flags
 ├─ constants.ts            Chunk duration · languages · transcript types
-├─ demoMode.ts             DEMO_USER + mock calendar
 ├─ events.ts               In-process event bus + webhook listener
 ├─ exportUtils.ts          Copy / .txt / .srt / .json
 ├─ gamification.ts         Ranks · badges · XP · Mission stats
@@ -244,7 +242,7 @@ docs/
 ├─ SECURITY.md             Audit log + reporting policy
 ├─ ENTRA_SETUP.md          App-registration checklist for SSO mode
 └─ deployment.md           Legacy deployment notes
-electron/                  Main process (central-server mode + demo-build mode)
+electron/                  Main process — thin window pointing at the central server
 extension/                 Chrome Manifest V3 side panel
 companion/                 Optional Python CLI companion
 ```
@@ -253,7 +251,7 @@ companion/                 Optional Python CLI companion
 
 ## API routes
 
-All routes live under `app/api/` and run on the Node.js runtime. Auth is enforced by `middleware.ts` (demo mode short-circuits before NextAuth is invoked) or self-enforced inside the route for extension / public endpoints.
+All routes live under `app/api/` and run on the Node.js runtime. Auth is enforced by `middleware.ts` (which short-circuits when `AZURE_AD_CLIENT_SECRET` is absent in local dev) or self-enforced inside the route for extension / public endpoints.
 
 | Route | Method | Purpose |
 |---|---|---|
@@ -298,8 +296,6 @@ See `.env.local.example` for the full surface. Required for a production deploy:
 
 Feature flags default on; set to `false` to disable:
 `FEATURE_SUMMARY · FEATURE_ASK_AI · FEATURE_CALENDAR · FEATURE_UPLOAD · FEATURE_SHARING`.
-
-`DEMO_MODE=true` + `NEXT_PUBLIC_DEMO_MODE=true` bypass SSO with mock data.
 
 Full deployment: `docs/DEPLOY.md`. SSO setup: `docs/ENTRA_SETUP.md`.
 

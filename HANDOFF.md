@@ -24,7 +24,7 @@ npm run dev                  # http://localhost:3000
 ./node_modules/.bin/next lint      # 2 pre-existing useCallback warnings; safe
 ```
 
-Sign-in flow: Microsoft Entra (creds in `.env`). Demo mode flag exists (`DEMO_MODE=true`) but user wants Entra always-on.
+Sign-in flow: Microsoft Entra (creds in `.env`). Entra is the only auth path — there is no demo / bypass mode.
 
 ---
 
@@ -197,7 +197,7 @@ Filename uses `buildFilename(ext, { mode, title })` from `lib/exportUtils.ts`. P
 
 ## Conventions for the next session
 
-- Don't reintroduce demo mode unless asked — Entra is the auth path.
+- Don't reintroduce demo / SSO-bypass mode — Entra is the only auth path.
 - Don't add a backend server beyond Next API routes.
 - Don't switch to Tauri / monorepo / BYOK — that experiment is parked at `itu-transcribe`.
 - Don't bypass the CSS-variable color system — anywhere a component uses an inline `style={{ color: "#…"  }}` it will break dark mode. The `/download` fix above is the pattern to follow.

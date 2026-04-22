@@ -1,16 +1,9 @@
 // Dhvani Electron main process.
 //
-// Two production modes, selected at build time:
-//
-//  1. Normal (default) — the window just points at the central server
-//     (https://dhvani.itu.int or DHVANI_SERVER_URL). No env vars on the
-//     user's machine, no local server, DMG/EXE is ~50 MB.
-//
-//  2. Demo build — DEMO_BUILD=true at build time. Bundles the Next.js
-//     standalone server and forks it on 127.0.0.1:38447 so the app
-//     works offline (e.g. conference demo without internet). API keys
-//     must come from the *builder's* environment at build time, not
-//     the user's machine.
+// The window points at the central server (https://dhvani.itu.int by
+// default, or DHVANI_SERVER_URL / the bundled build-config.json for
+// internal-beta overrides). No local server, no bundled credentials,
+// installer is ~50 MB.
 //
 // Dev is always local: loads http://localhost:3000.
 
@@ -26,11 +19,8 @@ import {
 } from "electron";
 import path from "node:path";
 import fs from "node:fs";
-import http from "node:http";
-import { fork, type ChildProcess } from "node:child_process";
 
 const IS_DEV = !app.isPackaged;
-const IS_DEMO_BUILD = process.env.DEMO_BUILD === "true";
 
 /**
  * Resolve the URL the Electron window should load. Priority order:
@@ -67,23 +57,9 @@ function resolveCentralServer(): string {
 }
 
 const CENTRAL_SERVER = resolveCentralServer();
-const DEMO_PORT = 38447;
-const DEMO_HOST = "127.0.0.1";
 
 let mainWindow: BrowserWindow | null = null;
 let tray: Tray | null = null;
-let nextProcess: ChildProcess | null = null;
-
-function splashHtml(message: string): string {
-  return `<!doctype html>
-<html><head><meta charset="utf-8"><title>Dhvani</title></head>
-<body style="font-family:'Noto Sans','Helvetica Neue',sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;background:#fff;color:#003366">
-  <div style="text-align:center">
-    <div style="font-size:28px;font-weight:700;color:#009CD6;margin-bottom:10px">Dhvani</div>
-    <div style="font-size:13px;color:#6B7280">${message}</div>
-  </div>
-</body></html>`;
-}
 
 function offlineHtml(targetUrl: string): string {
   return `<!doctype html>
@@ -102,87 +78,8 @@ function dataUrl(html: string): string {
   return `data:text/html;charset=utf-8,${encodeURIComponent(html)}`;
 }
 
-/**
- * Start the bundled Next.js standalone server for a demo build. Pulls
- * Azure credentials from the builder's environment at build time — the
- * DMG that ships with them must not be distributed publicly.
- */
-function startDemoServer(): Promise<void> {
-  const appPath = app.getAppPath();
-  const standaloneDir = path.join(appPath, ".next", "standalone");
-  const serverPath = path.join(standaloneDir, "server.js");
-
-  console.log("[dhvani] demo build — starting bundled server");
-  console.log("[dhvani] serverPath:", serverPath);
-
-  if (!fs.existsSync(serverPath)) {
-    return Promise.reject(new Error(`server.js not found at ${serverPath}`));
-  }
-
-  if (!process.env.AZURE_OPENAI_API_KEY) {
-    console.warn(
-      "[dhvani] DEMO BUILD: Azure credentials missing from this bundle. " +
-        "Transcription will fail. Rebuild on a host where AZURE_OPENAI_API_KEY " +
-        "is set in the shell env."
-    );
-  }
-
-  nextProcess = fork(serverPath, [], {
-    env: {
-      ...process.env,
-      ELECTRON_RUN_AS_NODE: "1",
-      PORT: String(DEMO_PORT),
-      HOSTNAME: DEMO_HOST,
-      NODE_ENV: "production",
-      NEXTAUTH_SECRET:
-        process.env.NEXTAUTH_SECRET ?? "dhvani-packaged-placeholder-secret",
-      NEXTAUTH_URL:
-        process.env.NEXTAUTH_URL ?? `http://${DEMO_HOST}:${DEMO_PORT}`,
-    },
-    cwd: standaloneDir,
-    stdio: ["pipe", "pipe", "pipe", "ipc"],
-  });
-
-  nextProcess.stdout?.on("data", (d: Buffer) =>
-    console.log("[next]", d.toString().trimEnd())
-  );
-  nextProcess.stderr?.on("data", (d: Buffer) =>
-    console.error("[next!]", d.toString().trimEnd())
-  );
-  nextProcess.on("exit", (code, signal) => {
-    console.log("[next] exited", { code, signal });
-    nextProcess = null;
-  });
-
-  return new Promise<void>((resolve, reject) => {
-    const started = Date.now();
-    const timer = setInterval(() => {
-      if (Date.now() - started > 30_000) {
-        clearInterval(timer);
-        reject(new Error("server did not become ready within 30 seconds"));
-        return;
-      }
-      const req = http.get(
-        { host: DEMO_HOST, port: DEMO_PORT, path: "/" },
-        (res) => {
-          if (res.statusCode && res.statusCode < 500) {
-            clearInterval(timer);
-            resolve();
-          }
-          res.resume();
-        }
-      );
-      req.on("error", () => {
-        /* not ready yet */
-      });
-      req.end();
-    }, 500);
-  });
-}
-
 function targetUrl(): string {
   if (IS_DEV) return "http://localhost:3000";
-  if (IS_DEMO_BUILD) return `http://${DEMO_HOST}:${DEMO_PORT}`;
   return CENTRAL_SERVER;
 }
 
@@ -199,7 +96,7 @@ function createWindow() {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
-      // Required for desktopCapturer audio capture to work in demo builds.
+      // Required for desktopCapturer audio capture.
       sandbox: false,
     },
   });
@@ -259,30 +156,6 @@ function createWindow() {
     return { action: "deny" };
   });
 
-  if (IS_DEV) {
-    mainWindow.loadURL(url).catch((err) =>
-      console.error("Dhvani: failed to load dev renderer", err)
-    );
-    return;
-  }
-
-  if (IS_DEMO_BUILD) {
-    mainWindow.loadURL(dataUrl(splashHtml("Starting demo server…")));
-    startDemoServer().then(
-      () => {
-        console.log("[dhvani] demo server ready");
-        mainWindow?.loadURL(url);
-      },
-      (err: Error) => {
-        console.error("[dhvani] demo server failed:", err.message);
-        mainWindow?.loadURL(dataUrl(offlineHtml(url)));
-      }
-    );
-    return;
-  }
-
-  // Normal production build: just point the window at the central server.
-  // Users sign in with their ITU account; nothing to configure locally.
   console.log("[dhvani] loading central server:", url);
   mainWindow.loadURL(url).catch((err) => {
     console.error("Dhvani: failed to load central server", err);
@@ -379,14 +252,6 @@ app.whenReady().then(() => {
 
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
-});
-
-app.on("before-quit", () => {
-  if (nextProcess && !nextProcess.killed) {
-    console.log("[dhvani] killing demo server on quit");
-    nextProcess.kill();
-    nextProcess = null;
-  }
 });
 
 app.on("will-quit", () => {

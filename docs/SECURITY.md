@@ -14,9 +14,6 @@ is hardened, and how to report vulnerabilities.
 - **Explicit redirect callback** (`lib/auth.ts`) — same-origin only,
   defeats open-redirect attacks via crafted `callbackUrl`.
 - **CSRF protection** built into NextAuth for `/api/auth/*`.
-- Demo mode (`DEMO_MODE=true`) bypasses SSO for conference demos and
-  seeds a synthetic `DEMO_USER`; middleware short-circuits before
-  invoking `auth()` so a missing `NEXTAUTH_SECRET` cannot leak.
 
 ### Authorization
 - Every route under `app/api/` checks auth before processing via
@@ -88,8 +85,8 @@ rollout — tracked as future work.
 ### Electron security
 - `contextIsolation: true`, `nodeIntegration: false`, `webSecurity`
   default (true). The `sandbox: false` flag is required for
-  `desktopCapturer` audio capture in the demo build; the
-  `contextIsolation` boundary still applies.
+  `desktopCapturer` audio capture; the `contextIsolation` boundary
+  still applies.
 - Preload (`electron/preload.ts`) exposes a narrow typed API via
   `contextBridge.exposeInMainWorld` — no `fs`, no `child_process`,
   no raw `ipcRenderer`.
@@ -97,9 +94,7 @@ rollout — tracked as future work.
   origin; `setWindowOpenHandler` routes new-window requests to the
   user's default browser via `shell.openExternal`.
 - Production Electron build loads **only** the central server URL
-  or the splash `data:` URL. The demo build additionally loads
-  `http://127.0.0.1:38447`, gated behind `DEMO_BUILD=true` at build
-  time.
+  or the `data:` offline-retry fallback. No local server is bundled.
 
 ### Privacy
 - **Org Intelligence opt-in** defaults to **OFF**. The client sends

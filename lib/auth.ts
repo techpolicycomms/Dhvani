@@ -151,8 +151,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);
  * be present in some CI/build images. Missing secret → run in no-auth
  * mode: middleware opens up, API routes use a synthetic local user.
  *
- * This is an *escape hatch for local dev and demo deployments*. As soon
- * as the secret is set, all routes go back to full SSO with zero code
+ * This is an *escape hatch for local `next dev` only*. As soon as the
+ * secret is set, all routes go back to full SSO with zero code
  * changes — nothing here is feature-flagged in the usual sense.
  */
 export function isAuthConfigured(): boolean {
@@ -199,7 +199,7 @@ const LOCAL_USER: ActiveUser = {
  * - If SSO is configured, reads the NextAuth session and returns the
  *   Entra-backed user, or null when unauthenticated.
  * - If SSO is NOT configured, returns a stable synthetic user so the
- *   feature surface still works for local/demo use.
+ *   feature surface still works for local `next dev`.
  *
  * Routes that need to hard-deny (admin dashboard, etc.) should check
  * `isAuthConfigured()` themselves and refuse in no-auth mode.

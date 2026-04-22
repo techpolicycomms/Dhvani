@@ -33,14 +33,14 @@ function isPublic(pathname: string): boolean {
  *
  * If SSO is not configured (no `AZURE_AD_CLIENT_SECRET` in env), the
  * gate is disabled wholesale — routes fall back to a synthetic local
- * user via `getActiveUser()`. This is for local/demo use only; `lib/auth.ts`
- * prints a loud console warning on startup in that mode.
+ * user via `getActiveUser()`. This is for local `next dev` only;
+ * `lib/auth.ts` prints a loud console warning on startup in that mode.
  */
 // NextAuth v5's `auth()` wrapper reads NEXTAUTH_SECRET eagerly on every
 // invocation and throws MissingSecret when absent — even if our body
 // would have early-returned anyway. Short-circuit BEFORE invoking it
-// in demo / no-auth mode so the packaged DMG (where no secret is
-// provisioned) doesn't spam middleware errors on every request.
+// in no-auth (local-dev) mode so a missing secret doesn't spam
+// middleware errors on every request.
 const authMiddleware = auth((req) => {
   const { pathname } = req.nextUrl;
   if (isPublic(pathname)) return;
